@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import repo from '../../../src/data/store.js';
@@ -11,6 +11,7 @@ function ItemDetail({ params }) {
   const [materials, setMaterials] = useState([]);
   const [tree, setTree] = useState({ children: [], parents: [] });
   const [loading, setLoading] = useState(true);
+  const [owned, setOwned] = useState({});
 
   useEffect(() => {
     setLoading(true);
@@ -18,8 +19,17 @@ function ItemDetail({ params }) {
     setItem(data);
     setMaterials(repo.getMaterialsForItem(id));
     setTree(repo.getTreeForItem(id));
+
+    // Load owned quantities for all materials of this item
+    const inv = repo.getMaterialInventory();
+    setOwned(inv);
     setLoading(false);
   }, [id]);
+
+  const handleOwnedChange = useCallback((materialName, value) => {
+    const newQty = repo.setOwnedQuantity(materialName, value);
+    setOwned((prev) => ({ ...prev, [materialName]: newQty }));
+  }, []);
 
   if (loading || !id) {
     return (
@@ -79,26 +89,58 @@ function ItemDetail({ params }) {
           <thead>
             <tr>
               <th>Material</th>
-              <th>Qty</th>
+              <th>Needed</th>
+              <th>Owned</th>
+              <th>Progress</th>
               <th>Sources</th>
             </tr>
           </thead>
           <tbody>
-            {materials.map((m) => (
-              <tr key={m.id}>
-                <td>
-                  <a href={m.wiki_url} target="_blank" rel="noreferrer">
-                    {m.material_name}
-                  </a>
-                </td>
-                <td>{m.quantity_required}</td>
-                <td>
-                  <Link href={`/sources?material=${encodeURIComponent(m.material_name)}`}>
-                    View sources
-                  </Link>
-                </td>
-              </tr>
-            ))}
+            {materials.map((m) => {
+              const ownedQty = owned[m.material_name] ?? 0;
+              const needed = m.quantity_required;
+              const pct = Math.min(100, Math.round((ownedQty / needed) * 100));
+              const done = ownedQty >= needed;
+              return (
+                <tr key={m.id}>
+                  <td>
+                    <a href={m.wiki_url} target="_blank" rel="noreferrer">
+                      {m.material_name}
+                    </a>
+                  </td>
+                  <td>{needed}</td>
+                  <td>
+                    <input
+                      className="owned-input"
+                      type="number"
+                      min="0"
+                      value={ownedQty}
+                      onChange={(e) => handleOwnedChange(m.material_name, e.target.value)}
+                      aria-label={`Owned quantity for ${m.material_name}`}
+                    />
+                  </td>
+                  <td>
+                    <div className="progress-cell">
+                      <div className="progress-bar">
+                        <div
+                          className={`progress-fill${done ? ' done' : ''}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className={`progress-label${done ? ' done' : ''}`}>
+                        {ownedQty}/{needed}
+                        {done && ' ✓'}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <Link href={`/sources?material=${encodeURIComponent(m.material_name)}`}>
+                      View sources
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
