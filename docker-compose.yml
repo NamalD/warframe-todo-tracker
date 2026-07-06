@@ -1,0 +1,13 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: warframe-todo-tracker
+    image: warframe-todo-tracker:latest
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    labels:
+      - "app=warframe-todo-tracker"
+      - "stack=warframe"

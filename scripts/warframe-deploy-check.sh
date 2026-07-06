@@ -2,9 +2,7 @@
 set -euo pipefail
 
 REPO_DIR="/home/namal/warframe-todo-tracker"
-LOG_FILE="/home/namal/warframe-deploy.log"
-CONTAINER_NAME="warframe-todo-tracker"
-IMAGE_NAME="warframe-todo-tracker:latest"
+LOG_FILE="$HOME/warframe-deploy.log"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
@@ -40,28 +38,8 @@ log "  remote: $REMOTE_HASH"
 git pull origin main 2>&1 | tee -a "$LOG_FILE"
 log "Pulled latest from origin/main"
 
-# Rebuild the image
-log "Building Docker image..."
-docker build -t "$IMAGE_NAME" . 2>&1 | tee -a "$LOG_FILE"
-log "Build complete"
-
-# Stop and remove old container
-if docker ps -q --filter "name=$CONTAINER_NAME" | grep -q .; then
-    log "Stopping container $CONTAINER_NAME..."
-    docker stop "$CONTAINER_NAME" 2>&1 | tee -a "$LOG_FILE"
-fi
-if docker ps -aq --filter "name=$CONTAINER_NAME" | grep -q .; then
-    log "Removing container $CONTAINER_NAME..."
-    docker rm "$CONTAINER_NAME" 2>&1 | tee -a "$LOG_FILE"
-fi
-
-# Start new container
-log "Starting new container..."
-docker run -d \
-    --name "$CONTAINER_NAME" \
-    -p 3000:3000 \
-    --restart unless-stopped \
-    "$IMAGE_NAME" 2>&1 | tee -a "$LOG_FILE"
-
+# Build and (re)start the app via docker compose
+log "Building and deploying with docker compose..."
+docker compose up -d --build 2>&1 | tee -a "$LOG_FILE"
 log "Deploy complete. New commit: $REMOTE_HASH"
 log "=== Deploy check finished ==="
