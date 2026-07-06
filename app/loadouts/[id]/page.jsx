@@ -7,6 +7,13 @@ import repo from '../../../src/data/store.js';
 
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
 
+const SLOT_TYPE_TO_ITEM_TYPE = {
+  warframe: 'warframe',
+  primary: 'primary',
+  secondary: 'secondary',
+  melee: 'melee',
+};
+
 function LoadoutDetailInner() {
   const params = useParams();
   const router = useRouter();
@@ -32,8 +39,7 @@ function LoadoutDetailInner() {
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [editNotes, setEditNotes] = useState('');
 
-  // Warning messages
-  const [slotWarning, setSlotWarning] = useState(null);
+  // Duplicate requirement warning per slot
   const [reqWarning, setReqWarning] = useState({});
 
   useEffect(() => {
@@ -69,7 +75,6 @@ function LoadoutDetailInner() {
   const cancelPopulate = () => {
     setPopulatingSlotId(null);
     setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
-    setSlotWarning(null);
   };
 
   const handlePopulateSlot = (e, slotId) => {
@@ -85,7 +90,7 @@ function LoadoutDetailInner() {
       return false;
     });
     if (existing.length > 0) {
-      setSlotWarning('This item is already in the loadout.');
+      alert('This item is already in the loadout.');
       return;
     }
 
@@ -96,7 +101,6 @@ function LoadoutDetailInner() {
     });
     setPopulatingSlotId(null);
     setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
-    setSlotWarning(null);
     refresh();
   };
 
@@ -129,6 +133,10 @@ function LoadoutDetailInner() {
 
   const toggleReqForm = (slotId) => {
     setReqFormVisible((prev) => ({ ...prev, [slotId]: !prev[slotId] }));
+    // Clear warning when opening the form
+    if (!reqFormVisible[slotId]) {
+      setReqWarning((prev) => ({ ...prev, [slotId]: null }));
+    }
     if (!reqForm[slotId]) {
       setReqForm((prev) => ({ ...prev, [slotId]: { name: '', wiki_url: '', user_notes: '' } }));
     }
@@ -139,23 +147,21 @@ function LoadoutDetailInner() {
     const form = reqForm[slotId];
     if (!form || !form.name.trim()) return;
 
-    // Check for duplicate requirement name in this slot
-    const slot = slots.find((s) => s.id === slotId);
-    const existing = (slot?.requirements || []).some(
-      (r) => r.name.toLowerCase() === form.name.trim().toLowerCase()
-    );
-    if (existing) {
-      setReqWarning((prev) => ({ ...prev, [slotId]: 'A requirement with this name already exists in this slot.' }));
-      return;
-    }
+    // Clear any previous warning for this slot
+    setReqWarning((prev) => ({ ...prev, [slotId]: null }));
 
-    loadoutRepo.addRequirement(slotId, {
+    const result = loadoutRepo.addRequirement(slotId, {
       name: form.name.trim(),
       wiki_url: form.wiki_url.trim() || null,
       user_notes: form.user_notes.trim() || ''
     });
+
+    if (result.error) {
+      setReqWarning((prev) => ({ ...prev, [slotId]: result.error }));
+      return;
+    }
+
     setReqForm((prev) => ({ ...prev, [slotId]: { name: '', wiki_url: '', user_notes: '' } }));
-    setReqWarning((prev) => ({ ...prev, [slotId]: null }));
     refresh();
   };
 
@@ -248,7 +254,7 @@ function LoadoutDetailInner() {
                    onClick={() => openPopulate(slot.id)}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span className={`badge ${slot.slot_type}`}>{slot.slot_type}</span>
-                  <span className="muted" style={{ fontStyle: 'italic' }}>No items in this slot yet — click to populate</span>
+                  <span className="muted" style={{ fontStyle: 'italic' }}>Empty slot — click to populate</span>
                 </div>
               </div>
             </div>
@@ -278,14 +284,17 @@ function LoadoutDetailInner() {
                 {/* Item name or populate form */}
                 <div style={{ marginTop: 6, fontWeight: 600, fontSize: 15 }}>
                   {isPopulating ? (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div className="populate-form" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       <select
                         value={populateForm.item_id}
                         onChange={(e) => setPopulateForm({ ...populateForm, item_id: e.target.value, custom_item_name: '' })}
                         style={{ minWidth: 160 }}
                       >
                         <option value="">Select item...</option>
-                        {items.map((it) => (
+                        {(SLOT_TYPE_TO_ITEM_TYPE[slot.slot_type]
+                          ? items.filter(it => it.item_type === SLOT_TYPE_TO_ITEM_TYPE[slot.slot_type])
+                          : items
+                        ).map((it) => (
                           <option key={it.id} value={it.id}>{it.name}</option>
                         ))}
                       </select>
@@ -312,7 +321,7 @@ function LoadoutDetailInner() {
                 {/* Notes */}
                 <div style={{ marginTop: 6 }}>
                   {isEditing ? (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <div className="slot-notes-form" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <textarea
                         value={editNotes}
                         onChange={(e) => setEditNotes(e.target.value)}
@@ -358,13 +367,6 @@ function LoadoutDetailInner() {
               </div>
             </div>
 
-            {/* Duplicate item warning */}
-            {isPopulating && slotWarning && (
-              <div style={{ color: '#ff6b6b', fontSize: 13, marginTop: 8, padding: '6px 10px', background: 'rgba(255,107,107,0.1)', borderRadius: 4, border: '1px solid rgba(255,107,107,0.3)' }}>
-                ⚠ {slotWarning}
-              </div>
-            )}
-
             {/* Expand/collapse requirements (only for populated slots) */}
             {!isEmpty && !isPopulating && (
               <div style={{ marginTop: 10 }}>
@@ -381,7 +383,7 @@ function LoadoutDetailInner() {
             {isExpanded && !isPopulating && (
               <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid #1e2230' }}>
                 {reqs.length === 0 && (
-                  <p className="muted" style={{ fontSize: 13 }}>No requirements — this item is ready to build!</p>
+                  <p className="muted" style={{ fontSize: 13 }}>No requirements yet.</p>
                 )}
                 {reqs.map((req) => (
                   <div key={req.id} className="requirement-row" style={{ marginBottom: 8, padding: '8px 0', borderBottom: '1px solid #1e2230' }}>
@@ -416,8 +418,14 @@ function LoadoutDetailInner() {
 
                 {/* Add requirement form */}
                 <div style={{ marginTop: 8 }}>
+                  {/* Duplicate requirement warning */}
+                  {reqWarning[slot.id] && (
+                    <div style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 8, padding: '6px 10px', background: 'rgba(255,107,107,0.1)', borderRadius: 4, border: '1px solid rgba(255,107,107,0.3)' }}>
+                      ⚠ {reqWarning[slot.id]}
+                    </div>
+                  )}
                   {reqFormVisible[slot.id] ? (
-                    <form onSubmit={(e) => handleAddRequirement(e, slot.id)} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <form className="req-form" onSubmit={(e) => handleAddRequirement(e, slot.id)} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       <input
                         type="text"
                         placeholder="Name (required)"
@@ -467,7 +475,6 @@ export default function LoadoutDetailPage() {
             <div className="skeleton-line medium" style={{ height: 22 }} />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <div className="skeleton" style={{ width: 100, height: 36 }} />
             <div className="skeleton" style={{ width: 110, height: 36 }} />
           </div>
         </div>
