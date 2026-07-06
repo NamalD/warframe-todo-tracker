@@ -135,6 +135,26 @@ textarea { min-height: 80px; resize: vertical; }
 }
 .filters label { font-size: 13px; color: #b6bcc7; }
 
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 14px;
+}
+.detail-header .nav-inner { padding: 0; }
+
+.tree-row {
+  padding: 6px 8px;
+  border-left: 2px solid #2a2f3f;
+  margin-left: 10px;
+  margin-bottom: 6px;
+}
+
+.badge.pending { color: #b6bcc7; }
+.badge.in_progress { color: #f2c94c; }
+.badge.completed { color: #6fcf97; }
+.badge.blocked { color: #eb5757; }
+
 ul.plain { list-style: none; padding: 0; margin: 0; }
 ul.plain li { padding: 10px 12px; border-bottom: 1px solid #1e2230; }
 ul.plain li:last-child { border-bottom: none; }
