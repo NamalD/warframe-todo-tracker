@@ -1,4 +1,7 @@
 node_modules/
 dist/
+.next/
+.next-cache/
 .env.local
 .DS_Store
+home/namal/.hermes/kanban/workspaces/*/.next-cache/
