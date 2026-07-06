@@ -18,6 +18,7 @@ export default function RootLayout({ children }) {
               <Link href="/sources">Sources</Link>
               <Link href="/todos">Todos</Link>
               <Link href="/loadouts">Loadouts</Link>
+              <Link href="/shopping-list">Shopping List</Link>
             </div>
           </div>
         </nav>
