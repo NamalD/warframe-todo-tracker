@@ -4,4 +4,4 @@ dist/
 .next-cache/
 .env.local
 .DS_Store
-home/namal/.hermes/kanban/workspaces/*/.next-cache/
+home/
