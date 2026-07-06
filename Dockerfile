@@ -23,7 +23,7 @@ RUN printf 'server {\n\
     root /usr/share/nginx/html;\n\
     index index.html;\n\
     location = / {\n\
-        return 301 /warframe-todo-tracker/;\n\
+        return 301 $scheme://$http_host/warframe-todo-tracker/;\n\
     }\n\
     location /warframe-todo-tracker {\n\
         try_files $uri $uri/ /warframe-todo-tracker/index.html;\n\
