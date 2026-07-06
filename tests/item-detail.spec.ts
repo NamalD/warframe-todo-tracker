@@ -36,7 +36,7 @@ test.describe('Item detail page', () => {
     // Navigate to items list — tracked badge should be gone for item-1
     await page.goto('/items');
     await page.waitForTimeout(200);
-    const item1Card = page.locator('.card').filter({ has: page.locator('.link-title', { hasText: 'Excalibur' }) });
+    const item1Card = page.locator('.card').filter({ has: page.locator('a.link-title[href="/items/item-1"]') });
     await expect(item1Card).toBeVisible();
     await expect(item1Card.locator('.badge', { hasText: 'tracked' })).toHaveCount(0);
 
