@@ -38,7 +38,9 @@ log "  remote: $REMOTE_HASH"
 git pull origin main 2>&1 | tee -a "$LOG_FILE"
 log "Pulled latest from origin/main"
 
-# Build and (re)start the app via docker compose
+# Stop and remove old containers, then rebuild and start
+log "Stopping existing containers..."
+docker compose down 2>&1 | tee -a "$LOG_FILE"
 log "Building and deploying with docker compose..."
 docker compose up -d --build 2>&1 | tee -a "$LOG_FILE"
 log "Deploy complete. New commit: $REMOTE_HASH"
