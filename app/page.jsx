@@ -1,12 +1,19 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import repo from '../src/data/store.js';
 import LoadoutDashboardSection from '../src/components/loadout-dashboard-section.jsx';
 
 function Home() {
-  const items = repo.getAllItems();
-  const todos = repo.getTodos();
+  const [items, setItems] = useState([]);
+  const [todos, setTodos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setItems(repo.getAllItems());
+    setTodos(repo.getTodos());
+    setLoading(false);
+  }, []);
 
   // Tracked items
   const trackedItems = items.filter((it) => it.is_user_tracked);
@@ -31,6 +38,31 @@ function Home() {
   const materialsList = Object.values(materialsMap).sort(
     (a, b) => a.name.localeCompare(b.name)
   );
+
+  if (loading) {
+    return (
+      <div>
+        <div className="detail-header" style={{ marginBottom: 14 }}>
+          <h1 style={{ margin: 0, fontSize: 22, color: '#ffcf6a' }}>Dashboard</h1>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 28 }}>
+          <div className="card">
+            <h2>Tracked Items</h2>
+            <div className="skeleton" style={{ height: 28, width: 40, margin: '8px 0' }} />
+            <div className="skeleton" style={{ height: 18, width: 140 }} />
+          </div>
+          <div className="card">
+            <h2>Todos</h2>
+            <div className="skeleton" style={{ height: 28, width: 160, margin: '8px 0' }} />
+          </div>
+        </div>
+        <div className="card">
+          <div className="skeleton" style={{ height: 18, width: 280, margin: '0 0 10px' }} />
+          <div className="skeleton" style={{ height: 16, width: 200 }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
