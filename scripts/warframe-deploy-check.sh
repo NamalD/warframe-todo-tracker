@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_DIR="/home/namal/warframe-todo-tracker"
-LOG_FILE="$HOME/warframe-deploy.log"
+LOG_FILE="/home/namal/warframe-deploy.log"
 CONTAINER_NAME="warframe-todo-tracker"
 IMAGE_NAME="warframe-todo-tracker:latest"
 
