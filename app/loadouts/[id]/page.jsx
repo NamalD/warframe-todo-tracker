@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import LoadoutRepository from '../../../src/data/loadout-repository.js';
@@ -7,7 +7,7 @@ import repo from '../../../src/data/store.js';
 
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
 
-function LoadoutDetailPage() {
+function LoadoutDetailInner() {
   const params = useParams();
   const router = useRouter();
   const id = params.id;
@@ -31,6 +31,10 @@ function LoadoutDetailPage() {
   // Edit mode
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [editNotes, setEditNotes] = useState('');
+
+  // Warning messages
+  const [slotWarning, setSlotWarning] = useState(null);
+  const [reqWarning, setReqWarning] = useState({});
 
   useEffect(() => {
     const lr = new LoadoutRepository();
@@ -65,6 +69,7 @@ function LoadoutDetailPage() {
   const cancelPopulate = () => {
     setPopulatingSlotId(null);
     setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
+    setSlotWarning(null);
   };
 
   const handlePopulateSlot = (e, slotId) => {
@@ -80,7 +85,7 @@ function LoadoutDetailPage() {
       return false;
     });
     if (existing.length > 0) {
-      alert('This item is already in the loadout.');
+      setSlotWarning('This item is already in the loadout.');
       return;
     }
 
@@ -91,6 +96,7 @@ function LoadoutDetailPage() {
     });
     setPopulatingSlotId(null);
     setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
+    setSlotWarning(null);
     refresh();
   };
 
@@ -132,12 +138,24 @@ function LoadoutDetailPage() {
     e.preventDefault();
     const form = reqForm[slotId];
     if (!form || !form.name.trim()) return;
+
+    // Check for duplicate requirement name in this slot
+    const slot = slots.find((s) => s.id === slotId);
+    const existing = (slot?.requirements || []).some(
+      (r) => r.name.toLowerCase() === form.name.trim().toLowerCase()
+    );
+    if (existing) {
+      setReqWarning((prev) => ({ ...prev, [slotId]: 'A requirement with this name already exists in this slot.' }));
+      return;
+    }
+
     loadoutRepo.addRequirement(slotId, {
       name: form.name.trim(),
       wiki_url: form.wiki_url.trim() || null,
       user_notes: form.user_notes.trim() || ''
     });
     setReqForm((prev) => ({ ...prev, [slotId]: { name: '', wiki_url: '', user_notes: '' } }));
+    setReqWarning((prev) => ({ ...prev, [slotId]: null }));
     refresh();
   };
 
@@ -168,7 +186,6 @@ function LoadoutDetailPage() {
           <div className="skeleton-line medium" style={{ height: 22 }} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <div className="skeleton" style={{ width: 100, height: 36 }} />
           <div className="skeleton" style={{ width: 110, height: 36 }} />
         </div>
       </div>
@@ -205,6 +222,14 @@ function LoadoutDetailPage() {
       </div>
 
       {/* Slots */}
+      {slots.length === 0 && (
+        <div className="empty-state">
+          <div className="empty-icon">🔧</div>
+          <h3>No slots yet</h3>
+          <p>Add your first slot to get started building your loadout.</p>
+        </div>
+      )}
+
       {slots.map((slot) => {
         const isEmpty = isSlotEmpty(slot);
         const item = slot.item_id ? repo.getItemById(slot.item_id) : null;
@@ -223,7 +248,7 @@ function LoadoutDetailPage() {
                    onClick={() => openPopulate(slot.id)}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span className={`badge ${slot.slot_type}`}>{slot.slot_type}</span>
-                  <span className="muted" style={{ fontStyle: 'italic' }}>Empty slot — click to populate</span>
+                  <span className="muted" style={{ fontStyle: 'italic' }}>No items in this slot yet — click to populate</span>
                 </div>
               </div>
             </div>
@@ -333,6 +358,13 @@ function LoadoutDetailPage() {
               </div>
             </div>
 
+            {/* Duplicate item warning */}
+            {isPopulating && slotWarning && (
+              <div style={{ color: '#ff6b6b', fontSize: 13, marginTop: 8, padding: '6px 10px', background: 'rgba(255,107,107,0.1)', borderRadius: 4, border: '1px solid rgba(255,107,107,0.3)' }}>
+                ⚠ {slotWarning}
+              </div>
+            )}
+
             {/* Expand/collapse requirements (only for populated slots) */}
             {!isEmpty && !isPopulating && (
               <div style={{ marginTop: 10 }}>
@@ -349,7 +381,7 @@ function LoadoutDetailPage() {
             {isExpanded && !isPopulating && (
               <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid #1e2230' }}>
                 {reqs.length === 0 && (
-                  <p className="muted" style={{ fontSize: 13 }}>No requirements yet.</p>
+                  <p className="muted" style={{ fontSize: 13 }}>No requirements — this item is ready to build!</p>
                 )}
                 {reqs.map((req) => (
                   <div key={req.id} className="requirement-row" style={{ marginBottom: 8, padding: '8px 0', borderBottom: '1px solid #1e2230' }}>
@@ -425,4 +457,30 @@ function LoadoutDetailPage() {
   );
 }
 
-export default LoadoutDetailPage;
+export default function LoadoutDetailPage() {
+  return (
+    <Suspense fallback={
+      <div>
+        <div className="detail-header" style={{ marginBottom: 14 }}>
+          <div>
+            <div className="skeleton-line short" style={{ marginBottom: 8 }} />
+            <div className="skeleton-line medium" style={{ height: 22 }} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div className="skeleton" style={{ width: 100, height: 36 }} />
+            <div className="skeleton" style={{ width: 110, height: 36 }} />
+          </div>
+        </div>
+        {[1, 2, 3].map((i) => (
+          <div className="skeleton-card" key={i}>
+            <div className="skeleton-line wide" />
+            <div className="skeleton-line medium" />
+            <div className="skeleton-line narrow" />
+          </div>
+        ))}
+      </div>
+    }>
+      <LoadoutDetailInner />
+    </Suspense>
+  );
+}
