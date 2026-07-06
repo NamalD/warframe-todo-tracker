@@ -65,7 +65,19 @@ function SourcesInner() {
 
 function Sources() {
   return (
-    <Suspense fallback={<p>Loading...</p>}>
+    <Suspense fallback={
+      <div>
+        <div className="skeleton" style={{ height: 28, width: 160, margin: '0 0 14px' }} />
+        <div className="card">
+          <div className="skeleton" style={{ height: 16, width: 120, margin: '0 0 10px' }} />
+          <div className="skeleton" style={{ height: 16, width: 200 }} />
+        </div>
+        <div className="card">
+          <div className="skeleton" style={{ height: 16, width: 140, margin: '0 0 10px' }} />
+          <div className="skeleton" style={{ height: 16, width: 180 }} />
+        </div>
+      </div>
+    }>
       <SourcesInner />
     </Suspense>
   );

@@ -1,32 +1,46 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import repo from '../../../src/data/store.js';
 
-function ItemDetail() {
-  const params = useParams();
-  const id = params.id;
+function ItemDetail({ params }) {
+  const routeParams = useParams();
+  const id = params?.id || routeParams?.id;
   const [item, setItem] = useState(null);
   const [materials, setMaterials] = useState([]);
   const [tree, setTree] = useState({ children: [], parents: [] });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     const data = repo.getItemById(id);
     setItem(data);
     setMaterials(repo.getMaterialsForItem(id));
     setTree(repo.getTreeForItem(id));
+    setLoading(false);
   }, [id]);
+
+  if (loading || !id) {
+    return (
+      <div className="detail">
+        <div className="skeleton" style={{ height: 28, width: 320, margin: '0 0 14px' }} />
+        <div className="skeleton" style={{ height: 18, width: 180, margin: '0 0 14px' }} />
+        <div className="card">
+          <div className="skeleton" style={{ height: 16, width: 160, margin: '0 0 10px' }} />
+          <div className="skeleton" style={{ height: 16, width: 240 }} />
+        </div>
+      </div>
+    );
+  }
 
   if (!item) {
     return <p className="muted">Item not found.</p>;
   }
 
   const trackToggle = () => {
-    const all = repo.getAllItems();
-    const target = all.find((i) => i.id === id);
-    if (!target) return;
-    target.is_user_tracked = !target.is_user_tracked;
-    setItem({ ...target });
+    repo.updateItem(id, { is_user_tracked: !item.is_user_tracked });
+    setItem({ ...repo.getItemById(id) });
   };
 
   return (
