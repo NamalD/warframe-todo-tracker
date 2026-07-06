@@ -110,4 +110,13 @@ export default class Repository {
     this.#persistTodos();
     return { ...target };
   }
+
+  updateTodoNotes(id, notes) {
+    const target = this.todos.find((t) => t.id === id);
+    if (!target) return null;
+    target.user_notes = notes;
+    target.updated_at = new Date().toISOString();
+    this.#persistTodos();
+    return { ...target };
+  }
 }
