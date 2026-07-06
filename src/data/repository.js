@@ -1,3 +1,4 @@
+'use client';
 import {
   seedItems,
   seedMaterials,
@@ -21,11 +22,15 @@ export default class Repository {
     this.sources = [...seedSources];
     this.treeRelationships = [...seedTreeRelationships];
 
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        this.todos = JSON.parse(stored);
-      } catch (e) {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          this.todos = JSON.parse(stored);
+        } catch (e) {
+          this.todos = [...seedTodos];
+        }
+      } else {
         this.todos = [...seedTodos];
       }
     } else {
@@ -34,7 +39,9 @@ export default class Repository {
   }
 
   #persistTodos() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.todos));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.todos));
+    }
   }
 
   getAllItems() {

@@ -1,0 +1,166 @@
+/*!***********************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[3]!./src/index.css ***!
+  \***********************************************************************************************************************************************************************************************************************************************************/
+:root {
+  color-scheme: light;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
+    sans-serif;
+  line-height: 1.5;
+  background: #0b0d14;
+  color: #e7e9ee;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+a { color: #7cc4ff; }
+a:hover { color: #a8d8ff; }
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+.site-nav {
+  border-bottom: 1px solid #1e2230;
+  background: linear-gradient(180deg, #0f121a, #0b0d14);
+}
+.nav-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.brand {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+  color: #ffcf6a;
+}
+.nav-links {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+}
+.nav-links a {
+  text-decoration: none;
+  color: #b6bcc7;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background .15s ease, color .15s ease;
+}
+.nav-links a.active {
+  color: #ffffff;
+  background: #161a24;
+}
+
+main { max-width: 1100px; margin: 0 auto; padding: 28px 20px; flex: 1 1; }
+
+.card {
+  background: #13161f;
+  border: 1px solid #1e2230;
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.card h2 { margin: 0 0 10px; font-size: 16px; color: #ffcf6a; }
+.card p { margin: 6px 0; font-size: 14px; color: #c9cdd8; }
+.card a { color: #7cc4ff; text-decoration: none; }
+.card a:hover { text-decoration: underline; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 10px;
+}
+th, td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid #1e2230;
+}
+th { color: #9aa0ad; font-weight: 600; }
+td { color: #cdd1db; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #1e2230;
+  color: #b6bdcb;
+  border: 1px solid #2a2f3f;
+}
+.badge.warframe { color: #f2c94c; }
+.badge.primary { color: #6fcf97; }
+.badge.secondary { color: #eb5757; }
+.badge.melee { color: #56ccf2; }
+.badge.companion { color: #bb6bd9; }
+.badge.archwing { color: #f2994a; }
+.badge.other { color: #9aa0ad; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #2a2f3f;
+  background: #181c26;
+  color: #e7e9ee;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover { background: #1f2432; }
+.btn.primary { background: #2a3444; border-color: #3a4255; }
+
+input, select, textarea {
+  background: #0f121a;
+  color: #e7e9ee;
+  border: 1px solid #2a2f3f;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: #3c465a; }
+textarea { min-height: 80px; resize: vertical; }
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.filters label { font-size: 13px; color: #b6bcc7; }
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 14px;
+}
+.detail-header .nav-inner { padding: 0; }
+
+.tree-row {
+  padding: 6px 8px;
+  border-left: 2px solid #2a2f3f;
+  margin-left: 10px;
+  margin-bottom: 6px;
+}
+
+.badge.pending { color: #b6bcc7; }
+.badge.in_progress { color: #f2c94c; }
+.badge.completed { color: #6fcf97; }
+.badge.blocked { color: #eb5757; }
+
+ul.plain { list-style: none; padding: 0; margin: 0; }
+ul.plain li { padding: 10px 12px; border-bottom: 1px solid #1e2230; }
+ul.plain li:last-child { border-bottom: none; }
+
+.muted { color: #8a91a0; font-size: 13px; }
+

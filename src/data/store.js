@@ -1,3 +1,4 @@
+'use client';
 import Repository from './repository.js';
 
 const repo = new Repository();
