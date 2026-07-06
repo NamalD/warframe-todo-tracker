@@ -103,8 +103,8 @@ function Todos() {
           >
             <option value="">Material (optional)</option>
             {materials.map((m) => (
-              <option key={m.name} value={m.name}>
-                {m.name}
+              <option key={m.material_name} value={m.material_name}>
+                {m.material_name}
               </option>
             ))}
           </select>

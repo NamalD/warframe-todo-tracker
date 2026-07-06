@@ -9,6 +9,7 @@ import {
 
 const STORAGE_KEY = 'warframe-todos';
 const ITEMS_STORAGE_KEY = 'warframe-items';
+const MATERIALS_INVENTORY_KEY = 'warframe-materials-inventory';
 
 export default class Repository {
   items;
@@ -43,8 +44,20 @@ export default class Repository {
           this.items = [...seedItems];
         }
       }
+
+      const storedInventory = localStorage.getItem(MATERIALS_INVENTORY_KEY);
+      if (storedInventory) {
+        try {
+          this.materialInventory = JSON.parse(storedInventory);
+        } catch (e) {
+          this.materialInventory = {};
+        }
+      } else {
+        this.materialInventory = {};
+      }
     } else {
       this.todos = [...seedTodos];
+      this.materialInventory = {};
     }
   }
 
@@ -58,6 +71,31 @@ export default class Repository {
     if (typeof window !== 'undefined') {
       localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(this.items));
     }
+  }
+
+  #persistMaterialInventory() {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(MATERIALS_INVENTORY_KEY, JSON.stringify(this.materialInventory));
+    }
+  }
+
+  getMaterialInventory() {
+    return { ...this.materialInventory };
+  }
+
+  getOwnedQuantity(materialName) {
+    return this.materialInventory[materialName] ?? 0;
+  }
+
+  setOwnedQuantity(materialName, qty) {
+    const parsed = parseInt(qty, 10);
+    if (isNaN(parsed) || parsed < 0) {
+      this.materialInventory[materialName] = 0;
+    } else {
+      this.materialInventory[materialName] = parsed;
+    }
+    this.#persistMaterialInventory();
+    return this.materialInventory[materialName];
   }
 
   updateItem(id, updates) {

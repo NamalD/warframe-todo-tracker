@@ -2,6 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import repo from '../src/data/store.js';
+import LoadoutDashboardSection from '../src/components/loadout-dashboard-section.jsx';
 
 function Home() {
   const items = repo.getAllItems();
@@ -36,6 +37,8 @@ function Home() {
       <div className="detail-header" style={{ marginBottom: 14 }}>
         <h1 style={{ margin: 0, fontSize: 22, color: '#ffcf6a' }}>Dashboard</h1>
       </div>
+
+      <LoadoutDashboardSection />
 
       {/* Summary cards row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 28 }}>

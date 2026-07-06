@@ -23,9 +23,37 @@ test.describe('Item detail page', () => {
     await expect(btn).toBeVisible();
   });
 
-  test('tracks button changes state on click', async ({ page }) => {
+  test('track button changes state on click', async ({ page }) => {
     await page.getByRole('button', { name: 'Untrack' }).click();
     await expect(page.getByRole('button', { name: 'Track' })).toBeVisible();
+  });
+
+  test('track/untrack persists across navigation to items list and back', async ({ page }) => {
+    // Untrack Excalibur
+    await page.getByRole('button', { name: 'Untrack' }).click();
+    await expect(page.getByRole('button', { name: 'Track' })).toBeVisible();
+
+    // Navigate to items list — tracked badge should be gone for item-1
+    await page.goto('/items');
+    await page.waitForTimeout(200);
+    const item1Card = page.locator('.card').filter({ has: page.locator('.link-title', { hasText: 'Excalibur' }) });
+    await expect(item1Card).toBeVisible();
+    await expect(item1Card.locator('.badge', { hasText: 'tracked' })).toHaveCount(0);
+
+    // Navigate back to item detail — button should still say "Track"
+    await item1Card.locator('.link-title').click();
+    await expect(page).toHaveURL(/\/items\/item-1/);
+    await expect(page.getByRole('button', { name: 'Track' })).toBeVisible();
+  });
+
+  test('track/untrack persists across page reload', async ({ page }) => {
+    await page.getByRole('button', { name: 'Untrack' }).click();
+    await expect(page.getByRole('button', { name: 'Track' })).toBeVisible();
+
+    await page.reload();
+    await page.waitForTimeout(200);
+    await expect(page.getByRole('button', { name: 'Track' })).toBeVisible();
+    await expect(page.locator('.badge', { hasText: 'tracked' })).toHaveCount(0);
   });
 
   test('renders materials table', async ({ page }) => {
