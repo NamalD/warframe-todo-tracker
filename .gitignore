@@ -5,3 +5,5 @@ dist/
 .env.local
 .DS_Store
 home/
+test-results/
+playwright-report/

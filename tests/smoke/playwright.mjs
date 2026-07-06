@@ -1,9 +1,8 @@
-// Warframe TODO Tracker — Regression Test Suite
-// Run: node tests/regression/playwright.mjs
-// Requires: npm install playwright  (already in devDeps)
-//
-// This suite exercises all core pages and user flows.
-// Known failures are tagged with BUG markers and don't halt the run.
+// Warframe TODO Tracker — Smoke Test
+// Moved from tests/regression/ to tests/smoke/.
+// This is a lightweight, single-context smoke script for quick ad-hoc checks.
+// The proper Playwright Test suite now lives in tests/*.spec.ts and is
+// run via `npm run test:e2e` (or `npx playwright test`).
 
 import { chromium } from 'playwright';
 
