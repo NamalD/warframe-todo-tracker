@@ -51,6 +51,87 @@ a:hover { color: #a8d8ff; }
   background: #161a24;
 }
 
+/* ── Hamburger button ────────────────────────────────────────── */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  margin-left: auto;
+}
+
+.hamburger-bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #e7e9ee;
+  border-radius: 1px;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ── Mobile slide-down menu ──────────────────────────────────── */
+.mobile-menu {
+  max-height: 0;
+  overflow: hidden;
+  background: #0f121a;
+  border-top: 0 solid #1e2230;
+  transition: max-height 0.3s ease, border-top-width 0.3s ease;
+}
+
+.mobile-menu.open {
+  max-height: 400px;
+  border-top-width: 1px;
+}
+
+.mobile-menu-inner {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 20px 16px;
+  gap: 4px;
+}
+
+.mobile-menu-inner a {
+  text-decoration: none;
+  color: #b6bcc7;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 12px 8px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mobile-menu-inner a:hover,
+.mobile-menu-inner a:active {
+  color: #ffffff;
+  background: #161a24;
+}
+
+/* ── Mobile breakpoint ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .nav-links {
+    display: none;
+  }
+
+  .hamburger {
+    display: flex;
+  }
+}
+
 main { max-width: 1100px; margin: 0 auto; padding: 28px 20px; flex: 1; }
 
 .card {
@@ -222,4 +303,90 @@ ul.plain li:last-child { border-bottom: none; }
 .slot-card .btn {
   font-size: 13px;
   padding: 4px 10px;
+}
+
+/* ── Mobile: 44px touch targets ─────────────────────────────── */
+.slot-card input[type="checkbox"] {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+  accent-color: #6fcf97;
+}
+
+/* ── Mobile: slot cards stack vertically ────────────────────── */
+@media (max-width: 640px) {
+  .slot-card > div:first-child {
+    flex-direction: column !important;
+  }
+  .slot-card > div:first-child > div:last-child {
+    align-self: stretch;
+    justify-content: flex-start;
+  }
+  .slot-card .badge {
+    margin-bottom: 4px;
+  }
+}
+
+/* ── Skeleton loading ───────────────────────────────────────── */
+@keyframes skeleton-pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.6; }
+}
+
+.skeleton {
+  background: #1e2230;
+  border-radius: 8px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-card {
+  background: #13161f;
+  border: 1px solid #1e2230;
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+
+.skeleton-line {
+  height: 14px;
+  background: #1e2230;
+  border-radius: 7px;
+  margin-bottom: 10px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-line:last-child {
+  margin-bottom: 0;
+}
+
+.skeleton-line.wide { width: 70%; }
+.skeleton-line.medium { width: 50%; }
+.skeleton-line.narrow { width: 35%; }
+.skeleton-line.short { width: 25%; }
+
+/* ── Empty state ────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #8a91a0;
+}
+
+.empty-state .empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #b6bcc7;
+}
+
+.empty-state p {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #8a91a0;
 }
