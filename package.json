@@ -11,6 +11,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@wfcd/items": "^1.1275.0",
     "next": "^14.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
