@@ -17,9 +17,9 @@ function LoadoutDetailPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Slot form
-  const [showSlotForm, setShowSlotForm] = useState(false);
-  const [slotForm, setSlotForm] = useState({ slot_type: 'warframe', item_id: '', custom_item_name: '', notes: '' });
+  // Inline populate form for empty slots
+  const [populatingSlotId, setPopulatingSlotId] = useState(null);
+  const [populateForm, setPopulateForm] = useState({ item_id: '', custom_item_name: '', notes: '' });
 
   // Requirement form (per slot)
   const [reqFormVisible, setReqFormVisible] = useState({});
@@ -34,11 +34,13 @@ function LoadoutDetailPage() {
 
   useEffect(() => {
     const lr = new LoadoutRepository();
-    setLoadoutRepo(lr);
-    const l = lr.getLoadoutById(id);
-    setLoadout(l);
-    setItems(repo.getAllItems());
-    setLoading(false);
+    lr.syncFromServer().then(() => {
+      setLoadoutRepo(lr);
+      const l = lr.getLoadoutById(id);
+      setLoadout(l);
+      setItems(repo.getAllItems());
+      setLoading(false);
+    });
   }, [id]);
 
   const refresh = () => {
@@ -53,22 +55,46 @@ function LoadoutDetailPage() {
     router.push('/loadouts');
   };
 
-  // ── Slot CRUD ──
+  // ── Populate empty slot ──
 
-  const handleAddSlot = (e) => {
+  const openPopulate = (slotId) => {
+    setPopulatingSlotId(slotId);
+    setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
+  };
+
+  const cancelPopulate = () => {
+    setPopulatingSlotId(null);
+    setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
+  };
+
+  const handlePopulateSlot = (e, slotId) => {
     e.preventDefault();
-    const hasItem = slotForm.item_id || slotForm.custom_item_name.trim();
+    const hasItem = populateForm.item_id || populateForm.custom_item_name.trim();
     if (!hasItem) return;
-    loadoutRepo.addSlot(id, {
-      slot_type: slotForm.slot_type,
-      item_id: slotForm.item_id || null,
-      custom_item_name: slotForm.custom_item_name.trim() || null,
-      notes: slotForm.notes
+
+    // Check for duplicate items in this loadout (exclude the slot being populated)
+    const existing = slots.filter((s) => {
+      if (s.id === slotId) return false;
+      if (populateForm.item_id && s.item_id === populateForm.item_id) return true;
+      if (populateForm.custom_item_name.trim() && s.custom_item_name === populateForm.custom_item_name.trim()) return true;
+      return false;
     });
-    setSlotForm({ slot_type: 'warframe', item_id: '', custom_item_name: '', notes: '' });
-    setShowSlotForm(false);
+    if (existing.length > 0) {
+      alert('This item is already in the loadout.');
+      return;
+    }
+
+    loadoutRepo.updateSlot(id, slotId, {
+      item_id: populateForm.item_id || null,
+      custom_item_name: populateForm.custom_item_name.trim() || null,
+      notes: populateForm.notes
+    });
+    setPopulatingSlotId(null);
+    setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
     refresh();
   };
+
+  // ── Slot CRUD ──
 
   const handleSlotAcquired = (slotId, acquired) => {
     loadoutRepo.updateSlot(id, slotId, { acquired });
@@ -76,7 +102,7 @@ function LoadoutDetailPage() {
   };
 
   const handleDeleteSlot = (slotId) => {
-    if (!confirm('Delete this slot and all its requirements?')) return;
+    if (!confirm('Reset this slot? All data and requirements will be cleared.')) return;
     loadoutRepo.deleteSlot(id, slotId);
     refresh();
   };
@@ -130,8 +156,39 @@ function LoadoutDetailPage() {
     setExpandedSlots((prev) => ({ ...prev, [slotId]: !prev[slotId] }));
   };
 
-  if (loading) return <p className="muted">Loading...</p>;
-  if (!loadout) return <p className="muted">Loadout not found.</p>;
+  // ── Helper ──
+
+  const isSlotEmpty = (slot) => !slot.item_id && !slot.custom_item_name;
+
+  if (loading) return (
+    <div>
+      <div className="detail-header" style={{ marginBottom: 14 }}>
+        <div>
+          <div className="skeleton-line short" style={{ marginBottom: 8 }} />
+          <div className="skeleton-line medium" style={{ height: 22 }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div className="skeleton" style={{ width: 100, height: 36 }} />
+          <div className="skeleton" style={{ width: 110, height: 36 }} />
+        </div>
+      </div>
+      {[1, 2, 3].map((i) => (
+        <div className="skeleton-card" key={i}>
+          <div className="skeleton-line wide" />
+          <div className="skeleton-line medium" />
+          <div className="skeleton-line narrow" />
+        </div>
+      ))}
+    </div>
+  );
+  if (!loadout) return (
+    <div className="empty-state">
+      <div className="empty-icon">🔍</div>
+      <h3>Loadout not found</h3>
+      <p>This loadout may have been deleted or the URL is incorrect.</p>
+      <Link href="/loadouts" className="btn primary">Back to Loadouts</Link>
+    </div>
+  );
 
   const slots = loadout.slots || [];
 
@@ -143,65 +200,37 @@ function LoadoutDetailPage() {
           <h1 style={{ margin: '4px 0 0', fontSize: 22, color: '#ffcf6a' }}>{loadout.name}</h1>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn primary" onClick={() => setShowSlotForm(!showSlotForm)}>
-            {showSlotForm ? 'Cancel' : '+ Add Slot'}
-          </button>
           <button className="btn" onClick={handleDeleteLoadout}>Delete Loadout</button>
         </div>
       </div>
 
-      {/* Add Slot Form */}
-      {showSlotForm && (
-        <form className="card" onSubmit={handleAddSlot}>
-          <h2>Add Slot</h2>
-          <div className="filters">
-            <select
-              value={slotForm.slot_type}
-              onChange={(e) => setSlotForm({ ...slotForm, slot_type: e.target.value })}
-            >
-              {SLOT_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-            <select
-              value={slotForm.item_id}
-              onChange={(e) => setSlotForm({ ...slotForm, item_id: e.target.value, custom_item_name: '' })}
-            >
-              <option value="">Select item...</option>
-              {items.map((it) => (
-                <option key={it.id} value={it.id}>{it.name}</option>
-              ))}
-            </select>
-            <input
-              type="text"
-              placeholder="Or type custom name..."
-              value={slotForm.custom_item_name}
-              onChange={(e) => setSlotForm({ ...slotForm, custom_item_name: e.target.value, item_id: '' })}
-            />
-            <input
-              type="text"
-              placeholder="Notes (optional)"
-              value={slotForm.notes}
-              onChange={(e) => setSlotForm({ ...slotForm, notes: e.target.value })}
-            />
-            <button className="btn primary" type="submit">Add</button>
-          </div>
-        </form>
-      )}
-
       {/* Slots */}
-      {slots.length === 0 && (
-        <p className="muted">No slots yet. Add a slot to get started.</p>
-      )}
-
       {slots.map((slot) => {
+        const isEmpty = isSlotEmpty(slot);
         const item = slot.item_id ? repo.getItemById(slot.item_id) : null;
         const displayName = slot.custom_item_name || (item ? item.name : 'Empty slot');
         const wikiUrl = item ? item.wiki_url : null;
         const reqs = slot.requirements || [];
         const isExpanded = !!expandedSlots[slot.id];
         const isEditing = editingSlotId === slot.id;
+        const isPopulating = populatingSlotId === slot.id;
 
+        // ── Empty slot card ──
+        if (isEmpty && !isPopulating) {
+          return (
+            <div className="card slot-card" key={slot.id} style={{ cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}
+                   onClick={() => openPopulate(slot.id)}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span className={`badge ${slot.slot_type}`}>{slot.slot_type}</span>
+                  <span className="muted" style={{ fontStyle: 'italic' }}>Empty slot — click to populate</span>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // ── Populated or populating slot card ──
         return (
           <div className={`card slot-card${slot.acquired ? ' slot-acquired' : ''}`} key={slot.id}>
             {/* Slot header */}
@@ -209,29 +238,52 @@ function LoadoutDetailPage() {
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <span className={`badge ${slot.slot_type}`}>{slot.slot_type}</span>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={slot.acquired}
-                      onChange={(e) => handleSlotAcquired(slot.id, e.target.checked)}
-                    />
-                    Acquired
-                  </label>
+                  {!isEmpty && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={slot.acquired}
+                        onChange={(e) => handleSlotAcquired(slot.id, e.target.checked)}
+                      />
+                      Acquired
+                    </label>
+                  )}
                 </div>
+
+                {/* Item name or populate form */}
                 <div style={{ marginTop: 6, fontWeight: 600, fontSize: 15 }}>
-                  {item ? (
+                  {isPopulating ? (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <select
+                        value={populateForm.item_id}
+                        onChange={(e) => setPopulateForm({ ...populateForm, item_id: e.target.value, custom_item_name: '' })}
+                        style={{ minWidth: 160 }}
+                      >
+                        <option value="">Select item...</option>
+                        {items.map((it) => (
+                          <option key={it.id} value={it.id}>{it.name}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Or type custom name..."
+                        value={populateForm.custom_item_name}
+                        onChange={(e) => setPopulateForm({ ...populateForm, custom_item_name: e.target.value, item_id: '' })}
+                        style={{ minWidth: 180 }}
+                      />
+                    </div>
+                  ) : item ? (
                     <>
                       <Link href={`/items/${item.id}`}>{displayName}</Link>
                       {wikiUrl && (
                         <> <a href={wikiUrl} target="_blank" rel="noreferrer" className="muted">[wiki]</a></>
                       )}
                     </>
-                  ) : slot.custom_item_name ? (
-                    <span>{displayName}</span>
                   ) : (
-                    <span className="muted" style={{ fontStyle: 'italic' }}>Empty slot</span>
+                    <span>{displayName}</span>
                   )}
                 </div>
+
                 {/* Notes */}
                 <div style={{ marginTop: 6 }}>
                   {isEditing ? (
@@ -245,6 +297,14 @@ function LoadoutDetailPage() {
                       <button className="btn primary" onClick={saveEditSlot}>Save</button>
                       <button className="btn" onClick={() => setEditingSlotId(null)}>Cancel</button>
                     </div>
+                  ) : isPopulating ? (
+                    <input
+                      type="text"
+                      placeholder="Notes (optional)"
+                      value={populateForm.notes}
+                      onChange={(e) => setPopulateForm({ ...populateForm, notes: e.target.value })}
+                      style={{ width: '100%', maxWidth: 400 }}
+                    />
                   ) : (
                     <div className="muted" style={{ fontSize: 13 }}>
                       {slot.notes || <span style={{ fontStyle: 'italic' }}>No notes</span>}
@@ -255,25 +315,38 @@ function LoadoutDetailPage() {
 
               {/* Slot actions */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                {!isEditing && (
-                  <button className="btn" onClick={() => startEditSlot(slot)}>Edit</button>
+                {isPopulating ? (
+                  <>
+                    <button className="btn primary" onClick={(e) => handlePopulateSlot(e, slot.id)}>Save</button>
+                    <button className="btn" onClick={cancelPopulate}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    {!isEditing && (
+                      <button className="btn" onClick={() => startEditSlot(slot)}>Edit</button>
+                    )}
+                    <button className="btn" onClick={() => handleDeleteSlot(slot.id)}>
+                      {isEmpty ? '—' : 'Delete Slot'}
+                    </button>
+                  </>
                 )}
-                <button className="btn" onClick={() => handleDeleteSlot(slot.id)}>Delete Slot</button>
               </div>
             </div>
 
-            {/* Expand/collapse requirements */}
-            <div style={{ marginTop: 10 }}>
-              <button
-                className="btn"
-                onClick={() => toggleExpanded(slot.id)}
-                style={{ fontSize: 13 }}
-              >
-                {isExpanded ? '▼' : '▶'} Requirements ({reqs.length})
-              </button>
-            </div>
+            {/* Expand/collapse requirements (only for populated slots) */}
+            {!isEmpty && !isPopulating && (
+              <div style={{ marginTop: 10 }}>
+                <button
+                  className="btn"
+                  onClick={() => toggleExpanded(slot.id)}
+                  style={{ fontSize: 13 }}
+                >
+                  {isExpanded ? '▼' : '▶'} Requirements ({reqs.length})
+                </button>
+              </div>
+            )}
 
-            {isExpanded && (
+            {isExpanded && !isPopulating && (
               <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid #1e2230' }}>
                 {reqs.length === 0 && (
                   <p className="muted" style={{ fontSize: 13 }}>No requirements yet.</p>

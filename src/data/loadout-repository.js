@@ -1,6 +1,7 @@
 'use client';
 
 const STORAGE_KEY = 'warframe-loadouts';
+const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
 
 export default class LoadoutRepository {
   #data;
@@ -23,6 +24,41 @@ export default class LoadoutRepository {
   }
 
   #persist() {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.#data));
+    }
+    // Push to server (fire-and-forget)
+    this.#syncToServer();
+  }
+
+  async #syncToServer() {
+    try {
+      await fetch('/api/loadouts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.#data.loadouts),
+      });
+    } catch {
+      // Silently fail — localStorage still has the data
+    }
+  }
+
+  async syncFromServer() {
+    try {
+      const res = await fetch('/api/loadouts');
+      if (res.ok) {
+        const serverLoadouts = await res.json();
+        if (Array.isArray(serverLoadouts) && serverLoadouts.length > 0) {
+          this.#data.loadouts = serverLoadouts;
+          this.#persistLocal();
+        }
+      }
+    } catch {
+      // Keep localStorage data
+    }
+  }
+
+  #persistLocal() {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.#data));
     }
@@ -61,16 +97,28 @@ export default class LoadoutRepository {
   }
 
   createLoadout({ name }) {
+    const id = this.#nextId('loadout');
+    const now = this.#now();
     const loadout = {
-      id: this.#nextId('loadout'),
+      id,
       name: name.trim(),
-      created_at: this.#now(),
-      updated_at: this.#now(),
-      slots: []
+      created_at: now,
+      updated_at: now,
+      slots: SLOT_TYPES.map((type, i) => ({
+        id: `${id}-${type}`,
+        loadout_id: id,
+        slot_type: type,
+        item_id: null,
+        custom_item_name: null,
+        acquired: false,
+        notes: '',
+        display_order: i,
+        requirements: []
+      }))
     };
     this.#data.loadouts.push(loadout);
     this.#persist();
-    return { ...loadout, slots: [] };
+    return this.getLoadoutById(id);
   }
 
   updateLoadout(id, updates) {
@@ -96,6 +144,14 @@ export default class LoadoutRepository {
   addSlot(loadoutId, slot) {
     const loadout = this.#data.loadouts.find((l) => l.id === loadoutId);
     if (!loadout) return null;
+
+    const slots = loadout.slots || [];
+    const duplicateItem = slot.item_id && slots.some((s) => s.item_id === slot.item_id);
+    const duplicateCustom = slot.custom_item_name && slots.some((s) => s.custom_item_name === slot.custom_item_name);
+    if (duplicateItem || duplicateCustom) {
+      return null;
+    }
+
     const entry = {
       id: this.#nextId('slot'),
       loadout_id: loadoutId,
@@ -128,20 +184,22 @@ export default class LoadoutRepository {
   deleteSlot(loadoutId, slotId) {
     const loadout = this.#data.loadouts.find((l) => l.id === loadoutId);
     if (!loadout) return false;
-    const before = (loadout.slots || []).length;
-    loadout.slots = (loadout.slots || []).filter((s) => s.id !== slotId);
-    if (loadout.slots.length !== before) {
-      loadout.updated_at = this.#now();
-      this.#persist();
-      return true;
-    }
-    return false;
+    const slot = (loadout.slots || []).find((s) => s.id === slotId);
+    if (!slot) return false;
+    // Reset slot to empty rather than removing it
+    slot.item_id = null;
+    slot.custom_item_name = null;
+    slot.acquired = false;
+    slot.notes = '';
+    slot.requirements = [];
+    loadout.updated_at = this.#now();
+    this.#persist();
+    return true;
   }
 
   // ── Requirement CRUD ──────────────────────────────────────────
 
   addRequirement(slotId, requirement) {
-    // Find slot across all loadouts
     for (const loadout of this.#data.loadouts) {
       const slot = (loadout.slots || []).find((s) => s.id === slotId);
       if (slot) {
@@ -209,6 +267,9 @@ export default class LoadoutRepository {
         unacquired_requirements: []
       };
       for (const slot of loadout.slots || []) {
+        // Skip empty placeholder slots
+        if (!slot.item_id && !slot.custom_item_name) continue;
+
         if (!slot.acquired) {
           entry.unacquired_slots.push({
             slot_id: slot.id,
