@@ -8,6 +8,7 @@ import {
 } from './seed.js';
 
 const STORAGE_KEY = 'warframe-todos';
+const ITEMS_STORAGE_KEY = 'warframe-items';
 
 export default class Repository {
   items;
@@ -23,15 +24,24 @@ export default class Repository {
     this.treeRelationships = [...seedTreeRelationships];
 
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
+      const storedTodos = localStorage.getItem(STORAGE_KEY);
+      if (storedTodos) {
         try {
-          this.todos = JSON.parse(stored);
+          this.todos = JSON.parse(storedTodos);
         } catch (e) {
           this.todos = [...seedTodos];
         }
       } else {
         this.todos = [...seedTodos];
+      }
+
+      const storedItems = localStorage.getItem(ITEMS_STORAGE_KEY);
+      if (storedItems) {
+        try {
+          this.items = JSON.parse(storedItems);
+        } catch (e) {
+          this.items = [...seedItems];
+        }
       }
     } else {
       this.todos = [...seedTodos];
@@ -42,6 +52,20 @@ export default class Repository {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.todos));
     }
+  }
+
+  #persistItems() {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(this.items));
+    }
+  }
+
+  updateItem(id, updates) {
+    const target = this.items.find((i) => i.id === id);
+    if (!target) return null;
+    Object.assign(target, updates);
+    this.#persistItems();
+    return { ...target };
   }
 
   getAllItems() {
@@ -125,5 +149,15 @@ export default class Repository {
     target.updated_at = new Date().toISOString();
     this.#persistTodos();
     return { ...target };
+  }
+
+  deleteTodo(id) {
+    const before = this.todos.length;
+    this.todos = this.todos.filter((t) => t.id !== id);
+    if (this.todos.length !== before) {
+      this.#persistTodos();
+      return true;
+    }
+    return false;
   }
 }

@@ -10,15 +10,30 @@ function Todos() {
   const [editingId, setEditingId] = useState(null);
   const [notesDraft, setNotesDraft] = useState('');
   const [statusDraft, setStatusDraft] = useState('');
-  const [newForm, setNewForm] = useState({ notes: '', status: 'pending' });
+  const [newForm, setNewForm] = useState({ notes: '', status: 'pending', craftable_item_id: '', linked_material_name: '' });
+  const [items, setItems] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setItems(repo.getAllItems());
+    setTodos(repo.getTodos());
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (newForm.craftable_item_id) {
+      setMaterials(repo.getMaterialsForItem(newForm.craftable_item_id));
+      setNewForm((f) => ({ ...f, linked_material_name: '' }));
+    } else {
+      setMaterials([]);
+      setNewForm((f) => ({ ...f, linked_material_name: '' }));
+    }
+  }, [newForm.craftable_item_id]);
 
   const load = () => {
     setTodos(repo.getTodos());
   };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   const startEdit = (todo) => {
     setEditingId(todo.id);
@@ -34,18 +49,24 @@ function Todos() {
     load();
   };
 
+  const handleDelete = (id) => {
+    if (!confirm('Delete this todo?')) return;
+    repo.deleteTodo(id);
+    load();
+  };
+
   const create = (e) => {
     e.preventDefault();
     if (!newForm.notes.trim()) return;
     repo.addTodo({
-      craftable_item_id: null,
-      linked_material_name: null,
+      craftable_item_id: newForm.craftable_item_id || null,
+      linked_material_name: newForm.linked_material_name || null,
       user_notes: newForm.notes.trim(),
       status: newForm.status,
       priority: 'medium',
       due_at: null,
     });
-    setNewForm({ notes: '', status: 'pending' });
+    setNewForm({ notes: '', status: 'pending', craftable_item_id: '', linked_material_name: '' });
     load();
   };
 
@@ -65,6 +86,29 @@ function Todos() {
             onChange={(e) => setNewForm({ ...newForm, notes: e.target.value })}
           />
           <select
+            value={newForm.craftable_item_id}
+            onChange={(e) => setNewForm({ ...newForm, craftable_item_id: e.target.value })}
+          >
+            <option value="">Item (optional)</option>
+            {items.map((it) => (
+              <option key={it.id} value={it.id}>
+                {it.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={newForm.linked_material_name}
+            onChange={(e) => setNewForm({ ...newForm, linked_material_name: e.target.value })}
+            disabled={!newForm.craftable_item_id || materials.length === 0}
+          >
+            <option value="">Material (optional)</option>
+            {materials.map((m) => (
+              <option key={m.name} value={m.name}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <select
             value={newForm.status}
             onChange={(e) => setNewForm({ ...newForm, status: e.target.value })}
           >
@@ -78,7 +122,11 @@ function Todos() {
         </div>
       </form>
 
-      {todos.length === 0 && <p className="muted">No todos yet.</p>}
+      {loading ? (
+        <p className="muted">Loading todos...</p>
+      ) : todos.length === 0 && (
+        <p className="muted">No todos yet.</p>
+      )}
 
       {todos.map((todo) => {
         const isEditing = editingId === todo.id;
@@ -111,7 +159,10 @@ function Todos() {
                     <button className="btn" onClick={() => setEditingId(null)}>Cancel</button>
                   </div>
                 ) : (
-                  <button className="btn" onClick={() => startEdit(todo)}>Edit</button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button className="btn" onClick={() => startEdit(todo)}>Edit</button>
+                    <button className="btn" onClick={() => handleDelete(todo.id)}>Delete</button>
+                  </div>
                 )}
               </div>
             </div>
