@@ -31,6 +31,75 @@ test.describe('Todos page', () => {
     });
   });
 
+  test.describe('item and material selection', () => {
+    test('item dropdown lists craftable items', async ({ page }) => {
+      const itemSelect = page.locator('select').first();
+      const options = await itemSelect.locator('option').allTextContents();
+      expect(options).toContain('Item (optional)');
+      expect(options).toContain('Excalibur');
+      expect(options).toContain('Mesa');
+      expect(options).toContain('Kronen Prime');
+    });
+
+    test('selecting an item populates material dropdown', async ({ page }) => {
+      const selects = page.locator('select');
+      const itemSelect = selects.nth(0);
+      const materialSelect = selects.nth(1);
+
+      // Before selecting anything, material dropdown should be disabled
+      await expect(materialSelect).toBeDisabled();
+
+      // Select Excalibur
+      await itemSelect.selectOption('item-1');
+      await page.waitForTimeout(200);
+
+      // Material dropdown should now be enabled and have options
+      await expect(materialSelect).not.toBeDisabled();
+      const matOptions = await materialSelect.locator('option').allTextContents();
+      expect(matOptions).toContain('Material (optional)');
+      expect(matOptions).toContain('Alloy Plate');
+      expect(matOptions).toContain('Polymer Bundle');
+    });
+
+    test('creates todo linked to item and material', async ({ page }) => {
+      const selects = page.locator('select');
+      await selects.nth(0).selectOption('item-4'); // Rubico Prime
+      await page.waitForTimeout(200);
+      await selects.nth(1).selectOption('Argon Crystal');
+      await page.getByPlaceholder('Notes').fill('Farm Argon for Rubico');
+      await page.getByRole('button', { name: 'Add' }).click();
+      await page.waitForTimeout(300);
+
+      // The todo should show the item name as a link — check the last card added
+      const todoCards = page.locator('.card');
+      const lastCard = todoCards.last();
+      await expect(lastCard.getByRole('link', { name: 'Rubico Prime' })).toBeVisible();
+      // The material link to sources should appear
+      await expect(lastCard.getByRole('link', { name: 'Source: Argon Crystal' })).toBeVisible();
+
+      // Verify localStorage has the linked data
+      const data = await page.evaluate(() => localStorage.getItem('warframe-todos'));
+      const todos = JSON.parse(data || '[]');
+      const created = todos.find((t) => t.user_notes === 'Farm Argon for Rubico');
+      expect(created).toBeTruthy();
+      expect(created.craftable_item_id).toBe('item-4');
+      expect(created.linked_material_name).toBe('Argon Crystal');
+    });
+
+    test('can create freeform todo without item or material', async ({ page }) => {
+      await page.getByPlaceholder('Notes').fill('Freeform task');
+      await page.getByRole('button', { name: 'Add' }).click();
+      await page.waitForTimeout(300);
+
+      const data = await page.evaluate(() => localStorage.getItem('warframe-todos'));
+      const todos = JSON.parse(data || '[]');
+      const created = todos.find((t) => t.user_notes === 'Freeform task');
+      expect(created).toBeTruthy();
+      expect(created.craftable_item_id).toBe(null);
+      expect(created.linked_material_name).toBe(null);
+    });
+  });
+
   test.describe('edit todo', () => {
     test('edits a todo', async ({ page }) => {
       await page.getByRole('button', { name: 'Edit' }).first().click();
@@ -41,6 +110,16 @@ test.describe('Todos page', () => {
       await page.waitForTimeout(300);
       await expect(page.getByText('Edited regression note')).toBeVisible();
     });
+  });
+
+  test('delete button is visible and removes todo', async ({ page }) => {
+    await expect(page.getByRole('button', { name: 'Delete' }).first()).toBeVisible();
+    const before = await page.locator('.card').count();
+    page.on('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: 'Delete' }).first().click();
+    await page.waitForTimeout(300);
+    const after = await page.locator('.card').count();
+    expect(after).toBe(before - 1);
   });
 
   test.describe('localStorage persistence', () => {
@@ -61,10 +140,5 @@ test.describe('Todos page', () => {
       await page.waitForTimeout(300);
       await expect(page.getByText('Reload survivor')).toBeVisible();
     });
-  });
-
-  test.fixme('delete button is visible and removes todo', async ({ page }) => {
-    // Known fixme: no delete button implemented
-    await expect(page.getByRole('button', { name: 'Delete' }).first()).toBeVisible();
   });
 });
