@@ -5,13 +5,31 @@ import repo from '../../src/data/store.js';
 
 function ItemsList() {
   const [showTrackedOnly, setShowTrackedOnly] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const items = repo.getAllItems();
-  const filtered = showTrackedOnly
+
+  let filtered = showTrackedOnly
     ? items.filter((it) => it.is_user_tracked)
     : items;
 
+  if (searchText.trim()) {
+    const query = searchText.toLowerCase();
+    filtered = filtered.filter((it) =>
+      it.name.toLowerCase().includes(query)
+    );
+  }
+
   return (
     <div>
+      <div className="filters">
+        <input
+          type="text"
+          placeholder="Search items by name..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          className="search-input"
+        />
+      </div>
       <div className="filters">
         <label>
           <input
