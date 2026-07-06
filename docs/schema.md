@@ -23,6 +23,7 @@ Represents Warframe items that can be crafted by the player (weapons, Warframes,
 | mastery_rank_required | integer | Required, min 0 | Minimum mastery rank needed to equip/craft the item. |
 | is_user_tracked | boolean | Required, default false | Whether the user has marked this item for tracking / TODO follow-up. |
 | blueprint_source | string | Optional | Where the blueprint is acquired (`market`, `drop`, `research`, `quest`, `clan`). |
+| wiki_url | string | Optional | Link to the item's page on the Warframe wiki (https://wiki.warframe.com/w/). |
 | created_at | datetime | Required | Timestamp when the record was first created. |
 | updated_at | datetime | Required | Timestamp of the last update. |
 
@@ -36,8 +37,8 @@ Represents Warframe items that can be crafted by the player (weapons, Warframes,
 
 ### Example Entries
 
-1. `Excalibur` — warframe, mastery rank 0, tracked: true.
-2. `Galatine Prime` — melee, mastery rank 13, tracked: false.
+1. `Excalibur` — warframe, mastery rank 0, tracked: true, `wiki_url` = `"https://wiki.warframe.com/w/Excalibur"`.
+2. `Galatine Prime` — melee, mastery rank 13, tracked: false, `wiki_url` = `"https://wiki.warframe.com/w/Galatine_Prime"`.
 
 ---
 
@@ -53,6 +54,7 @@ Defines the materials and quantities needed to craft a specific craftable item.
 | craftable_item_id | string / uuid | Required, foreign key → `CraftableItem.id` | The item this material is required for. |
 | material_name | string | Required | In-game material name (e.g., `"Polymer Bundle"`). |
 | quantity_required | integer | Required, min 1 | Number of units of the material needed for the craft. |
+| wiki_url | string | Optional | Link to the material's page on the Warframe wiki (https://wiki.warframe.com/w/). |
 | created_at | datetime | Required | Timestamp when the record was first created. |
 
 ### Relationships
@@ -63,8 +65,8 @@ Defines the materials and quantities needed to craft a specific craftable item.
 
 ### Example Entries
 
-1. `craftable_item_id` = Excalibur, `material_name` = `"Alloy Plate"`, `quantity_required` = 500.
-2. `craftable_item_id` = Galatine Prime, `material_name` = "Argon Crystal", `quantity_required` = 2.
+1. `craftable_item_id` = Excalibur, `material_name` = `"Alloy Plate"`, `quantity_required` = 500, `wiki_url` = `"https://wiki.warframe.com/w/Alloy_Plate"`.
+2. `craftable_item_id` = Galatine Prime, `material_name` = `"Argon Crystal"`, `quantity_required` = 2, `wiki_url` = `"https://wiki.warframe.com/w/Argon_Crystal"`.
 
 ---
 
