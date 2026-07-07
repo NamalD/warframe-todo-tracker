@@ -6,12 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "vitest run",
+    "test": "node tests/test-pack.mjs",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:unit:coverage": "vitest run --coverage",
-    "test:regression": "node tests/smoke/playwright.mjs",
-    "test:assets": "node -e \"['public/data/wfcd-cache.json','public/data/mods-cache.json'].forEach(f=>{if(!require('fs').existsSync(f)){console.error('MISSING: '+f);process.exit(1)}else console.log('OK: '+f)})\"",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
