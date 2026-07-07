@@ -88,14 +88,10 @@ export async function pullFromServer(apiPath, storageKey, onEvent, dataKey = nul
       return { data: serverData, fromServer: true, fromLocal: false };
     }
 
-    // Server returned an explicit empty value ([] or {}) — accept as truth
-    // Only migrate if server returned null (no data file exists yet)
-    if (serverData !== null && serverData !== undefined) {
-      // Server confirmed empty — accept it
-      return { data: serverData, fromServer: true, fromLocal: false };
-    }
-
-    // Server returned null (no file) — check if we have local data to migrate
+    // Server returned empty (null, [], or {}) — check if we have local data to migrate.
+    // If the server file doesn't exist, readStore returns the default value ([]),
+    // which the server serializes back as []. We must NOT let that overwrite real
+    // local data, or created-on-this-device-but-not-yet-synced data is lost.
     const localHasContent = localData !== null
       && (Array.isArray(localData)
         ? localData.length > 0
@@ -122,6 +118,11 @@ export async function pullFromServer(apiPath, storageKey, onEvent, dataKey = nul
         }
       }
       return { data: localData, fromServer: false, fromLocal: true };
+    }
+
+    // Both server and local are empty (or local is null/invalid) — accept server's empty state
+    if (serverData !== null && serverData !== undefined) {
+      return { data: serverData, fromServer: true, fromLocal: false };
     }
 
     // Both null — no data anywhere
