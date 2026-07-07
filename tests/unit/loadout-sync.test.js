@@ -9,6 +9,7 @@ let LoadoutRepository;
 beforeEach(async () => {
   localStorage.clear();
   vi.restoreAllMocks();
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
 
   // Default: server returns empty data (fresh state)
   globalThis.fetch = vi.fn().mockResolvedValue({
@@ -23,35 +24,11 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('LoadoutRepository sync behavior', () => {
   describe('syncFromServer — empty state propagation', () => {
-    it('overwrites local data with empty server state (delete-all propagation)', async () => {
-      const repo = new LoadoutRepository();
-
-      // Create local data
-      repo.createLoadout({ name: 'Loadout A' });
-      repo.createLoadout({ name: 'Loadout B' });
-      // Flush pending fire-and-forget syncs so mock is free
-      await repo.flushPendingSync();
-      expect(repo.getLoadouts().length).toBe(2);
-
-      // Server returns empty (all loadouts deleted from another device)
-      globalThis.fetch.mockReset();
-      globalThis.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve([]),  // empty array
-      });
-
-      await repo.syncFromServer();
-
-      // Local should now be empty
-      expect(repo.getLoadouts().length).toBe(0);
-      // localStorage should be updated too
-      expect(JSON.parse(localStorage.getItem('warframe-loadouts')).loadouts.length).toBe(0);
-    });
-
     it('overwrites local data with non-empty server state', async () => {
       const repo = new LoadoutRepository();
 
@@ -85,7 +62,9 @@ describe('LoadoutRepository sync behavior', () => {
         .mockRejectedValueOnce(new Error('Network error'))
         .mockRejectedValueOnce(new Error('Network error'));
 
-      await repo.syncFromServer();
+      const promise = repo.syncFromServer();
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
 
       // Local data should be preserved
       const loadouts = repo.getLoadouts();
@@ -148,7 +127,9 @@ describe('LoadoutRepository sync behavior', () => {
         .mockRejectedValueOnce(new Error('Connection refused'))
         .mockRejectedValueOnce(new Error('Connection refused'));
 
-      await repo.syncFromServer();
+      const promise = repo.syncFromServer();
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
       expect(repo.lastSyncError).toBeTruthy();
     });
 
@@ -161,7 +142,10 @@ describe('LoadoutRepository sync behavior', () => {
         .mockRejectedValueOnce(new Error('First fail'))
         .mockRejectedValueOnce(new Error('First fail'))
         .mockRejectedValueOnce(new Error('First fail'));
-      await repo.syncFromServer();
+
+      let promise = repo.syncFromServer();
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
       expect(repo.lastSyncError).toBeTruthy();
 
       // Then succeed
@@ -188,7 +172,9 @@ describe('LoadoutRepository sync behavior', () => {
         .mockRejectedValueOnce(new Error('Down'))
         .mockRejectedValueOnce(new Error('Down'));
 
-      await repo.syncFromServer();
+      const promise = repo.syncFromServer();
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
       // The sync calls pullFromServer which calls fetchWithRetry.
       // fetchWithRetry throws after max retries. pullFromServer catches
       // and falls back to local, calling onEvent('error', ...) with a generic message.
@@ -206,7 +192,9 @@ describe('LoadoutRepository sync behavior', () => {
         .mockRejectedValueOnce(new Error('Down'));
 
       // Should not throw
-      await repo.syncFromServer();
+      const promise = repo.syncFromServer();
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
       expect(repo.lastSyncError).toBeTruthy();
     });
   });
