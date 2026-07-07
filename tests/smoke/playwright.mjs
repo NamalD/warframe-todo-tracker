@@ -39,6 +39,7 @@ async function run() {
   await testItemDetail();
   await testSourcesPage();
   await testTodosCrud();
+  await testModsPage();
   await testEdgeCases();
 
   // ── REPORT ─────────────────────────────────────────
@@ -200,6 +201,41 @@ async function testTodosCrud() {
   // BUG: No delete button
   const hasDeleteBtn = await page.$('button:has-text("Delete")').catch(() => null);
   record('Delete button exists', !!hasDeleteBtn, hasDeleteBtn ? 'present' : 'MISSING — no way to delete todos');
+}
+
+// ── Test: Mods Page ──────────────────────────────────
+
+async function testModsPage() {
+  console.log('═══ Mods Page ═══');
+
+  await page.goto(`${BASE}/mods`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1500); // let mod data fetch + render
+
+  // Check mod cards are rendered (not empty state)
+  const modLinks = await page.$$eval('a[href^="/mods/mod-"]', els => els.map(e => e.textContent));
+  record('Mods page renders mod cards', modLinks.length > 0, `${modLinks.length} mods loaded`);
+  record('Mods page has first mod name', modLinks.length > 0 && modLinks[0].length > 0, `"${modLinks[0]}"`);
+
+  // Check type filter has options beyond "All Types"
+  const typeOptions = await page.$$eval('select:first-of-type option, [role="listbox"] [role="option"]', els => els.map(e => e.textContent));
+  const hasTypeFilter = typeOptions.some(t => t !== 'All Types' && t.trim().length > 0);
+  record('Type filter has options', hasTypeFilter, `${typeOptions.length} options`);
+
+  // Check polarity filter buttons exist
+  const polarityBtns = await page.$$eval('button[aria-label], button:not([aria-haspopup])', els =>
+    els.filter(e => !e.textContent.includes('Show owned')).map(e => e.textContent.trim()).filter(Boolean)
+  );
+  const hasPolarity = polarityBtns.some(b => ['madurai', 'vazarin', 'naramon', 'zenurik'].includes(b.toLowerCase()));
+  record('Polarity filter buttons present', hasPolarity, `${polarityBtns.filter(Boolean).length} buttons`);
+
+  // Verify page title
+  const title = await page.textContent('h1');
+  record('Page title is Mods', title === 'Mods', `"${title}"`);
+
+  // Verify empty state is NOT showing (regression check for cache loading)
+  const bodyText = await page.textContent('main');
+  const noResults = bodyText.includes('No results') || bodyText.includes('No mods');
+  record('No false empty state', !noResults, noResults ? 'WARNING: empty state visible' : 'mods loaded correctly');
 }
 
 // ── Test: Edge Cases ─────────────────────────────────
