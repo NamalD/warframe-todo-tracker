@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST='{"app/builds/page.jsx -> ../../src/data/store.js":{"id":960,"files":["static/chunks/960.662b29451690d628.js"]}}';
