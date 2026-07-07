@@ -1,209 +1,104 @@
 /**
- * Server-side SQLite-backed data persistence.
+ * Server-side JSON file persistence with advisory file locking.
  *
- * Each domain key maps to a table in the warframe.db SQLite database:
- *   loadouts           → loadouts
- *   todos              → todos
- *   materials-inventory → materials_inventory
- *
- * Replaces the legacy JSON file persistence. SQLite provides atomicity
- * and concurrency safety natively, so no advisory locking or temp-file
- * rename logic is needed.
+ * Each domain (loadouts, todos, materials) gets its own JSON file
+ * in the DATA_DIR directory. Writes use temp-file + rename for
+ * atomicity, plus a lock file for concurrent-access safety.
  *
  * This module is Node.js-only — never imported from client components.
  */
 
-import { getDb } from './database.js';
+import fs from 'node:fs';
+import path from 'node:path';
 
-// ---------------------------------------------------------------------------
-// Key-to-table mapping
-// ---------------------------------------------------------------------------
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
 
-const KEY_TABLE_MAP = {
-  loadouts: 'loadouts',
-  todos: 'todos',
-  'materials-inventory': 'materials_inventory',
-};
-
-// ---------------------------------------------------------------------------
-// Domain-specific table helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Read all loadouts from the loadouts table.
- * Each row's `data` column is a JSON blob of the full loadout object.
- */
-function readLoadouts() {
-  const db = getDb();
-  const rows = db.prepare('SELECT data FROM loadouts ORDER BY id').all();
-  return rows.map(r => JSON.parse(r.data));
+// Ensure data directory exists
+try {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+} catch {
+  // directory already exists or cannot be created — handled at read/write time
 }
 
 /**
- * Write all loadouts, replacing existing data in a single transaction.
+ * Acquire a lock file with timeout.
+ * Returns an unlock function, or throws if the lock cannot be acquired.
  */
-function writeLoadouts(items) {
-  const db = getDb();
-  const write = db.transaction(() => {
-    db.prepare('DELETE FROM loadouts').run();
-    if (items.length === 0) return;
+function acquireLock(filePath, timeoutMs = 5000) {
+  const lockPath = filePath + '.lock';
+  const start = Date.now();
 
-    const stmt = db.prepare(`
-      INSERT INTO loadouts (id, name, data, version, created_at, updated_at)
-      VALUES (?, ?, ?, 1, ?, ?)
-    `);
-    for (const item of items) {
-      stmt.run(
-        item.id,
-        item.name || '',
-        JSON.stringify(item),
-        item.created_at || new Date().toISOString(),
-        item.updated_at || new Date().toISOString(),
-      );
+  while (Date.now() - start < timeoutMs) {
+    try {
+      // O_CREAT | O_EXCL — fails if file exists
+      const fd = fs.openSync(lockPath, 'wx');
+      fs.closeSync(fd);
+      return () => {
+        try {
+          fs.unlinkSync(lockPath);
+        } catch {
+          // lock already removed
+        }
+      };
+    } catch (err) {
+      if (err.code === 'EEXIST') {
+        // Lock exists — check if it's stale (>30s old)
+        try {
+          const stat = fs.statSync(lockPath);
+          if (Date.now() - stat.mtimeMs > 30000) {
+            // Stale lock — remove and retry
+            try { fs.unlinkSync(lockPath); } catch { /* race */ }
+          }
+        } catch { /* lock disappeared */ }
+      }
+      // Wait before retry
+      const waited = Date.now() - start;
+      if (waited < timeoutMs) {
+        const delay = Math.min(100, timeoutMs - waited);
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
+      }
     }
-  });
-  write();
-}
-
-/**
- * Read all todos, reconstructing objects from normalized columns.
- * Metadata fields (version, created_at, updated_at) are internal to
- * the SQLite schema and omitted from the returned objects for backward
- * compatibility with the legacy JSON API shape.
- */
-function readTodos() {
-  const db = getDb();
-  const rows = db.prepare(`
-    SELECT id, craftable_item_id, linked_material_name, user_notes,
-           status, priority, due_at
-    FROM todos ORDER BY id
-  `).all();
-  return rows.map(r => ({
-    id: r.id,
-    craftable_item_id: r.craftable_item_id,
-    linked_material_name: r.linked_material_name,
-    user_notes: r.user_notes,
-    status: r.status,
-    priority: r.priority,
-    due_at: r.due_at,
-  }));
-}
-
-/**
- * Write all todos, replacing existing data in a single transaction.
- */
-function writeTodos(items) {
-  const db = getDb();
-  const write = db.transaction(() => {
-    db.prepare('DELETE FROM todos').run();
-    if (items.length === 0) return;
-
-    const stmt = db.prepare(`
-      INSERT INTO todos
-        (id, craftable_item_id, linked_material_name, user_notes,
-         status, priority, due_at, version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-    `);
-    for (const item of items) {
-      stmt.run(
-        item.id,
-        item.craftable_item_id || null,
-        item.linked_material_name || null,
-        item.user_notes || '',
-        item.status || 'pending',
-        item.priority || 'medium',
-        item.due_at || null,
-        item.created_at || new Date().toISOString(),
-        item.updated_at || new Date().toISOString(),
-      );
-    }
-  });
-  write();
-}
-
-/**
- * Read materials inventory as a flat object { material_name: quantity }.
- */
-function readMaterialsInventory() {
-  const db = getDb();
-  const rows = db.prepare(
-    'SELECT material_name, quantity FROM materials_inventory'
-  ).all();
-  const result = {};
-  for (const r of rows) {
-    result[r.material_name] = r.quantity;
   }
-  return result;
+
+  throw new Error(`Could not acquire lock for ${filePath} after ${timeoutMs}ms`);
 }
 
-/**
- * Write materials inventory, replacing existing data in a single transaction.
- */
-function writeMaterialsInventory(data) {
-  const db = getDb();
-  const write = db.transaction(() => {
-    db.prepare('DELETE FROM materials_inventory').run();
-    const entries = Object.entries(data);
-    if (entries.length === 0) return;
-
-    const stmt = db.prepare(`
-      INSERT INTO materials_inventory (material_name, quantity, version, updated_at)
-      VALUES (?, ?, 1, ?)
-    `);
-    for (const [materialName, quantity] of entries) {
-      stmt.run(materialName, quantity, new Date().toISOString());
-    }
-  });
-  write();
+function readJSON(filePath) {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(raw);
+  } catch (err) {
+    if (err.code === 'ENOENT') return null;
+    throw err;
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Public API (same signature as legacy JSON store)
-// ---------------------------------------------------------------------------
+function writeJSON(filePath, data) {
+  const tmpPath = filePath + '.tmp';
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+  fs.renameSync(tmpPath, filePath);
+}
 
 /**
  * Read data for a given domain key.
- * Returns the parsed value or defaultValue if the table is empty
- * or the key is not recognised.
+ * Returns the parsed value or defaultValue if the file doesn't exist.
  */
 export function readStore(key, defaultValue = null) {
-  const table = KEY_TABLE_MAP[key];
-  if (!table) return defaultValue;
-
-  try {
-    let data;
-    if (table === 'loadouts') {
-      data = readLoadouts();
-    } else if (table === 'todos') {
-      data = readTodos();
-    } else if (table === 'materials_inventory') {
-      data = readMaterialsInventory();
-    }
-
-    return data;
-  } catch (err) {
-    console.error(`[server-store readStore] ${err.message}`);
-    return defaultValue;
-  }
+  const filePath = path.join(DATA_DIR, `${key}.json`);
+  const data = readJSON(filePath);
+  return data !== null ? data : defaultValue;
 }
 
 /**
- * Write data for a given domain key.
- * Uses SQLite transactions for atomicity and concurrency safety.
- *
- * @throws {Error} If the key is not a recognised domain key.
+ * Write data for a given domain key. Uses lock + temp-file + rename
+ * for atomic, concurrency-safe writes.
  */
 export function writeStore(key, data) {
-  const table = KEY_TABLE_MAP[key];
-  if (!table) {
-    throw new Error(`Unknown store key: ${key}`);
-  }
-
-  if (table === 'loadouts') {
-    writeLoadouts(data);
-  } else if (table === 'todos') {
-    writeTodos(data);
-  } else if (table === 'materials_inventory') {
-    writeMaterialsInventory(data);
+  const filePath = path.join(DATA_DIR, `${key}.json`);
+  const unlock = acquireLock(filePath);
+  try {
+    writeJSON(filePath, data);
+  } finally {
+    unlock();
   }
 }
