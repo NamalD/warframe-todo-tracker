@@ -47,6 +47,7 @@ export default class Repository {
   #initPromise = null;
   #onSyncEvent = null;
   #syncInProgress = false;
+  #pendingSync = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -65,6 +66,9 @@ export default class Repository {
     } else {
       this.todos = [...SEED_TODOS];
       this.materialInventory = {};
+      this.items = [];
+      this.materials = [];
+      this.treeRelationships = [];
     }
   }
 
@@ -146,6 +150,9 @@ export default class Repository {
         this.todos = Array.isArray(todoResult.data) ? todoResult.data : [];
         this.#persistTodos();
         this.lastSyncError = null;
+      } else if (todoResult.fromLocal) {
+        this.lastSyncError = 'Server unreachable (todos)';
+        this.#persistTodos();
       }
       const invResult = await pullFromServer('/api/materials', MATERIALS_INVENTORY_KEY, this.#onSyncEvent);
       if (invResult.fromServer) {
@@ -153,7 +160,12 @@ export default class Repository {
           ? invResult.data : {};
         this.#persistMaterialInventory();
         this.lastSyncError = null;
+      } else if (invResult.fromLocal) {
+        if (!this.lastSyncError) this.lastSyncError = 'Server unreachable (materials)';
+        this.#persistMaterialInventory();
       }
+      // Clear pending sync
+      this.#pendingSync = null;
     } catch (err) {
       this.lastSyncError = err.message;
       if (this.#onSyncEvent) this.#onSyncEvent('error', `Sync failed: ${err.message}`);
@@ -168,11 +180,21 @@ export default class Repository {
   }
 
   #syncTodosToServer() {
-    pushToServer('/api/todos', this.todos, this.#onSyncEvent).then((ok) => { if (ok) this.lastSyncError = null; });
+    const promise = pushToServer('/api/todos', this.todos, this.#onSyncEvent).then((ok) => { if (ok) this.lastSyncError = null; return ok; });
+    this.#pendingSync = promise.catch(() => {});
+    return promise;
   }
 
   #syncInventoryToServer() {
-    pushToServer('/api/materials', this.materialInventory, this.#onSyncEvent).then((ok) => { if (ok) this.lastSyncError = null; });
+    const promise = pushToServer('/api/materials', this.materialInventory, this.#onSyncEvent).then((ok) => { if (ok) this.lastSyncError = null; return ok; });
+    this.#pendingSync = promise.catch(() => {});
+    return promise;
+  }
+
+  /** Returns a promise that resolves when any pending sync completes. */
+  async flushPendingSync() {
+    if (this.#pendingSync) await this.#pendingSync;
+    this.#pendingSync = null;
   }
 
   // Persistence

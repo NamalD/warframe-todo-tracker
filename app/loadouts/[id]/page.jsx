@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import LoadoutRepository from '../../../src/data/loadout-repository.js';
+import loadoutStore from '../../../src/data/loadout-store.js';
 import repo from '../../../src/data/store.js';
 
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
@@ -43,7 +43,7 @@ function LoadoutDetailInner() {
   const [reqWarning, setReqWarning] = useState({});
 
   useEffect(() => {
-    const lr = new LoadoutRepository();
+    const lr = loadoutStore;
     lr.syncFromServer().then(() => {
       setLoadoutRepo(lr);
       const l = lr.getLoadoutById(id);

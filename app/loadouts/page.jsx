@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import LoadoutRepository from '../../src/data/loadout-repository.js';
+import loadoutStore from '../../src/data/loadout-store.js';
 
 function isLoadoutComplete(loadout) {
   const slots = (loadout.slots || []).filter((s) => s.item_id || s.custom_item_name);
@@ -23,7 +23,7 @@ function LoadoutsPageInner() {
   const statusFilter = searchParams.get('status') || 'all';
 
   useEffect(() => {
-    const lr = new LoadoutRepository();
+    const lr = loadoutStore;
     lr.syncFromServer().then(() => {
       setLoadoutRepo(lr);
       setLoadouts(lr.getLoadouts());
