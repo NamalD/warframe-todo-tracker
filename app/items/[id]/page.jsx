@@ -15,15 +15,20 @@ function ItemDetail({ params }) {
 
   useEffect(() => {
     setLoading(true);
-    const data = repo.getItemById(id);
-    setItem(data);
-    setMaterials(repo.getMaterialsForItem(id));
-    setTree(repo.getTreeForItem(id));
+    async function load() {
+      const data = await repo.getItemById(id);
+      setItem(data);
+      const mats = await repo.getMaterialsForItem(id);
+      setMaterials(mats);
+      const treeData = await repo.getTreeForItem(id);
+      setTree(treeData);
 
-    // Load owned quantities for all materials of this item
-    const inv = repo.getMaterialInventory();
-    setOwned(inv);
-    setLoading(false);
+      // Load owned quantities for all materials of this item
+      const inv = repo.getMaterialInventory();
+      setOwned(inv);
+      setLoading(false);
+    }
+    load();
   }, [id]);
 
   const handleOwnedChange = useCallback((materialName, value) => {
@@ -48,9 +53,10 @@ function ItemDetail({ params }) {
     return <p className="muted">Item not found.</p>;
   }
 
-  const trackToggle = () => {
-    repo.updateItem(id, { is_user_tracked: !item.is_user_tracked });
-    setItem({ ...repo.getItemById(id) });
+  const trackToggle = async () => {
+    await repo.updateItem(id, { is_user_tracked: !item.is_user_tracked });
+    const updated = await repo.getItemById(id);
+    setItem(updated);
   };
 
   return (

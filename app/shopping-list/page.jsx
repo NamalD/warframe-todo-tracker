@@ -9,57 +9,60 @@ function ShoppingList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
+    async function load() {
+      setLoading(true);
 
-    const items = repo.getAllItems();
-    const trackedItems = items.filter((it) => it.is_user_tracked);
-    const inv = repo.getMaterialInventory();
-    setOwned(inv);
+      const allItems = await repo.getAllItems();
+      const trackedItems = allItems.filter((it) => it.is_user_tracked);
+      const inv = repo.getMaterialInventory();
+      setOwned(inv);
 
-    // Aggregate materials across tracked items
-    const materialsMap = {};
-    for (const item of trackedItems) {
-      const itemMaterials = repo.getMaterialsForItem(item.id);
-      for (const m of itemMaterials) {
-        const key = m.material_name;
-        if (!materialsMap[key]) {
-          materialsMap[key] = {
-            name: m.material_name,
-            needed: 0,
-            wiki_url: m.wiki_url,
-            items: [],
-            itemIds: new Set()
-          };
-        }
-        materialsMap[key].needed += m.quantity_required;
-        if (!materialsMap[key].itemIds.has(item.id)) {
-          materialsMap[key].itemIds.add(item.id);
-          materialsMap[key].items.push({ id: item.id, name: item.name });
+      // Aggregate materials across tracked items
+      const materialsMap = {};
+      for (const item of trackedItems) {
+        const itemMaterials = await repo.getMaterialsForItem(item.id);
+        for (const m of itemMaterials) {
+          const key = m.material_name;
+          if (!materialsMap[key]) {
+            materialsMap[key] = {
+              name: m.material_name,
+              needed: 0,
+              wiki_url: m.wiki_url,
+              items: [],
+              itemIds: new Set()
+            };
+          }
+          materialsMap[key].needed += m.quantity_required;
+          if (!materialsMap[key].itemIds.has(item.id)) {
+            materialsMap[key].itemIds.add(item.id);
+            materialsMap[key].items.push({ id: item.id, name: item.name });
+          }
         }
       }
+
+      // Convert to array and compute deficit
+      const materialsList = Object.values(materialsMap).map((m) => {
+        const ownedQty = inv[m.name] ?? 0;
+        const deficit = Math.max(0, m.needed - ownedQty);
+        return {
+          ...m,
+          owned: ownedQty,
+          deficit,
+          done: deficit <= 0,
+          pct: Math.min(100, Math.round((ownedQty / m.needed) * 100))
+        };
+      });
+
+      // Sort: most deficit first, then alphabetically
+      materialsList.sort((a, b) => {
+        if (b.deficit !== a.deficit) return b.deficit - a.deficit;
+        return a.name.localeCompare(b.name);
+      });
+
+      setMaterials(materialsList);
+      setLoading(false);
     }
-
-    // Convert to array and compute deficit
-    const materialsList = Object.values(materialsMap).map((m) => {
-      const ownedQty = inv[m.name] ?? 0;
-      const deficit = Math.max(0, m.needed - ownedQty);
-      return {
-        ...m,
-        owned: ownedQty,
-        deficit,
-        done: deficit <= 0,
-        pct: Math.min(100, Math.round((ownedQty / m.needed) * 100))
-      };
-    });
-
-    // Sort: most deficit first, then alphabetically
-    materialsList.sort((a, b) => {
-      if (b.deficit !== a.deficit) return b.deficit - a.deficit;
-      return a.name.localeCompare(b.name);
-    });
-
-    setMaterials(materialsList);
-    setLoading(false);
+    load();
   }, []);
 
   const handleOwnedChange = useCallback((materialName, value) => {

@@ -44,11 +44,12 @@ function LoadoutDetailInner() {
 
   useEffect(() => {
     const lr = loadoutStore;
-    lr.syncFromServer().then(() => {
+    lr.syncFromServer().then(async () => {
       setLoadoutRepo(lr);
       const l = lr.getLoadoutById(id);
       setLoadout(l);
-      setItems(repo.getAllItems());
+      const allItems = await repo.getAllItems();
+      setItems(allItems);
       setLoading(false);
     });
   }, [id]);
@@ -183,6 +184,7 @@ function LoadoutDetailInner() {
   // ── Helper ──
 
   const isSlotEmpty = (slot) => !slot.item_id && !slot.custom_item_name;
+  const findItem = (itemId) => items.find((it) => it.id === itemId) || null;
 
   if (loading) return (
     <div>
@@ -238,7 +240,7 @@ function LoadoutDetailInner() {
 
       {slots.map((slot) => {
         const isEmpty = isSlotEmpty(slot);
-        const item = slot.item_id ? repo.getItemById(slot.item_id) : null;
+        const item = slot.item_id ? findItem(slot.item_id) : null;
         const displayName = slot.custom_item_name || (item ? item.name : 'Empty slot');
         const wikiUrl = item ? item.wiki_url : null;
         const reqs = slot.requirements || [];

@@ -7,12 +7,35 @@ import LoadoutDashboardSection from '../src/components/loadout-dashboard-section
 function Home() {
   const [items, setItems] = useState([]);
   const [todos, setTodos] = useState([]);
+  const [materialsList, setMaterialsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setItems(repo.getAllItems());
-    setTodos(repo.getTodos());
-    setLoading(false);
+    async function load() {
+      const allItems = await repo.getAllItems();
+      setItems(allItems);
+      setTodos(repo.getTodos());
+
+      // Materials needed: aggregate across tracked items
+      const tracked = allItems.filter((it) => it.is_user_tracked);
+      const matMap = {};
+      for (const item of tracked) {
+        const materials = await repo.getMaterialsForItem(item.id);
+        for (const m of materials) {
+          const key = m.material_name;
+          if (!matMap[key]) {
+            matMap[key] = { name: m.material_name, quantity: 0, items: [] };
+          }
+          matMap[key].quantity += m.quantity_required;
+          matMap[key].items.push(item.name);
+        }
+      }
+      setMaterialsList(
+        Object.values(matMap).sort((a, b) => a.name.localeCompare(b.name))
+      );
+      setLoading(false);
+    }
+    load();
   }, []);
 
   // Tracked items
@@ -21,23 +44,6 @@ function Home() {
   // Todo counts
   const pendingTodos = todos.filter((t) => t.status === 'pending');
   const inProgressTodos = todos.filter((t) => t.status === 'in_progress');
-
-  // Materials needed: aggregate across tracked items
-  const materialsMap = {};
-  for (const item of trackedItems) {
-    const materials = repo.getMaterialsForItem(item.id);
-    for (const m of materials) {
-      const key = m.material_name;
-      if (!materialsMap[key]) {
-        materialsMap[key] = { name: m.material_name, quantity: 0, items: [] };
-      }
-      materialsMap[key].quantity += m.quantity_required;
-      materialsMap[key].items.push(item.name);
-    }
-  }
-  const materialsList = Object.values(materialsMap).sort(
-    (a, b) => a.name.localeCompare(b.name)
-  );
 
   if (loading) {
     return (

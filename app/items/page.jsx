@@ -1,12 +1,32 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import repo from '../../src/data/store.js';
 
 function ItemsList() {
   const [showTrackedOnly, setShowTrackedOnly] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const items = repo.getAllItems();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    repo.getAllItems().then((data) => {
+      setItems(data);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <div>
+        <div className="skeleton" style={{ height: 28, width: 320, margin: '0 0 14px' }} />
+        <div className="card">
+          <div className="skeleton" style={{ height: 16, width: 180, margin: '0 0 10px' }} />
+          <div className="skeleton" style={{ height: 16, width: 240 }} />
+        </div>
+      </div>
+    );
+  }
 
   let filtered = showTrackedOnly
     ? items.filter((it) => it.is_user_tracked)

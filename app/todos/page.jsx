@@ -16,19 +16,27 @@ function Todos() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setItems(repo.getAllItems());
-    setTodos(repo.getTodos());
-    setLoading(false);
+    async function load() {
+      const allItems = await repo.getAllItems();
+      setItems(allItems);
+      setTodos(repo.getTodos());
+      setLoading(false);
+    }
+    load();
   }, []);
 
   useEffect(() => {
-    if (newForm.craftable_item_id) {
-      setMaterials(repo.getMaterialsForItem(newForm.craftable_item_id));
-      setNewForm((f) => ({ ...f, linked_material_name: '' }));
-    } else {
-      setMaterials([]);
-      setNewForm((f) => ({ ...f, linked_material_name: '' }));
+    async function loadMats() {
+      if (newForm.craftable_item_id) {
+        const mats = await repo.getMaterialsForItem(newForm.craftable_item_id);
+        setMaterials(mats);
+        setNewForm((f) => ({ ...f, linked_material_name: '' }));
+      } else {
+        setMaterials([]);
+        setNewForm((f) => ({ ...f, linked_material_name: '' }));
+      }
     }
+    loadMats();
   }, [newForm.craftable_item_id]);
 
   const load = () => {
@@ -69,6 +77,9 @@ function Todos() {
     setNewForm({ notes: '', status: 'pending', craftable_item_id: '', linked_material_name: '' });
     load();
   };
+
+  // Resolve item names sync from already-loaded items list (no async needed)
+  const findItem = (id) => items.find((it) => it.id === id);
 
   return (
     <div>
@@ -130,7 +141,7 @@ function Todos() {
 
       {todos.map((todo) => {
         const isEditing = editingId === todo.id;
-        const item = repo.getItemById(todo.craftable_item_id);
+        const item = findItem(todo.craftable_item_id);
         const materialName = todo.linked_material_name;
 
         return (
