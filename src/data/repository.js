@@ -1,6 +1,6 @@
 'use client';
 
-import { pullFromServer, pushToServer } from './sync-helper.js';
+import { pullFromServer, pushToServer, pullSyncData, pushChanges, patchRecord, createRecord, deleteRecord, getDeviceId } from './sync-helper.js';
 
 const STORAGE_KEY = 'warframe-todos';
 const ITEMS_CACHE_KEY = 'warframe-items-cache';
@@ -48,6 +48,9 @@ export default class Repository {
   #onSyncEvent = null;
   #syncInProgress = false;
   #pendingSync = null;
+  #dirtyTodoIds = new Set();
+  #todoVersions = new Map();
+  #materialVersions = new Map();
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -145,24 +148,54 @@ export default class Repository {
     if (this.#syncInProgress) return;
     this.#syncInProgress = true;
     try {
-      const todoResult = await pullFromServer('/api/todos', STORAGE_KEY, this.#onSyncEvent);
-      if (todoResult.fromServer) {
-        this.todos = Array.isArray(todoResult.data) ? todoResult.data : [];
-        this.#persistTodos();
-        this.lastSyncError = null;
-      } else if (todoResult.fromLocal) {
-        this.lastSyncError = 'Server unreachable (todos)';
-        this.#persistTodos();
+      // Use granular sync endpoint to get all data with versions
+      let syncResult;
+      try {
+        syncResult = await pullSyncData('/api/sync');
+      } catch {
+        // Fall back to legacy pull if sync endpoint fails
+        syncResult = null;
       }
-      const invResult = await pullFromServer('/api/materials', MATERIALS_INVENTORY_KEY, this.#onSyncEvent);
-      if (invResult.fromServer) {
-        this.materialInventory = (typeof invResult.data === 'object' && invResult.data !== null && !Array.isArray(invResult.data))
-          ? invResult.data : {};
-        this.#persistMaterialInventory();
+
+      if (syncResult && syncResult.todos !== undefined) {
+        // Granular sync — update todos with versions
+        this.todos = Array.isArray(syncResult.todos) ? syncResult.todos : [];
+        for (const todo of this.todos) {
+          if (todo.version !== undefined) {
+            this.#todoVersions.set(todo.id, todo.version);
+          }
+        }
+        this.#persistTodos();
+        this.#dirtyTodoIds.clear();
         this.lastSyncError = null;
-      } else if (invResult.fromLocal) {
-        if (!this.lastSyncError) this.lastSyncError = 'Server unreachable (materials)';
-        this.#persistMaterialInventory();
+
+        // Update materials inventory from sync
+        if (syncResult.materials_inventory) {
+          this.materialInventory = (typeof syncResult.materials_inventory === 'object' && syncResult.materials_inventory !== null)
+            ? syncResult.materials_inventory : {};
+          this.#persistMaterialInventory();
+        }
+      } else {
+        // Legacy fallback
+        const todoResult = await pullFromServer('/api/todos', STORAGE_KEY, this.#onSyncEvent);
+        if (todoResult.fromServer) {
+          this.todos = Array.isArray(todoResult.data) ? todoResult.data : [];
+          this.#persistTodos();
+          this.lastSyncError = null;
+        } else if (todoResult.fromLocal) {
+          this.lastSyncError = 'Server unreachable (todos)';
+          this.#persistTodos();
+        }
+        const invResult = await pullFromServer('/api/materials', MATERIALS_INVENTORY_KEY, this.#onSyncEvent);
+        if (invResult.fromServer) {
+          this.materialInventory = (typeof invResult.data === 'object' && invResult.data !== null && !Array.isArray(invResult.data))
+            ? invResult.data : {};
+          this.#persistMaterialInventory();
+          this.lastSyncError = null;
+        } else if (invResult.fromLocal) {
+          if (!this.lastSyncError) this.lastSyncError = 'Server unreachable (materials)';
+          this.#persistMaterialInventory();
+        }
       }
       // Clear pending sync
       this.#pendingSync = null;
@@ -173,10 +206,65 @@ export default class Repository {
   }
 
   async forceSyncToServer() {
-    const todosOk = await pushToServer('/api/todos', this.todos, this.#onSyncEvent);
-    const invOk = await pushToServer('/api/materials', this.materialInventory, this.#onSyncEvent);
-    if (todosOk || invOk) this.lastSyncError = null;
-    return { todosOk, invOk };
+    // Build dirty records payload
+    const dirtyTodos = [];
+    for (const id of this.#dirtyTodoIds) {
+      const todo = this.todos.find(t => t.id === id);
+      if (todo) {
+        dirtyTodos.push({
+          ...todo,
+          clientVersion: this.#todoVersions.get(id) || 0,
+        });
+      }
+    }
+
+    // Build material inventory payload with versions
+    const materialsPayload = {};
+    for (const [name, qty] of Object.entries(this.materialInventory)) {
+      if (typeof qty === 'object' && qty !== null) {
+        materialsPayload[name] = qty;
+      } else {
+        materialsPayload[name] = qty;
+      }
+    }
+
+    const changes = {};
+    if (dirtyTodos.length > 0) changes.todos = dirtyTodos;
+    if (Object.keys(materialsPayload).length > 0) changes.materials_inventory = materialsPayload;
+
+    try {
+      if (Object.keys(changes).length > 0) {
+        const result = await pushChanges('/api/sync', changes);
+        // Handle any conflicts from the server
+        if (result.conflicts && this.#onSyncEvent) {
+          const allConflicts = [
+            ...(result.conflicts.todos || []),
+            ...(result.conflicts.loadouts || []),
+            ...(result.conflicts.materials_inventory || []),
+          ];
+          for (const conflict of allConflicts) {
+            this.#onSyncEvent('conflict', `Record ${conflict.record_id} updated by another device — changes merged`);
+          }
+        }
+        // Update versions from accepted records
+        if (result.accepted && result.accepted.todos) {
+          for (const id of result.accepted.todos) {
+            // Versions are updated on next pull, but clear dirty flag
+            this.#dirtyTodoIds.delete(id);
+          }
+        }
+        this.lastSyncError = null;
+      }
+
+      // Also try legacy push for compatibility
+      const todosOk = await pushToServer('/api/todos', this.todos, this.#onSyncEvent);
+      const invOk = await pushToServer('/api/materials', this.materialInventory, this.#onSyncEvent);
+      if (todosOk || invOk) this.lastSyncError = null;
+      return { todosOk, invOk };
+    } catch (err) {
+      if (this.#onSyncEvent) this.#onSyncEvent('error', err.message);
+      return { todosOk: false, invOk: false };
+    }
   }
 
   #syncTodosToServer() {
@@ -224,7 +312,7 @@ export default class Repository {
     if (isNaN(parsed) || parsed < 0) this.materialInventory[materialName] = 0;
     else this.materialInventory[materialName] = parsed;
     this.#persistMaterialInventory();
-    this.#syncInventoryToServer();
+    this.#syncMaterialViaGranularApi(materialName);
     return this.materialInventory[materialName];
   }
 
@@ -280,10 +368,12 @@ export default class Repository {
   getTodos() { return this.todos.map((t) => ({ ...t })); }
 
   addTodo(todo) {
-    const entry = { ...todo, id: todo.id || `todo-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    const entry = { ...todo, id: todo.id || `todo-${Date.now()}`, version: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
     this.todos.push(entry);
+    this.#todoVersions.set(entry.id, 0);
+    this.#dirtyTodoIds.add(entry.id);
     this.#persistTodos();
-    this.#syncTodosToServer();
+    this.#syncTodoViaGranularApi(entry);
     return { ...entry };
   }
 
@@ -292,8 +382,9 @@ export default class Repository {
     if (!target) return null;
     target.status = status;
     target.updated_at = new Date().toISOString();
+    this.#dirtyTodoIds.add(id);
     this.#persistTodos();
-    this.#syncTodosToServer();
+    this.#syncTodoViaGranularApi(target);
     return { ...target };
   }
 
@@ -302,19 +393,120 @@ export default class Repository {
     if (!target) return null;
     target.user_notes = notes;
     target.updated_at = new Date().toISOString();
+    this.#dirtyTodoIds.add(id);
     this.#persistTodos();
-    this.#syncTodosToServer();
+    this.#syncTodoViaGranularApi(target);
     return { ...target };
   }
 
   deleteTodo(id) {
     const before = this.todos.length;
+    const target = this.todos.find((t) => t.id === id);
     this.todos = this.todos.filter((t) => t.id !== id);
     if (this.todos.length !== before) {
+      this.#dirtyTodoIds.delete(id);
+      this.#todoVersions.delete(id);
       this.#persistTodos();
-      this.#syncTodosToServer();
+      this.#deleteTodoViaGranularApi(id, target ? this.#todoVersions.get(id) || 0 : 0);
       return true;
     }
     return false;
+  }
+
+  /**
+   * Sync a material quantity change via granular API.
+   * Uses PATCH /api/materials with version-based conflict detection.
+   * On 409 conflict, auto-accept server version.
+   */
+  async #syncMaterialViaGranularApi(materialName) {
+    const clientVersion = this.#materialVersions.get(materialName) || 0;
+    try {
+      const result = await patchRecord('/api/materials', materialName, {
+        material_name: materialName,
+        quantity: this.materialInventory[materialName] || 0,
+        clientVersion,
+      });
+      if (result && result.version !== undefined) {
+        this.#materialVersions.set(materialName, result.version);
+      }
+    } catch (err) {
+      if (err.conflict) {
+        // Auto-accept server version
+        if (err.serverVersion !== undefined) {
+          this.#materialVersions.set(materialName, err.serverVersion);
+        }
+        if (err.serverQuantity !== undefined) {
+          this.materialInventory[materialName] = err.serverQuantity;
+          this.#persistMaterialInventory();
+        }
+        this.materialInventory[materialName] = err.serverQuantity ?? 0;
+        if (this.#onSyncEvent) {
+          this.#onSyncEvent('conflict', `Record ${materialName} updated by another device — changes merged`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Sync a single todo via granular API with conflict handling.
+   * On 409 conflict, auto-accept server version and update local data.
+   */
+  async #syncTodoViaGranularApi(todo) {
+    const clientVersion = this.#todoVersions.get(todo.id) || 0;
+    try {
+      if (clientVersion === 0) {
+        // New todo — create on server
+        const result = await createRecord('/api/todos', todo);
+        if (result && result.version !== undefined) {
+          this.#todoVersions.set(todo.id, result.version);
+        }
+      } else {
+        // Existing todo — patch
+        const result = await patchRecord('/api/todos', todo.id, {
+          updates: todo,
+          clientVersion,
+        });
+        if (result && result.version !== undefined) {
+          this.#todoVersions.set(todo.id, result.version);
+        }
+      }
+      this.#dirtyTodoIds.delete(todo.id);
+    } catch (err) {
+      if (err.conflict) {
+        // Auto-accept server version
+        if (err.serverVersion !== undefined) {
+          this.#todoVersions.set(todo.id, err.serverVersion);
+        }
+        if (err.serverData) {
+          // Update local record with server data
+          const target = this.todos.find(t => t.id === todo.id);
+          if (target) {
+            Object.assign(target, err.serverData);
+          }
+        }
+        if (this.#onSyncEvent) {
+          this.#onSyncEvent('conflict', `Record ${todo.id} updated by another device — changes merged`);
+        }
+        // Don't clear dirty flag — the user's changes were not persisted
+        // But the conflict was resolved server-side, so it's OK
+        this.#dirtyTodoIds.delete(todo.id);
+      }
+      // Non-conflict errors are silent — will be retried on next forceSyncToServer
+    }
+  }
+
+  /**
+   * Delete a todo via granular API with conflict handling.
+   */
+  async #deleteTodoViaGranularApi(id, clientVersion) {
+    try {
+      await deleteRecord('/api/todos', id, clientVersion);
+    } catch (err) {
+      if (err.conflict) {
+        if (this.#onSyncEvent) {
+          this.#onSyncEvent('conflict', `Record ${id} updated by another device — changes merged`);
+        }
+      }
+    }
   }
 }

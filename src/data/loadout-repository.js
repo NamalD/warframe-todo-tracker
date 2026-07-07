@@ -1,5 +1,5 @@
 'use client';
-import { pullFromServer, pushToServer } from './sync-helper.js';
+import { pullFromServer, pushToServer, pullSyncData, pushChanges, patchRecord, createRecord, deleteRecord } from './sync-helper.js';
 
 const STORAGE_KEY = 'warframe-loadouts';
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
@@ -9,6 +9,8 @@ export default class LoadoutRepository {
   #onSyncEvent = null;
   #syncInProgress = false;
   #pendingSync = null;
+  #dirtyLoadoutIds = new Set();
+  #loadoutVersions = new Map();
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -32,7 +34,42 @@ export default class LoadoutRepository {
     this.#pendingSync = this.#syncToServer().catch(() => {});
   }
 
-  async forceSyncToServer() { return this.#syncToServer(); }
+  async forceSyncToServer() {
+    // Build dirty loadouts payload
+    const dirtyLoadouts = [];
+    for (const id of this.#dirtyLoadoutIds) {
+      const loadout = this.#data.loadouts.find(l => l.id === id);
+      if (loadout) {
+        dirtyLoadouts.push({
+          ...loadout,
+          clientVersion: this.#loadoutVersions.get(id) || 0,
+        });
+      }
+    }
+
+    try {
+      if (dirtyLoadouts.length > 0) {
+        const result = await pushChanges('/api/sync', { loadouts: dirtyLoadouts });
+        if (result.conflicts && this.#onSyncEvent) {
+          for (const conflict of (result.conflicts.loadouts || [])) {
+            this.#onSyncEvent('conflict', `Record ${conflict.record_id} updated by another device — changes merged`);
+          }
+        }
+        if (result.accepted && result.accepted.loadouts) {
+          for (const id of result.accepted.loadouts) {
+            this.#dirtyLoadoutIds.delete(id);
+          }
+        }
+        this.lastSyncError = null;
+      }
+
+      // Legacy push as fallback
+      return this.#syncToServer();
+    } catch (err) {
+      if (this.#onSyncEvent) this.#onSyncEvent('error', err.message);
+      return false;
+    }
+  }
 
   /** Returns a promise that resolves when any pending sync completes. */
   async flushPendingSync() {
@@ -56,18 +93,39 @@ export default class LoadoutRepository {
     if (this.#syncInProgress) return;
     this.#syncInProgress = true;
     try {
-      const result = await pullFromServer('/api/loadouts', STORAGE_KEY, this.#onSyncEvent, 'loadouts');
-      if (result.fromServer) {
-        this.#data.loadouts = Array.isArray(result.data) ? result.data : [];
-        this.#persistLocal();
-        this.lastSyncError = null;
-      } else if (result.fromLocal) {
-        // Server unreachable — pullFromServer fell back to local data
-        this.lastSyncError = 'Server unreachable';
-        this.#persistLocal();
+      // Use granular sync endpoint to get all data with versions
+      let syncResult;
+      try {
+        syncResult = await pullSyncData('/api/sync');
+      } catch {
+        syncResult = null;
       }
-      // Clear pending sync — server state is now authoritative
-      this.#pendingSync = null;
+
+      if (syncResult && syncResult.loadouts !== undefined) {
+        // Granular sync — update loadouts with versions
+        this.#data.loadouts = Array.isArray(syncResult.loadouts) ? syncResult.loadouts : [];
+        for (const loadout of this.#data.loadouts) {
+          if (loadout.version !== undefined) {
+            this.#loadoutVersions.set(loadout.id, loadout.version);
+          }
+        }
+        this.#persistLocal();
+        this.#dirtyLoadoutIds.clear();
+        this.lastSyncError = null;
+        this.#pendingSync = null;
+      } else {
+        // Legacy fallback via pullFromServer
+        const result = await pullFromServer('/api/loadouts', STORAGE_KEY, this.#onSyncEvent, 'loadouts');
+        if (result.fromServer) {
+          this.#data.loadouts = Array.isArray(result.data) ? result.data : [];
+          this.#persistLocal();
+          this.lastSyncError = null;
+        } else if (result.fromLocal) {
+          this.lastSyncError = 'Server unreachable';
+          this.#persistLocal();
+        }
+        this.#pendingSync = null;
+      }
     } catch (err) {
       this.lastSyncError = err.message;
       if (this.#onSyncEvent) this.#onSyncEvent('error', 'Sync failed: ' + err.message);
@@ -81,6 +139,67 @@ export default class LoadoutRepository {
   }
 
   #now() { return new Date().toISOString(); }
+
+  /**
+   * Sync a loadout via granular API with conflict handling.
+   * On 409 conflict, auto-accept server version.
+   */
+  async #syncLoadoutViaGranularApi(loadout) {
+    const clientVersion = this.#loadoutVersions.get(loadout.id) || 0;
+    try {
+      if (clientVersion === 0) {
+        // New loadout — create on server
+        const result = await createRecord('/api/loadouts', {
+          id: loadout.id,
+          name: loadout.name,
+          data: loadout,
+        });
+        if (result && result.version !== undefined) {
+          this.#loadoutVersions.set(loadout.id, result.version);
+        }
+      } else {
+        // Existing loadout — patch
+        const result = await patchRecord('/api/loadouts', loadout.id, {
+          data: loadout,
+          clientVersion,
+        });
+        if (result && result.version !== undefined) {
+          this.#loadoutVersions.set(loadout.id, result.version);
+        }
+      }
+      this.#dirtyLoadoutIds.delete(loadout.id);
+    } catch (err) {
+      if (err.conflict) {
+        if (err.serverVersion !== undefined) {
+          this.#loadoutVersions.set(loadout.id, err.serverVersion);
+        }
+        if (err.serverData) {
+          const target = this.#data.loadouts.find(l => l.id === loadout.id);
+          if (target) {
+            Object.assign(target, err.serverData);
+          }
+        }
+        if (this.#onSyncEvent) {
+          this.#onSyncEvent('conflict', `Record ${loadout.id} updated by another device — changes merged`);
+        }
+        this.#dirtyLoadoutIds.delete(loadout.id);
+      }
+    }
+  }
+
+  /**
+   * Delete a loadout via granular API with conflict handling.
+   */
+  async #deleteLoadoutViaGranularApi(id, clientVersion) {
+    try {
+      await deleteRecord('/api/loadouts', id, clientVersion);
+    } catch (err) {
+      if (err.conflict && this.#onSyncEvent) {
+        this.#onSyncEvent('conflict', `Record ${id} updated by another device — changes merged`);
+      }
+    }
+  }
+
   #nextId(prefix) { return prefix + '-' + Date.now(); }
 
   getLoadouts() {
@@ -103,7 +222,7 @@ export default class LoadoutRepository {
     const id = this.#nextId('loadout');
     const now = this.#now();
     const loadout = {
-      id, name: name.trim(), created_at: now, updated_at: now,
+      id, name: name.trim(), version: 0, created_at: now, updated_at: now,
       slots: SLOT_TYPES.map((type, i) => ({
         id: id + '-' + type, loadout_id: id, slot_type: type,
         item_id: null, custom_item_name: null, acquired: false, notes: '',
@@ -111,7 +230,10 @@ export default class LoadoutRepository {
       }))
     };
     this.#data.loadouts.push(loadout);
+    this.#loadoutVersions.set(id, 0);
+    this.#dirtyLoadoutIds.add(id);
     this.#persist();
+    this.#syncLoadoutViaGranularApi(loadout);
     return this.getLoadoutById(id);
   }
 
@@ -119,14 +241,24 @@ export default class LoadoutRepository {
     const loadout = this.#data.loadouts.find((l) => l.id === id);
     if (!loadout) return null;
     Object.assign(loadout, updates, { updated_at: this.#now() });
+    this.#dirtyLoadoutIds.add(id);
     this.#persist();
+    this.#syncLoadoutViaGranularApi(loadout);
     return this.getLoadoutById(id);
   }
 
   deleteLoadout(id) {
     const before = this.#data.loadouts.length;
+    const target = this.#data.loadouts.find((l) => l.id === id);
     this.#data.loadouts = this.#data.loadouts.filter((l) => l.id !== id);
-    if (this.#data.loadouts.length !== before) { this.#persist(); return true; }
+    if (this.#data.loadouts.length !== before) {
+      this.#dirtyLoadoutIds.delete(id);
+      const version = this.#loadoutVersions.get(id) || 0;
+      this.#loadoutVersions.delete(id);
+      this.#persist();
+      this.#deleteLoadoutViaGranularApi(id, version);
+      return true;
+    }
     return false;
   }
 
