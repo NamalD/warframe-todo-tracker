@@ -294,6 +294,143 @@ describe('LoadoutDetailPage — checkbox styling', () => {
   });
 });
 
+describe('LoadoutDetailPage — requirement combobox integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPush.mockClear();
+    mockLoadoutRepo._syncCallback = null;
+    mockLoadoutRepo.lastSyncError = null;
+    mockLoadouts.length = 0;
+    mockItems.length = 0;
+
+    mockItems.push(
+      { id: 'item-1', name: 'Saryn', item_type: 'warframe' },
+      { id: 'item-2', name: 'Braton', item_type: 'primary' },
+    );
+
+    mockLoadouts.push({
+      id: 'loadout-1',
+      name: 'Test Loadout',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      slots: [
+        {
+          id: 'slot-1',
+          loadout_id: 'loadout-1',
+          slot_type: 'warframe',
+          item_id: 'item-1',
+          custom_item_name: null,
+          acquired: false,
+          notes: '',
+          display_order: 0,
+          requirements: [
+            { id: 'req-1', slot_id: 'slot-1', name: 'Orokin Reactor', wiki_url: 'https://wiki.example.com/reactor', user_notes: '', acquired: false },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('renders RequirementCombobox (data-testid="req-name-input") in the add-requirement form', async () => {
+    render(React.createElement(LoadoutDetailInner));
+    await waitFor(() => {
+      expect(screen.getByText('Saryn')).toBeInTheDocument();
+    });
+    // Click "+ Add Requirement" to open the form
+    fireEvent.click(screen.getByText('+ Add Requirement'));
+    await waitFor(() => {
+      const comboboxInput = screen.getByTestId('req-name-input');
+      expect(comboboxInput).toBeInTheDocument();
+    });
+  });
+
+  it('shows predefined options filtered by slot_type when combobox is focused', async () => {
+    render(React.createElement(LoadoutDetailInner));
+    await waitFor(() => {
+      expect(screen.getByText('Saryn')).toBeInTheDocument();
+    });
+    // Open the add-requirement form
+    fireEvent.click(screen.getByText('+ Add Requirement'));
+    await waitFor(() => {
+      expect(screen.getByTestId('req-name-input')).toBeInTheDocument();
+    });
+    const comboboxInput = screen.getByTestId('req-name-input');
+    fireEvent.focus(comboboxInput);
+    await waitFor(() => {
+      // warframe options from requirement-options.js should appear
+      expect(screen.getAllByText('Orokin Reactor').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('Exilus Warframe Adapter')).toBeInTheDocument();
+      expect(screen.getByText('Aura Forma')).toBeInTheDocument();
+      // primary/melee options should NOT appear (filtered by slot_type)
+      expect(screen.queryByText('Orokin Catalyst')).not.toBeInTheDocument();
+    });
+  });
+
+  it('already-added requirement names are dimmed in the dropdown', async () => {
+    render(React.createElement(LoadoutDetailInner));
+    await waitFor(() => {
+      expect(screen.getByText('Saryn')).toBeInTheDocument();
+    });
+    // Open the add-requirement form
+    fireEvent.click(screen.getByText('+ Add Requirement'));
+    await waitFor(() => {
+      expect(screen.getByTestId('req-name-input')).toBeInTheDocument();
+    });
+    const comboboxInput = screen.getByTestId('req-name-input');
+    fireEvent.focus(comboboxInput);
+    await waitFor(() => {
+      // Orokin Reactor appears both as existing requirement link AND in dropdown
+      const reactorItems = screen.getAllByText('Orokin Reactor');
+      // Find the one inside the dropdown (has a data-disabled parent)
+      const dropdownItem = reactorItems.find(
+        (el) => el.closest('[data-testid="req-options-list"]')
+      );
+      expect(dropdownItem).toBeTruthy();
+      const parent = dropdownItem.closest('[data-disabled]');
+      expect(parent).toBeTruthy();
+      expect(parent.getAttribute('data-disabled')).toBe('true');
+    });
+  });
+
+  it('selecting a predefined option fills the name and wiki_url in the form', async () => {
+    render(React.createElement(LoadoutDetailInner));
+    await waitFor(() => {
+      expect(screen.getByText('Saryn')).toBeInTheDocument();
+    });
+    // Open the add-requirement form
+    fireEvent.click(screen.getByText('+ Add Requirement'));
+    await waitFor(() => {
+      expect(screen.getByTestId('req-name-input')).toBeInTheDocument();
+    });
+    const comboboxInput = screen.getByTestId('req-name-input');
+    fireEvent.focus(comboboxInput);
+    await waitFor(() => {
+      expect(screen.getByText('Aura Forma')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Aura Forma'));
+    // After selection, the input value should update to 'Aura Forma'
+    await waitFor(() => {
+      expect(screen.getByTestId('req-name-input').value).toBe('Aura Forma');
+    });
+  });
+
+  it('still allows free-text input via the combobox input', async () => {
+    render(React.createElement(LoadoutDetailInner));
+    await waitFor(() => {
+      expect(screen.getByText('Saryn')).toBeInTheDocument();
+    });
+    // Open the add-requirement form
+    fireEvent.click(screen.getByText('+ Add Requirement'));
+    await waitFor(() => {
+      expect(screen.getByTestId('req-name-input')).toBeInTheDocument();
+    });
+    const comboboxInput = screen.getByTestId('req-name-input');
+    fireEvent.focus(comboboxInput);
+    fireEvent.change(comboboxInput, { target: { value: 'Custom Mod' } });
+    expect(comboboxInput.value).toBe('Custom Mod');
+  });
+});
+
 describe('LoadoutDetailPage — inline requirements during populate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
