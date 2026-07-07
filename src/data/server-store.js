@@ -245,7 +245,15 @@ export function writeStoreWithVersion(key, data, clientVersion) {
     throw new ConflictError(key, currentVersion);
   }
   writeStore(key, data);
-  return incrementStoreVersion(key);
+  // New version is clientVersion + 1, so the version counter always
+  // advances relative to the client's known state (even if the client's
+  // version was ahead of the server's).
+  const newVersion = clientVersion + 1;
+  const db = getDb();
+  db.prepare(
+    'INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?)'
+  ).run(`version:${key}`, String(newVersion));
+  return newVersion;
 }
 
 export function readStore(key, defaultValue = null) {

@@ -131,9 +131,10 @@ export async function fetchWithRetry(url, options = {}, maxRetries = 3) {
  * @param {string} url - API endpoint URL
  * @param {string} localStorageKey - localStorage key for local fallback
  * @param {function} [onEvent] - Optional callback for sync events
+ * @param {string} [dataKey] - If set, extract this key from localStorage object for migration
  * @returns {Promise<{fromServer?: boolean, fromLocal?: boolean, data: *}>}
  */
-export async function pullFromServer(url, localStorageKey, onEvent) {
+export async function pullFromServer(url, localStorageKey, onEvent, dataKey) {
   try {
     const res = await fetchWithRetry(url);
     const body = await res.json();
@@ -143,7 +144,11 @@ export async function pullFromServer(url, localStorageKey, onEvent) {
     const serverVersion = (body && typeof body === 'object' && 'version' in body) ? body.version : 0;
 
     const localRaw = localStorage.getItem(localStorageKey);
-    const localData = localRaw ? tryParse(localRaw) : null;
+    let localData = localRaw ? tryParse(localRaw) : null;
+
+    if (dataKey && localData && typeof localData === 'object' && !Array.isArray(localData)) {
+      localData = localData[dataKey] ?? localData;
+    }
 
     if (serverData !== null && serverData !== undefined) {
       // Server has data — authoritative
@@ -174,7 +179,10 @@ export async function pullFromServer(url, localStorageKey, onEvent) {
   } catch (err) {
     // Network down — fall back to localStorage
     const localRaw = localStorage.getItem(localStorageKey);
-    const localData = localRaw ? tryParse(localRaw) : null;
+    let localData = localRaw ? tryParse(localRaw) : null;
+    if (dataKey && localData && typeof localData === 'object' && !Array.isArray(localData)) {
+      localData = localData[dataKey] ?? localData;
+    }
     if (localData) {
       if (onEvent) onEvent('error', err.message);
       return { fromLocal: true, data: localData };
