@@ -1,5 +1,5 @@
 import { getDb } from '../../../src/data/database.js';
-import { getAllTodos, replaceAllTodos } from '../../../src/data/sqlite-todos.js';
+import { getAllTodos, replaceAllTodos, createTodo } from '../../../src/data/sqlite-todos.js';
 
 export async function GET() {
   try {
@@ -9,6 +9,28 @@ export async function GET() {
   } catch (err) {
     console.error(`[api/todos GET] ${err.message}`);
     return Response.json({ error: 'Failed to read todos' }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/todos
+ * Create a new todo.
+ *
+ * Body: { craftable_item_id?, linked_material_name?, user_notes?, status?, priority?, due_at?, [id] }
+ * Returns the created todo with version=1.
+ */
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== 'object') {
+      return Response.json({ error: 'Expected a todo object in body' }, { status: 400 });
+    }
+    const db = getDb();
+    const record = createTodo(db, body);
+    return Response.json(record, { status: 201 });
+  } catch (err) {
+    console.error(`[api/todos POST] ${err.message}`);
+    return Response.json({ error: 'Failed to create todo' }, { status: 500 });
   }
 }
 

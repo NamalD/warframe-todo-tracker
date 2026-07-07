@@ -1,5 +1,5 @@
 import { getDb } from '../../../src/data/database.js';
-import { getAllLoadouts, replaceAllLoadouts } from '../../../src/data/sqlite-loadouts.js';
+import { getAllLoadouts, replaceAllLoadouts, createLoadout } from '../../../src/data/sqlite-loadouts.js';
 
 export async function GET() {
   try {
@@ -9,6 +9,32 @@ export async function GET() {
   } catch (err) {
     console.error(`[api/loadouts GET] ${err.message}`);
     return Response.json({ error: 'Failed to read loadouts' }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/loadouts
+ * Create a new loadout.
+ *
+ * Body: { name: string, data: object, [id]: string }
+ * Returns the created loadout with version=1.
+ */
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== 'object' || !body.name) {
+      return Response.json({ error: 'Expected { name, data } object' }, { status: 400 });
+    }
+    const db = getDb();
+    const record = createLoadout(db, {
+      id: body.id,
+      name: body.name,
+      data: body.data || {},
+    });
+    return Response.json(record, { status: 201 });
+  } catch (err) {
+    console.error(`[api/loadouts POST] ${err.message}`);
+    return Response.json({ error: 'Failed to create loadout' }, { status: 500 });
   }
 }
 

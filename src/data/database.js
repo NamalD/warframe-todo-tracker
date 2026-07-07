@@ -15,8 +15,9 @@ import 'server-only';
 // Paths
 // ---------------------------------------------------------------------------
 
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'warframe.db');
+function resolveDataDir() {
+  return process.env.DATA_DIR || path.join(process.cwd(), 'data');
+}
 
 // ---------------------------------------------------------------------------
 // Schema DDL — follows Daedalus architecture spec
@@ -158,9 +159,11 @@ function applyMigrations(database) {
 export function getDb() {
   if (db) return db;
 
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dataDir = resolveDataDir();
+  const dbPath = path.join(dataDir, 'warframe.db');
+  fs.mkdirSync(dataDir, { recursive: true });
 
-  db = new Database(DB_PATH);
+  db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
@@ -211,8 +214,9 @@ export function migrateFromJson() {
     { key: 'materials-inventory', table: 'materials_inventory', isMap: true },
   ];
 
+  const dataDir = resolveDataDir();
   const existing = jsonFiles.filter(({ key }) =>
-    fs.existsSync(path.join(DATA_DIR, `${key}.json`))
+    fs.existsSync(path.join(dataDir, `${key}.json`))
   );
 
   if (existing.length === 0) {
@@ -222,7 +226,7 @@ export function migrateFromJson() {
   // Run migration in a single transaction (DB operations only)
   const migrate = database.transaction(() => {
     for (const { key, table, isMap } of existing) {
-      const filePath = path.join(DATA_DIR, `${key}.json`);
+      const filePath = path.join(dataDir, `${key}.json`);
       const raw = fs.readFileSync(filePath, 'utf-8');
       const data = JSON.parse(raw);
 
@@ -278,7 +282,7 @@ export function migrateFromJson() {
   const renamed = [];
   try {
     for (const { key } of existing) {
-      const filePath = path.join(DATA_DIR, `${key}.json`);
+      const filePath = path.join(dataDir, `${key}.json`);
       fs.renameSync(filePath, filePath + '.migrated');
       renamed.push(key);
     }
