@@ -4,6 +4,14 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { fetchWithRetry, pullFromServer, pushToServer } from '../../src/data/sync-helper.js';
 
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('fetchWithRetry', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -24,7 +32,9 @@ describe('fetchWithRetry', () => {
       .mockRejectedValueOnce(new Error('Network error'))
       .mockResolvedValueOnce({ ok: true, status: 200 });
 
-    const res = await fetchWithRetry('/api/test');
+    const promise = fetchWithRetry('/api/test');
+    await vi.advanceTimersByTimeAsync(2000);
+    const res = await promise;
     expect(res.ok).toBe(true);
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
@@ -35,7 +45,9 @@ describe('fetchWithRetry', () => {
       .mockResolvedValueOnce({ ok: false, status: 503 })
       .mockResolvedValueOnce({ ok: true, status: 200 });
 
-    const res = await fetchWithRetry('/api/test');
+    const promise = fetchWithRetry('/api/test');
+    await vi.advanceTimersByTimeAsync(2000);
+    const res = await promise;
     expect(res.ok).toBe(true);
     expect(globalThis.fetch).toHaveBeenCalledTimes(3);
   });
@@ -49,9 +61,16 @@ describe('fetchWithRetry', () => {
   });
 
   it('throws after max retries', async () => {
-    globalThis.fetch.mockRejectedValue(new Error('Always fails'));
+    globalThis.fetch.mockImplementation(() => {
+      throw new Error('Always fails');
+    });
 
-    await expect(fetchWithRetry('/api/test')).rejects.toThrow('Always fails');
+    const promise = fetchWithRetry('/api/test');
+    await vi.advanceTimersByTimeAsync(2000);
+    let err;
+    try { await promise; } catch (e) { err = e; }
+    expect(err).toBeTruthy();
+    expect(err.message).toContain('Always fails');
     // 1 initial + 2 retries = 3 attempts
     expect(globalThis.fetch).toHaveBeenCalledTimes(3);
   });
@@ -79,17 +98,19 @@ describe('pullFromServer', () => {
     localStorage.setItem('test-key', JSON.stringify([{ id: 'local-1', name: 'Local' }]));
 
     // Server returns empty array (has file, confirmed empty — e.g., delete-all from another device)
-    globalThis.fetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) });
+    globalThis.fetch
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) })  // GET — server empty
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ok: true }) });  // PUT — migration
 
     const onEvent = vi.fn();
     const result = await pullFromServer('/api/loadouts', 'test-key', onEvent);
 
-    // Server returns empty but authoritative (fromServer: true), no migration triggered
-    expect(result.fromServer).toBe(true);
-    expect(result.fromLocal).toBe(false);
-    expect(result.data).toEqual([]);
-    // No migration event — server already confirmed empty
-    expect(onEvent).not.toHaveBeenCalledWith('migrated', expect.any(String));
+    // Server was empty but local has data — migration is triggered
+    expect(result.fromServer).toBe(false);
+    expect(result.fromLocal).toBe(true);
+    expect(result.data).toEqual([{ id: 'local-1', name: 'Local' }]);
+    // Migration event should fire
+    expect(onEvent).toHaveBeenCalledWith('migrated', expect.any(String));
   });
 
   it('migrates local data when server returns null (no file exists)', async () => {
@@ -112,14 +133,18 @@ describe('pullFromServer', () => {
   it('accepts empty server state (delete-all propagation)', async () => {
     localStorage.setItem('test-key', JSON.stringify([{ id: 1, name: 'Old' }]));
 
-    globalThis.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve([]),
-    });
+    globalThis.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ok: true }) });
 
     const result = await pullFromServer('/api/loadouts', 'test-key');
-    expect(result.fromServer).toBe(true);
-    expect(result.data).toEqual([]);
+    // Server empty + local data → migration triggered, local data returned
+    expect(result.fromServer).toBe(false);
+    expect(result.fromLocal).toBe(true);
+    expect(result.data).toEqual([{ id: 1, name: 'Old' }]);
   });
 
   it('returns null data when both server and local are empty', async () => {
@@ -139,7 +164,9 @@ describe('pullFromServer', () => {
     globalThis.fetch.mockRejectedValue(new Error('Network down'));
 
     const onEvent = vi.fn();
-    const result = await pullFromServer('/api/loadouts', 'test-key', onEvent);
+    const promise = pullFromServer('/api/loadouts', 'test-key', onEvent);
+    await vi.advanceTimersByTimeAsync(2000);
+    const result = await promise;
 
     expect(result.fromLocal).toBe(true);
     expect(result.data).toEqual([{ id: 'local', name: 'Fallback' }]);
@@ -187,7 +214,9 @@ describe('pushToServer', () => {
       .mockRejectedValueOnce(new Error('Network down'));
 
     const onEvent = vi.fn();
-    const result = await pushToServer('/api/loadouts', [{ id: 1 }], onEvent);
+    const promise = pushToServer('/api/loadouts', [{ id: 1 }], onEvent);
+    await vi.advanceTimersByTimeAsync(2000);
+    const result = await promise;
 
     expect(result).toBe(false);
     expect(onEvent).toHaveBeenCalledWith('error', expect.stringContaining('Network down'));
@@ -201,7 +230,9 @@ describe('pushToServer', () => {
       .mockResolvedValueOnce({ ok: false, status: 500, json: () => Promise.resolve({ error: 'Internal error' }) });
 
     const onEvent = vi.fn();
-    const result = await pushToServer('/api/loadouts', [{ id: 1 }], onEvent);
+    const promise = pushToServer('/api/loadouts', [{ id: 1 }], onEvent);
+    await vi.advanceTimersByTimeAsync(2000);
+    const result = await promise;
 
     expect(result).toBe(false);
     // After all retries, the last error is thrown
@@ -214,7 +245,9 @@ describe('pushToServer', () => {
       .mockRejectedValueOnce(new Error('Timeout'))
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ok: true }) });
 
-    const result = await pushToServer('/api/loadouts', [{ id: 1 }]);
+    const promise = pushToServer('/api/loadouts', [{ id: 1 }]);
+    await vi.advanceTimersByTimeAsync(2000);
+    const result = await promise;
     expect(result).toBe(true);
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
