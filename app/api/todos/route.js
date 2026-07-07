@@ -1,11 +1,11 @@
-import { readStoreWithVersion, writeStoreWithVersion, ConflictError } from '../../../src/data/server-store.js';
-
-const KEY = 'todos';
+import { getDb } from '../../../src/data/database.js';
+import { getAllTodos, replaceAllTodos } from '../../../src/data/sqlite-todos.js';
 
 export async function GET() {
   try {
-    const { data, version } = readStoreWithVersion(KEY, []);
-    return Response.json({ data, version });
+    const db = getDb();
+    const data = getAllTodos(db);
+    return Response.json({ data });
   } catch (err) {
     console.error(`[api/todos GET] ${err.message}`);
     return Response.json({ error: 'Failed to read todos' }, { status: 500 });
@@ -21,19 +21,14 @@ export async function PUT(request) {
         { status: 400 },
       );
     }
-    const { data, version } = body;
+    const { data } = body;
     if (!Array.isArray(data)) {
       return Response.json({ error: 'Expected data to be an array of todos' }, { status: 400 });
     }
-    const newVersion = writeStoreWithVersion(KEY, data, version);
-    return Response.json({ ok: true, version: newVersion });
+    const db = getDb();
+    replaceAllTodos(db, data);
+    return Response.json({ ok: true });
   } catch (err) {
-    if (err instanceof ConflictError) {
-      return Response.json(
-        { error: err.message, currentVersion: err.serverVersion },
-        { status: 409 },
-      );
-    }
     console.error(`[api/todos PUT] ${err.message}`);
     return Response.json({ error: 'Failed to write todos' }, { status: 500 });
   }

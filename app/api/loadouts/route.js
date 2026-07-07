@@ -1,11 +1,11 @@
-import { readStoreWithVersion, writeStoreWithVersion, ConflictError } from '../../../src/data/server-store.js';
-
-const KEY = 'loadouts';
+import { getDb } from '../../../src/data/database.js';
+import { getAllLoadouts, replaceAllLoadouts } from '../../../src/data/sqlite-loadouts.js';
 
 export async function GET() {
   try {
-    const { data, version } = readStoreWithVersion(KEY, []);
-    return Response.json({ data, version });
+    const db = getDb();
+    const data = getAllLoadouts(db);
+    return Response.json({ data });
   } catch (err) {
     console.error(`[api/loadouts GET] ${err.message}`);
     return Response.json({ error: 'Failed to read loadouts' }, { status: 500 });
@@ -21,19 +21,14 @@ export async function PUT(request) {
         { status: 400 },
       );
     }
-    const { data, version } = body;
+    const { data } = body;
     if (!Array.isArray(data)) {
       return Response.json({ error: 'Expected data to be an array of loadouts' }, { status: 400 });
     }
-    const newVersion = writeStoreWithVersion(KEY, data, version);
-    return Response.json({ ok: true, version: newVersion });
+    const db = getDb();
+    replaceAllLoadouts(db, data);
+    return Response.json({ ok: true });
   } catch (err) {
-    if (err instanceof ConflictError) {
-      return Response.json(
-        { error: err.message, currentVersion: err.serverVersion },
-        { status: 409 },
-      );
-    }
     console.error(`[api/loadouts PUT] ${err.message}`);
     return Response.json({ error: 'Failed to write loadouts' }, { status: 500 });
   }
