@@ -115,61 +115,60 @@ function Home() {
           </p>
         </div>
 
-        <div className="card">
-          <h2>Todos</h2>
-          <div style={{ display: 'flex', gap: 20, margin: '8px 0' }}>
-            <div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: '#f2c94c' }}>
-                {inProgressTodos.length}
-              </div>
-              <span className="badge in_progress">in progress</span>
-            </div>
-            <div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: '#b6bcc7' }}>
-                {pendingTodos.length}
-              </div>
-              <span className="badge pending">pending</span>
-            </div>
-          </div>
-          <p>
-            <Link href="/todos" className="btn">View all todos &rarr;</Link>
-          </p>
-        </div>
-      </div>
-
-      {/* Mods to Acquire */}
-      <div className="card" style={{ marginBottom: 28 }} data-testid="mods-to-acquire-card">
-        <h2>Mods to Acquire</h2>
-        {modsLoading ? (
-          <div className="skeleton" style={{ height: 18, width: 120, margin: '8px 0' }} />
-        ) : trackedMods.length > 0 ? (
-          <>
-            <div style={{ fontSize: 32, fontWeight: 700, color: '#ffcf6a', margin: '8px 0' }}>
-              {trackedMods.length}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-              {trackedMods.map((mod) => (
-                <div key={mod.id}>
-                  <Link href={`/mods/${mod.id}`} style={{ color: '#7cc4ff', textDecoration: 'none', fontSize: 14 }}>
-                    {mod.name}
-                  </Link>
-                  <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
-                    {mod.rarity} &middot; {mod.mod_type}
-                  </span>
+        {todos.length > 0 && (
+          <div className="card" data-testid="todos-card">
+            <h2>Todos</h2>
+            <div style={{ display: 'flex', gap: 20, margin: '8px 0' }}>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#f2c94c' }}>
+                  {inProgressTodos.length}
                 </div>
-              ))}
+                <span className="badge in_progress">in progress</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#b6bcc7' }}>
+                  {pendingTodos.length}
+                </div>
+                <span className="badge pending">pending</span>
+              </div>
             </div>
-            <p style={{ marginTop: 12 }}>
-              <Link href="/mods" className="btn">View all mods &rarr;</Link>
+            <p>
+              <Link href="/todos" className="btn">View all todos &rarr;</Link>
             </p>
-          </>
-        ) : (
-          <div data-testid="mods-to-acquire-empty" style={{ padding: '14px 0' }}>
-            <p className="muted" style={{ margin: '0 0 10px' }}>Browse mods to start tracking.</p>
-            <Link href="/mods" className="btn">Browse mods &rarr;</Link>
           </div>
         )}
       </div>
+
+      {/* Mods to Acquire */}
+      {(modsLoading || trackedMods.length > 0) && (
+        <div className="card" style={{ marginBottom: 28 }} data-testid="mods-to-acquire-card">
+          <h2>Mods to Acquire</h2>
+          {modsLoading ? (
+            <div className="skeleton" style={{ height: 18, width: 120, margin: '8px 0' }} />
+          ) : (
+            <>
+              <div style={{ fontSize: 32, fontWeight: 700, color: '#ffcf6a', margin: '8px 0' }}>
+                {trackedMods.length}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                {trackedMods.map((mod) => (
+                  <div key={mod.id}>
+                    <Link href={`/mods/${mod.id}`} style={{ color: '#7cc4ff', textDecoration: 'none', fontSize: 14 }}>
+                      {mod.name}
+                    </Link>
+                    <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                      {mod.rarity} &middot; {mod.mod_type}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ marginTop: 12 }}>
+                <Link href="/mods" className="btn">View all mods &rarr;</Link>
+              </p>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Materials needed summary */}
       {materialsList.length > 0 && (

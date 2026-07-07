@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 
 vi.mock('next/link', () => ({
@@ -40,8 +40,6 @@ const mockTodos = [
   { id: 'todo-2', title: 'Build Excalibur', status: 'pending' },
 ];
 
-const mockTrackedMods = [];
-
 // ── Hoisted mock state (shared mutable references) ────────────
 
 const mockState = vi.hoisted(() => ({
@@ -49,11 +47,12 @@ const mockState = vi.hoisted(() => ({
   todos: () => mockTodos.map((t) => ({ ...t })),
   inventory: () => ({ ...mockInventory }),
   materials: (id) => (mockMaterials[id] || []).map((m) => ({ ...m })),
+  trackedMods: () => [],
 }));
 
 vi.mock('../../src/data/mod-store.js', () => ({
   default: {
-    getTrackedMods: () => Promise.resolve(mockTrackedMods),
+    getTrackedMods: () => Promise.resolve(mockState.trackedMods()),
   },
 }));
 
@@ -74,6 +73,8 @@ describe('Dashboard', () => {
     // Reset mock state to defaults
     mockState.items = () => mockItems.map((it) => ({ ...it }));
     mockState.inventory = () => ({ ...mockInventory });
+    mockState.todos = () => mockTodos.map((t) => ({ ...t }));
+    mockState.trackedMods = () => [];
   });
 
   it('shows loading skeleton initially', () => {
@@ -207,5 +208,82 @@ describe('Dashboard', () => {
     const alloyCard = screen.getByText('Alloy Plate').closest('.card');
     expect(alloyCard.textContent).toContain('Excalibur');
     expect(alloyCard.textContent).toContain('Mesa');
+  });
+
+  // ── Conditional rendering tests ────────────────────────────────
+
+  it('hides todos card when there are no todos', async () => {
+    mockState.todos = () => [];
+
+    render(React.createElement(Home));
+
+    await waitFor(() => {
+      // The tracked items card should still render
+      expect(screen.getByText('Tracked Items')).toBeInTheDocument();
+    });
+
+    // Todos card should not be visible
+    expect(screen.queryByTestId('todos-card')).not.toBeInTheDocument();
+    // The "in progress" and "pending" badges should also be absent
+    expect(screen.queryByText('in progress')).not.toBeInTheDocument();
+    expect(screen.queryByText('pending')).not.toBeInTheDocument();
+  });
+
+  it('shows todos card when todos exist', async () => {
+    render(React.createElement(Home));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('todos-card')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('in progress')).toBeInTheDocument();
+    expect(screen.getByText('pending')).toBeInTheDocument();
+  });
+
+  it('hides mods card when no mods are tracked', async () => {
+    mockState.trackedMods = () => [];
+
+    render(React.createElement(Home));
+
+    await waitFor(() => {
+      expect(screen.getByText('Tracked Items')).toBeInTheDocument();
+    });
+
+    // Mods card should not be visible when no mods
+    expect(screen.queryByTestId('mods-to-acquire-card')).not.toBeInTheDocument();
+  });
+
+  it('shows mods card when mods are tracked', async () => {
+    mockState.trackedMods = () => [
+      { id: 'mod-1', name: 'Serration', rarity: 'Common', mod_type: 'Rifle' },
+      { id: 'mod-2', name: 'Split Chamber', rarity: 'Rare', mod_type: 'Rifle' },
+    ];
+
+    render(React.createElement(Home));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mods-to-acquire-card')).toBeInTheDocument();
+    });
+
+    const modsCard = screen.getByTestId('mods-to-acquire-card');
+    expect(within(modsCard).getByText('Serration')).toBeInTheDocument();
+    expect(within(modsCard).getByText('Split Chamber')).toBeInTheDocument();
+    expect(within(modsCard).getByText('2')).toBeInTheDocument();
+  });
+
+  it('shows mod count and "View all mods" link when mods are tracked', async () => {
+    mockState.trackedMods = () => [
+      { id: 'mod-1', name: 'Serration', rarity: 'Common', mod_type: 'Rifle' },
+    ];
+
+    render(React.createElement(Home));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mods-to-acquire-card')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('View all mods →')).toBeInTheDocument();
+    // The empty-state "Browse mods" text should NOT be present
+    expect(screen.queryByText('Browse mods to start tracking.')).not.toBeInTheDocument();
   });
 });
