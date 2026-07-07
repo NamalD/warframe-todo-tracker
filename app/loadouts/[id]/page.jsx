@@ -71,6 +71,9 @@ function LoadoutDetailInner() {
   const openPopulate = (slotId) => {
     setPopulatingSlotId(slotId);
     setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
+    // Auto-open the add-requirement form so requirements can be added inline during setup
+    setReqFormVisible((prev) => ({ ...prev, [slotId]: true }));
+    setReqForm((prev) => ({ ...prev, [slotId]: { name: '', wiki_url: '', user_notes: '' } }));
   };
 
   const cancelPopulate = () => {
@@ -178,7 +181,14 @@ function LoadoutDetailInner() {
   };
 
   const toggleExpanded = (slotId) => {
-    setExpandedSlots((prev) => ({ ...prev, [slotId]: !prev[slotId] }));
+    setExpandedSlots((prev) => {
+      if (!(slotId in prev)) {
+        // Not explicitly tracked — default is auto-expanded for populated slots
+        // First click should collapse
+        return { ...prev, [slotId]: false };
+      }
+      return { ...prev, [slotId]: !prev[slotId] };
+    });
   };
 
   // ── Helper ──
@@ -244,9 +254,9 @@ function LoadoutDetailInner() {
         const displayName = slot.custom_item_name || (item ? item.name : 'Empty slot');
         const wikiUrl = item ? item.wiki_url : null;
         const reqs = slot.requirements || [];
-        const isExpanded = !!expandedSlots[slot.id];
-        const isEditing = editingSlotId === slot.id;
         const isPopulating = populatingSlotId === slot.id;
+        const isExpanded = slot.id in expandedSlots ? !!expandedSlots[slot.id] : (!isEmpty || isPopulating);
+        const isEditing = editingSlotId === slot.id;
 
         // ── Empty slot card ──
         if (isEmpty && !isPopulating) {
@@ -370,7 +380,7 @@ function LoadoutDetailInner() {
             </div>
 
             {/* Expand/collapse requirements (only for populated slots) */}
-            {!isEmpty && !isPopulating && (
+            {!isEmpty && (
               <div style={{ marginTop: 10 }}>
                 <button
                   className="btn"
@@ -382,7 +392,7 @@ function LoadoutDetailInner() {
               </div>
             )}
 
-            {isExpanded && !isPopulating && (
+            {isExpanded && (
               <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid #1e2230' }}>
                 {reqs.length === 0 && (
                   <p className="muted" style={{ fontSize: 13 }}>No requirements yet.</p>

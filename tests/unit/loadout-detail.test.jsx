@@ -165,14 +165,15 @@ describe('LoadoutDetailPage — checkbox styling', () => {
     });
   });
 
-  it('renders checkboxes for each populated slot (requirements collapsed)', async () => {
+  it('renders checkboxes for each populated slot (requirements auto-expanded)', async () => {
     const { container } = render(React.createElement(LoadoutDetailInner));
     await waitFor(() => {
       expect(screen.getByText('Saryn')).toBeInTheDocument();
     });
 
     const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-    expect(checkboxes.length).toBe(2);
+    // 2 slot-acquired checkboxes + 1 requirement checkbox (auto-expanded)
+    expect(checkboxes.length).toBe(3);
   });
 
   it('checkbox is checked when slot.acquired is true', async () => {
@@ -235,18 +236,14 @@ describe('LoadoutDetailPage — checkbox styling', () => {
     }
   });
 
-  it('expanding requirements reveals requirement checkboxes inside .slot-card', async () => {
+  it('populated slots auto-expand requirements, and manual collapse still works', async () => {
     const { container } = render(React.createElement(LoadoutDetailInner));
     await waitFor(() => {
       expect(screen.getByText('Saryn')).toBeInTheDocument();
     });
 
-    const reqButton = screen.getByText(/Requirements \(1\)/);
-    fireEvent.click(reqButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Catalyst')).toBeInTheDocument();
-    });
+    // Requirements are auto-expanded — Catalyst is visible without clicking
+    expect(screen.getByText('Catalyst')).toBeInTheDocument();
 
     const reqCheckboxes = container.querySelectorAll('.requirement-row input[type="checkbox"]');
     expect(reqCheckboxes.length).toBe(1);
@@ -254,6 +251,14 @@ describe('LoadoutDetailPage — checkbox styling', () => {
 
     const slotCard = reqCheckboxes[0].closest('.slot-card');
     expect(slotCard).not.toBeNull();
+
+    // Manual collapse still works — click to collapse
+    const reqButton = screen.getByText(/Requirements \(1\)/);
+    fireEvent.click(reqButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Catalyst')).not.toBeInTheDocument();
+    });
   });
 
   it('checkbox appearance is styleable via CSS', async () => {
@@ -276,10 +281,8 @@ describe('LoadoutDetailPage — checkbox styling', () => {
       expect(screen.getByText('Saryn')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/Requirements \(1\)/));
-    await waitFor(() => {
-      expect(screen.getByText('Catalyst')).toBeInTheDocument();
-    });
+    // Requirements are auto-expanded, Catalyst is already visible
+    expect(screen.getByText('Catalyst')).toBeInTheDocument();
 
     const reqCheckbox = container.querySelector('.requirement-row input[type="checkbox"]');
     expect(reqCheckbox.checked).toBe(false);
@@ -288,5 +291,65 @@ describe('LoadoutDetailPage — checkbox styling', () => {
     await waitFor(() => {
       expect(reqCheckbox.checked).toBe(true);
     });
+  });
+});
+
+describe('LoadoutDetailPage — inline requirements during populate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPush.mockClear();
+    mockLoadoutRepo._syncCallback = null;
+    mockLoadoutRepo.lastSyncError = null;
+    mockLoadouts.length = 0;
+    mockItems.length = 0;
+
+    mockItems.push(
+      { id: 'item-1', name: 'Saryn', item_type: 'warframe' },
+      { id: 'item-2', name: 'Braton', item_type: 'primary' },
+    );
+
+    mockLoadouts.push({
+      id: 'loadout-1',
+      name: 'Test Loadout',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      slots: [
+        {
+          id: 'empty-slot',
+          loadout_id: 'loadout-1',
+          slot_type: 'primary',
+          item_id: null,
+          custom_item_name: null,
+          acquired: false,
+          notes: '',
+          display_order: 0,
+          requirements: [],
+        },
+      ],
+    });
+  });
+
+  it('shows inline requirement form when populating an empty slot', async () => {
+    const { container } = render(React.createElement(LoadoutDetailInner));
+    await waitFor(() => {
+      expect(screen.getByText('Empty slot — click to populate')).toBeInTheDocument();
+    });
+
+    // Click the empty slot card to open populate form
+    const emptyCard = screen.getByText('Empty slot — click to populate');
+    fireEvent.click(emptyCard);
+
+    await waitFor(() => {
+      // Should now see the add-requirement form inline
+      const addButton = screen.getByText('Add');
+      expect(addButton).toBeInTheDocument();
+      // Cancel button for the requirement form
+      const cancelButtons = screen.getAllByText('Cancel');
+      expect(cancelButtons.length).toBe(2); // 1 for populate form, 1 for requirement form
+    });
+
+    // The requirement name input should be visible
+    const nameInput = screen.getByPlaceholderText('Name (required)');
+    expect(nameInput).toBeInTheDocument();
   });
 });
