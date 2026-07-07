@@ -62,7 +62,6 @@ export default function RequirementCombobox({
     setFilterText(opt.name);
     onChange({ name: opt.name, wiki_url: opt.wiki_url || '' });
     setIsOpen(false);
-    if (inputRef.current) inputRef.current.focus();
   }, [onChange]);
 
   const handleFocus = useCallback(() => {

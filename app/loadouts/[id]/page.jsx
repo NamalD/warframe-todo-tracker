@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import loadoutStore from '../../../src/data/loadout-store.js';
 import repo from '../../../src/data/store.js';
+import RequirementCombobox from './requirement-combobox.jsx';
+import { getOptionsForSlot } from '../../../src/data/requirement-options.js';
 
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
 
@@ -438,12 +440,12 @@ function LoadoutDetailInner() {
                   )}
                   {reqFormVisible[slot.id] ? (
                     <form className="req-form" onSubmit={(e) => handleAddRequirement(e, slot.id)} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        placeholder="Name (required)"
+                      <RequirementCombobox
+                        options={getOptionsForSlot(slot.slot_type)}
                         value={(reqForm[slot.id] || {}).name || ''}
-                        onChange={(e) => setReqForm((prev) => ({ ...prev, [slot.id]: { ...prev[slot.id], name: e.target.value } }))}
-                        style={{ minWidth: 160 }}
+                        onChange={(data) => setReqForm((prev) => ({ ...prev, [slot.id]: { ...prev[slot.id], name: data.name, wiki_url: data.wiki_url } }))}
+                        disabledNames={(slot.requirements || []).map(r => r.name)}
+                        slotId={slot.id}
                       />
                       <input
                         type="text"
