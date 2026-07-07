@@ -11,19 +11,10 @@ beforeEach(async () => {
   vi.restoreAllMocks();
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
 
-  // Default: server returns empty sync data then legacy empty data
-  globalThis.fetch = vi.fn().mockImplementation((url) => {
-    if (url === '/api/sync') {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ loadouts: [], todos: [], materials_inventory: {} }),
-      });
-    }
-    // Legacy endpoints return empty array
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve([]),
-    });
+  // Default: server returns empty data (fresh state)
+  globalThis.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve([]),
   });
 
   // Re-import to get a fresh class with clean private fields
@@ -44,28 +35,12 @@ describe('LoadoutRepository sync behavior', () => {
       repo.createLoadout({ name: 'Local Loadout' });
       await repo.flushPendingSync();
 
-      // Mock: first call to /api/sync returns server data with loadouts
-      // Subsequent calls to /api/loadouts use legacy fallback
       globalThis.fetch.mockReset();
-      globalThis.fetch.mockImplementation((url) => {
-        if (url === '/api/sync') {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({
-              loadouts: [
-                { id: 'srv-1', name: 'Server Loadout', version: 2, created_at: '2026-01-01', updated_at: '2026-01-01', slots: [] },
-              ],
-              todos: [],
-              materials_inventory: {},
-            }),
-          });
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([
-            { id: 'srv-1', name: 'Server Loadout', created_at: '2026-01-01', updated_at: '2026-01-01', slots: [] },
-          ]),
-        });
+      globalThis.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([
+          { id: 'srv-1', name: 'Server Loadout', created_at: '2026-01-01', updated_at: '2026-01-01', slots: [] },
+        ]),
       });
 
       await repo.syncFromServer();
@@ -80,19 +55,15 @@ describe('LoadoutRepository sync behavior', () => {
       repo.createLoadout({ name: 'Local Only' });
       await repo.flushPendingSync();
 
-      // All fetches fail — need 6 rejections (3 for pullSyncData + 3 for legacy pullFromServer)
       globalThis.fetch.mockReset();
-      const rejectErr = new Error('Network error');
+      // fetchWithRetry tries 3 times (1 initial + 2 retries)
       globalThis.fetch
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr);
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockRejectedValueOnce(new Error('Network error'));
 
       const promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(6000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
 
       // Local data should be preserved
@@ -109,35 +80,20 @@ describe('LoadoutRepository sync behavior', () => {
       repo.createLoadout({ name: 'Migrate Me' });
       await repo.flushPendingSync();
 
-      // Reset fetch and simulate: /api/sync returns null/empty, then GET returns null
+      // Reset fetch and simulate: GET returns null (no file exists), then PUT succeeds
       globalThis.fetch.mockReset();
-      // First: /api/sync returns empty data (no loadouts payload)
-      // Then legacy GET /api/loadouts returns null (no file exists), then PUT succeeds
-      let callCount = 0;
-      globalThis.fetch.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          // /api/sync returns object without loadouts array
-          return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
-        }
-        if (callCount === 2) {
-          // Legacy GET /api/loadouts returns null
-          return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
-        }
-        // Subsequent PUT succeeds
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
-      });
+      globalThis.fetch
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(null) }) // GET — no server data
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ok: true }) }); // PUT
 
       await repo.syncFromServer();
 
       // Should have pushed local data to server
-      expect(globalThis.fetch).toHaveBeenCalled();
-      // The PUT call should contain migrated data
-      const putCall = Array.from(globalThis.fetch.mock.calls).find(
-        ([url, opts]) => opts && opts.method === 'PUT'
-      );
-      expect(putCall).toBeTruthy();
-      const body = JSON.parse(putCall[1].body);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      // Last call should be a PUT
+      const lastCall = globalThis.fetch.mock.calls[1];
+      expect(lastCall[1].method).toBe('PUT');
+      const body = JSON.parse(lastCall[1].body);
       expect(body.data.length).toBe(1);
       expect(body.data[0].name).toBe('Migrate Me');
     });
@@ -150,16 +106,12 @@ describe('LoadoutRepository sync behavior', () => {
       globalThis.fetch.mockReset();
       globalThis.fetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          loadouts: [{ id: 'srv-1', name: 'Server', version: 1, created_at: '2026-01-01', updated_at: '2026-01-01', slots: [] }],
-          todos: [],
-          materials_inventory: {},
-        }),
+        json: () => Promise.resolve([{ id: 'srv-1', name: 'Server', created_at: '2026-01-01', updated_at: '2026-01-01', slots: [] }]),
       });
 
       await repo.syncFromServer();
 
-      // Should only have called /api/sync once, no legacy fallback
+      // Should only have called GET once, no PUT (server has data)
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
   });
@@ -169,17 +121,14 @@ describe('LoadoutRepository sync behavior', () => {
       const repo = new LoadoutRepository();
 
       globalThis.fetch.mockReset();
-      const rejectErr = new Error('Connection refused');
+      // fetchWithRetry tries 3 times
       globalThis.fetch
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr);
+        .mockRejectedValueOnce(new Error('Connection refused'))
+        .mockRejectedValueOnce(new Error('Connection refused'))
+        .mockRejectedValueOnce(new Error('Connection refused'));
 
       const promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(6000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
       expect(repo.lastSyncError).toBeTruthy();
     });
@@ -187,19 +136,15 @@ describe('LoadoutRepository sync behavior', () => {
     it('is cleared on successful sync', async () => {
       const repo = new LoadoutRepository();
 
-      // First fail: 6 rejections (3 for pullSyncData + 3 for legacy pullFromServer)
+      // First fail: 3 rejections for fetchWithRetry
       globalThis.fetch.mockReset();
-      const rejectErr = new Error('First fail');
       globalThis.fetch
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr);
+        .mockRejectedValueOnce(new Error('First fail'))
+        .mockRejectedValueOnce(new Error('First fail'))
+        .mockRejectedValueOnce(new Error('First fail'));
 
       let promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(6000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
       expect(repo.lastSyncError).toBeTruthy();
 
@@ -207,11 +152,7 @@ describe('LoadoutRepository sync behavior', () => {
       globalThis.fetch.mockReset();
       globalThis.fetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          loadouts: [{ id: 'srv-1', name: 'OK', version: 1, created_at: '2026-01-01', updated_at: '2026-01-01', slots: [] }],
-          todos: [],
-          materials_inventory: {},
-        }),
+        json: () => Promise.resolve([{ id: 'srv-1', name: 'OK', created_at: '2026-01-01', updated_at: '2026-01-01', slots: [] }]),
       });
       await repo.syncFromServer();
       expect(repo.lastSyncError).toBeNull();
@@ -225,18 +166,18 @@ describe('LoadoutRepository sync behavior', () => {
       repo.setSyncEventCallback(onEvent);
 
       globalThis.fetch.mockReset();
-      const rejectErr = new Error('Down');
+      // fetchWithRetry tries 3 times
       globalThis.fetch
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr);
+        .mockRejectedValueOnce(new Error('Down'))
+        .mockRejectedValueOnce(new Error('Down'))
+        .mockRejectedValueOnce(new Error('Down'));
 
       const promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(6000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
+      // The sync calls pullFromServer which calls fetchWithRetry.
+      // fetchWithRetry throws after max retries. pullFromServer catches
+      // and falls back to local, calling onEvent('error', ...) with a generic message.
       expect(onEvent).toHaveBeenCalledWith('error', expect.any(String));
     });
 
@@ -244,18 +185,15 @@ describe('LoadoutRepository sync behavior', () => {
       const repo = new LoadoutRepository();
 
       globalThis.fetch.mockReset();
-      const rejectErr = new Error('Down');
+      // 3 rejections for fetchWithRetry
       globalThis.fetch
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr)
-        .mockRejectedValueOnce(rejectErr);
+        .mockRejectedValueOnce(new Error('Down'))
+        .mockRejectedValueOnce(new Error('Down'))
+        .mockRejectedValueOnce(new Error('Down'));
 
       // Should not throw
       const promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(6000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
       expect(repo.lastSyncError).toBeTruthy();
     });
