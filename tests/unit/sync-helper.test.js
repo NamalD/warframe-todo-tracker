@@ -61,14 +61,17 @@ describe('fetchWithRetry', () => {
   });
 
   it('throws after max retries', async () => {
-    globalThis.fetch.mockImplementation(() => {
-      throw new Error('Always fails');
-    });
+    globalThis.fetch
+      .mockRejectedValueOnce(new Error('Always fails'))
+      .mockRejectedValueOnce(new Error('Always fails'))
+      .mockRejectedValueOnce(new Error('Always fails'));
 
-    const promise = fetchWithRetry('/api/test');
+    // Attach rejection handler synchronously so Node.js doesn't fire
+    // PromiseRejectionHandledWarning when vitest's fake-timer microtask
+    // scheduling delays the catch registration.
+    const onRejected = fetchWithRetry('/api/test').then(() => null, e => e);
     await vi.advanceTimersByTimeAsync(2000);
-    let err;
-    try { await promise; } catch (e) { err = e; }
+    const err = await onRejected;
     expect(err).toBeTruthy();
     expect(err.message).toContain('Always fails');
     // 1 initial + 2 retries = 3 attempts
