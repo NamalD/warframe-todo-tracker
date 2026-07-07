@@ -23,6 +23,7 @@ export default function RequirementCombobox({
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
   const blurTimeoutRef = useRef(null);
+  const justSelectedRef = useRef(false);
 
   // Sync filter text with controlled value
   useEffect(() => {
@@ -62,11 +63,16 @@ export default function RequirementCombobox({
     setFilterText(opt.name);
     onChange({ name: opt.name, wiki_url: opt.wiki_url || '' });
     setIsOpen(false);
+    justSelectedRef.current = true;
     if (inputRef.current) inputRef.current.focus();
   }, [onChange]);
 
   const handleFocus = useCallback(() => {
     if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return; // Don't re-open dropdown on programmatic focus after selection
+    }
     // Only open if we have options
     if (options && options.length > 0) {
       setIsOpen(true);
