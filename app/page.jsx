@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import repo from '../src/data/store.js';
 import LoadoutDashboardSection from '../src/components/loadout-dashboard-section.jsx';
-import ModDashboardSection from '../src/components/mod-dashboard-section.jsx';
 
 function Home() {
   const [items, setItems] = useState([]);
@@ -78,7 +77,6 @@ function Home() {
       </div>
 
       <LoadoutDashboardSection />
-      <ModDashboardSection />
 
       {/* Summary cards row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 28 }}>
