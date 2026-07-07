@@ -8,6 +8,8 @@ services:
     ports:
       - "3000:3000"
     restart: unless-stopped
+    volumes:
+      - ./data:/app/data
     labels:
       - "app=warframe-todo-tracker"
       - "stack=warframe"
