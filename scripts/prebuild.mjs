@@ -60,6 +60,47 @@ function constructWikiUrl(name) {
   return `https://wiki.warframe.com/w/${encodeURIComponent(name.replace(/ /g, '_'))}`;
 }
 
+/**
+ * Normalize raw WFCD mod type to our app model.
+ * See docs/designs/mod-tracking-feature.md §3.3
+ */
+function normalizeModType(rawType) {
+  if (!rawType) return 'Other';
+  const t = rawType.trim();
+
+  // Direct matches
+  const map = {
+    'Warframe Mod': 'Warframe Mod',
+    'Warframe': 'Warframe Mod',
+    'Rifle Mod': 'Rifle Mod',
+    'Rifle': 'Rifle Mod',
+    'Shotgun Mod': 'Shotgun Mod',
+    'Shotgun': 'Shotgun Mod',
+    'Melee Mod': 'Melee Mod',
+    'Melee': 'Melee Mod',
+    'Pistol Mod': 'Pistol Mod',
+    'Pistol': 'Pistol Mod',
+    'Stance Mod': 'Stance Mod',
+    'Stance': 'Stance Mod',
+    'Aura': 'Aura',
+    'Aura Mod': 'Aura',
+    'Parazon Mod': 'Parazon Mod',
+    'Parazon': 'Parazon Mod',
+  };
+  if (map[t]) return map[t];
+
+  // Archwing variants
+  if (t.includes('Archwing') || t === 'Arch Mech' || t === 'Arch-Gun') return 'Archwing Mod';
+
+  // Sentinel / Robotic variants
+  if (t.includes('Sentinel') || t === 'Robotic') return 'Sentinel Mod';
+
+  // Railjack / Plexus variants
+  if (t.includes('Railjack') || t.includes('Plexus')) return 'Railjack Mod';
+
+  return 'Other';
+}
+
 // ── Main ─────────────────────────────────────────────────────────────
 
 async function main() {
@@ -210,6 +251,58 @@ async function main() {
 
   const sizeKB = (JSON.stringify(output).length / 1024).toFixed(1);
   console.log(`[prebuild] Written ${sizeKB} KB to ${outPath}`);
+
+  // ── Mods cache ────────────────────────────────────────────────
+  console.log('[prebuild] Loading Mods category...');
+  const modsRaw = new Items({ category: ['Mods'], i18n: false, i18nOnObject: false });
+  console.log(`[prebuild] Loaded ${modsRaw.length} mods`);
+
+  const mods = [];
+  let modSeq = 1;
+
+  for (const mod of modsRaw) {
+    // Safety: skip mods with no name
+    if (!mod.name) continue;
+
+    const polarity = mod.polarity || '';
+    const rarity = mod.rarity || 'Common';
+    const baseDrain = mod.baseDrain ?? 0;
+    const fusionLimit = mod.fusionLimit ?? 0;
+    const isPrime = mod.isPrime ?? false;
+    const isAugment = mod.isAugment ?? false;
+    const isUmbral = mod.name.includes('Umbral');
+    const compatName = mod.compatName || null;
+    const uniqueName = mod.uniqueName || '';
+    const wikiUrl = mod.wikiaUrl || null;
+
+    mods.push({
+      id: `mod-${modSeq++}`,
+      name: mod.name,
+      mod_type: normalizeModType(mod.type),
+      polarity,
+      rarity,
+      base_drain: baseDrain,
+      fusion_limit: fusionLimit,
+      is_prime: isPrime,
+      is_augment: isAugment,
+      is_umbral: isUmbral,
+      compat_name: compatName,
+      unique_name: uniqueName,
+      wiki_url: wikiUrl,
+    });
+  }
+
+  const modsOutput = {
+    version,
+    cachedAt: new Date().toISOString(),
+    mods,
+  };
+
+  const modsOutPath = resolve(outDir, 'mods-cache.json');
+  writeFileSync(modsOutPath, JSON.stringify(modsOutput), 'utf8');
+
+  const modsSizeKB = (JSON.stringify(modsOutput).length / 1024).toFixed(1);
+  console.log(`[prebuild] Mods: ${mods.length} (${modsSizeKB} KB to ${modsOutPath})`);
   console.log('[prebuild] Done!');
 }
 
