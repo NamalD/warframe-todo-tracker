@@ -7,3 +7,4 @@ dist/
 home/
 test-results/
 playwright-report/
+data/
