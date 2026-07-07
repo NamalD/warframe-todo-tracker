@@ -1,112 +1,217 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-// Reset localStorage before each test and re-import to get fresh state
-let Repository;
-let repo;
+// ── Test fixtures matching wfcd-cache.json format ──────────────────
 
-beforeEach(async () => {
+const MOCK_CACHE_VERSION = '1.1275.0';
+
+const FIXTURE_CACHE = {
+  version: MOCK_CACHE_VERSION,
+  cachedAt: '2026-07-06T23:51:22.955Z',
+  items: [
+    { id: 'item-1', name: 'Excalibur', item_type: 'warframe', mastery_rank_required: 0, is_user_tracked: true, blueprint_source: 'quest', wiki_url: 'https://wiki.warframe.com/w/Excalibur', created_at: '2026-07-06T00:00:00Z', updated_at: '2026-07-06T00:00:00Z' },
+    { id: 'item-2', name: 'Mesa', item_type: 'warframe', mastery_rank_required: 4, is_user_tracked: false, blueprint_source: 'research', wiki_url: 'https://wiki.warframe.com/w/Mesa', created_at: '2026-07-06T00:00:00Z', updated_at: '2026-07-06T00:00:00Z' },
+    { id: 'item-3', name: 'Kronen Prime', item_type: 'melee', mastery_rank_required: 14, is_user_tracked: false, blueprint_source: 'drop', wiki_url: 'https://wiki.warframe.com/w/Kronen_Prime', created_at: '2026-07-06T00:00:00Z', updated_at: '2026-07-06T00:00:00Z' },
+    { id: 'item-4', name: 'Burston Prime', item_type: 'primary', mastery_rank_required: 12, is_user_tracked: false, blueprint_source: 'drop', wiki_url: 'https://wiki.warframe.com/w/Burston_Prime', created_at: '2026-07-06T00:00:00Z', updated_at: '2026-07-06T00:00:00Z' },
+  ],
+  materials: [
+    { id: 'mat-1', craftable_item_id: 'item-1', material_name: 'Chassis', component_unique_name: '/Lotus/Powersuits/Excalibur/ExcaliburChassis', quantity_required: 1, wiki_url: 'https://wiki.warframe.com/w/Chassis', created_at: '2026-07-06T00:00:00Z' },
+    { id: 'mat-2', craftable_item_id: 'item-1', material_name: 'Neuroptics', component_unique_name: '/Lotus/Powersuits/Excalibur/ExcaliburNeuroptics', quantity_required: 1, wiki_url: 'https://wiki.warframe.com/w/Neuroptics', created_at: '2026-07-06T00:00:00Z' },
+    { id: 'mat-3', craftable_item_id: 'item-1', material_name: 'Systems', component_unique_name: '/Lotus/Powersuits/Excalibur/ExcaliburSystems', quantity_required: 1, wiki_url: 'https://wiki.warframe.com/w/Systems', created_at: '2026-07-06T00:00:00Z' },
+    { id: 'mat-4', craftable_item_id: 'item-1', material_name: 'Orokin Cell', component_unique_name: '/Lotus/Types/Items/MiscItems/OrokinCell', quantity_required: 1, wiki_url: 'https://wiki.warframe.com/w/Orokin_Cell', created_at: '2026-07-06T00:00:00Z' },
+    { id: 'mat-5', craftable_item_id: 'item-2', material_name: 'Chassis', component_unique_name: '/Lotus/Powersuits/Mesa/MesaChassis', quantity_required: 1, wiki_url: 'https://wiki.warframe.com/w/Chassis', created_at: '2026-07-06T00:00:00Z' },
+  ],
+  treeRelationships: [
+    { id: 'tree-1', parent_item_id: 'item-1', child_item_id: 'item-111', quantity_required: 1, created_at: '2026-07-06T00:00:00Z' },
+    { id: 'tree-2', parent_item_id: 'item-2', child_item_id: 'item-112', quantity_required: 1, created_at: '2026-07-06T00:00:00Z' },
+  ],
+};
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+function mockFetchOk(data) {
+  return vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(data),
+  });
+}
+
+function mockFetchFail(status = 500) {
+  return vi.fn().mockResolvedValue({
+    ok: false,
+    status,
+    json: () => Promise.resolve({}),
+  });
+}
+
+/** Create a fresh Repository instance with fetch stub. */
+async function newRepo(fetchImpl) {
+  if (fetchImpl) {
+    vi.stubGlobal('fetch', fetchImpl);
+  }
   localStorage.clear();
-  // Dynamic import to get fresh module with clean localStorage
-  const mod = await import('../../src/data/repository.js');
-  Repository = mod.default;
-  repo = new Repository();
-});
+  const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
+  return new mod.default();
+}
 
-describe('Repository', () => {
-  describe('items', () => {
-    it('getAllItems returns all seed items', () => {
-      const items = repo.getAllItems();
-      expect(items.length).toBeGreaterThan(0);
-      expect(items[0]).toHaveProperty('id');
-      expect(items[0]).toHaveProperty('name');
-      expect(items[0]).toHaveProperty('item_type');
+// ── Tests ──────────────────────────────────────────────────────────
+
+describe('Repository (wfcd-cache lazy loading)', () => {
+
+  describe('items — lazy initialization', () => {
+
+    it('fetches wfcd-cache.json on first data access', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      expect(repo.items).toEqual([]);
+
+      const items = await repo.getAllItems();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith('/data/wfcd-cache.json');
+      expect(items.length).toBe(4);
+      expect(items[0].name).toBe('Excalibur');
     });
 
-    it('returns copies not references', () => {
-      const items1 = repo.getAllItems();
-      const items2 = repo.getAllItems();
+    it('does not re-fetch on subsequent data accesses', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      await repo.getAllItems();
+      await repo.getAllItems();
+      await repo.getItemById('item-1');
+      await repo.getMaterialsForItem('item-1');
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns copies, not references', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const items1 = await repo.getAllItems();
+      const items2 = await repo.getAllItems();
       items1[0].name = 'MODIFIED';
+
       expect(items2[0].name).not.toBe('MODIFIED');
     });
 
-    it('getItemById returns correct item', () => {
-      const item = repo.getItemById('item-1');
+    it('getItemById returns correct item', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const item = await repo.getItemById('item-1');
       expect(item).not.toBeNull();
       expect(item.name).toBe('Excalibur');
     });
 
-    it('getItemById returns null for unknown id', () => {
-      expect(repo.getItemById('nonexistent')).toBeNull();
+    it('getItemById returns null for unknown id', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      expect(await repo.getItemById('nonexistent')).toBeNull();
     });
 
-    it('updateItem updates an existing item', () => {
-      const updated = repo.updateItem('item-1', { is_user_tracked: false });
+    it('updateItem updates an existing item', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const updated = await repo.updateItem('item-1', { is_user_tracked: false });
       expect(updated.is_user_tracked).toBe(false);
-      const item = repo.getItemById('item-1');
+
+      const item = await repo.getItemById('item-1');
       expect(item.is_user_tracked).toBe(false);
     });
 
-    it('updateItem returns null for unknown id', () => {
-      expect(repo.updateItem('nonexistent', { name: 'X' })).toBeNull();
+    it('updateItem returns null for unknown id', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      expect(await repo.updateItem('nonexistent', { name: 'X' })).toBeNull();
     });
   });
 
   describe('materials', () => {
-    it('getMaterialsForItem returns materials for an item', () => {
-      const materials = repo.getMaterialsForItem('item-1');
-      expect(materials.length).toBeGreaterThan(0);
+
+    it('getMaterialsForItem returns materials for an item', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const materials = await repo.getMaterialsForItem('item-1');
+      expect(materials.length).toBe(4);
       expect(materials[0]).toHaveProperty('material_name');
       expect(materials[0]).toHaveProperty('quantity_required');
+      expect(materials[0].craftable_item_id).toBe('item-1');
     });
 
-    it('getMaterialsForItem returns empty array for unknown item', () => {
-      expect(repo.getMaterialsForItem('nonexistent')).toEqual([]);
+    it('getMaterialsForItem returns empty array for unknown item', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      expect(await repo.getMaterialsForItem('nonexistent')).toEqual([]);
     });
   });
 
-  describe('sources', () => {
-    it('getAllSources returns all seed sources', () => {
-      const sources = repo.getAllSources();
-      expect(sources.length).toBeGreaterThan(0);
-      expect(sources[0]).toHaveProperty('material_name');
-      expect(sources[0]).toHaveProperty('source_name');
+  describe('sources (deprecated)', () => {
+
+    it('getAllSources returns empty array', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      // Sync, works before init
+      expect(repo.getAllSources()).toEqual([]);
+      // Still empty after init
+      await repo.getAllItems();
+      expect(repo.getAllSources()).toEqual([]);
     });
 
-    it('getSourcesForMaterial returns sources for a material', () => {
-      const sources = repo.getSourcesForMaterial('Alloy Plate');
-      expect(sources.length).toBeGreaterThan(0);
-      sources.forEach((s) => expect(s.material_name).toBe('Alloy Plate'));
-    });
-
-    it('getSourcesForMaterial returns empty array for unknown material', () => {
-      expect(repo.getSourcesForMaterial('Unknown Material')).toEqual([]);
+    it('getSourcesForMaterial returns empty array', async () => {
+      const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
+      const repo = new mod.default();
+      expect(repo.getSourcesForMaterial('Alloy Plate')).toEqual([]);
     });
   });
 
   describe('tree relationships', () => {
-    it('getTreeForItem returns children and parents', () => {
-      const tree = repo.getTreeForItem('item-1');
+
+    it('getTreeForItem returns children and parents', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const tree = await repo.getTreeForItem('item-1');
       expect(tree).toHaveProperty('children');
       expect(tree).toHaveProperty('parents');
-      expect(tree.children.length).toBeGreaterThan(0);
+      expect(tree.children.length).toBe(1);
     });
 
-    it('getTreeForItem returns empty arrays for items with no relationships', () => {
-      const tree = repo.getTreeForItem('item-4');
+    it('getTreeForItem returns empty arrays for items with no relationships', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const tree = await repo.getTreeForItem('item-3');
       expect(tree.children).toEqual([]);
       expect(tree.parents).toEqual([]);
     });
   });
 
-  describe('todos', () => {
-    it('getTodos returns seed todos', () => {
+  describe('todos (unchanged — user data)', () => {
+
+    it('getTodos returns seed todos when no localStorage', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      localStorage.clear();
+      const repo = await newRepo(fetchMock);
+
       const todos = repo.getTodos();
       expect(todos.length).toBeGreaterThan(0);
       expect(todos[0]).toHaveProperty('id');
       expect(todos[0]).toHaveProperty('status');
     });
 
-    it('addTodo creates a new todo', () => {
+    it('addTodo creates a new todo', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       const todo = repo.addTodo({
         craftable_item_id: 'item-1',
         user_notes: 'Test todo',
@@ -118,50 +223,64 @@ describe('Repository', () => {
       expect(todo.status).toBe('pending');
 
       const todos = repo.getTodos();
-      expect(todos.find((t) => t.id === todo.id)).toBeTruthy();
+      expect(todos.find(t => t.id === todo.id)).toBeTruthy();
     });
 
-    it('addTodo generates id if not provided', () => {
-      const todo = repo.addTodo({
-        user_notes: 'Auto id',
-        status: 'pending',
-      });
+    it('addTodo generates id if not provided', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const todo = repo.addTodo({ user_notes: 'Auto id', status: 'pending' });
       expect(todo.id).toBeDefined();
       expect(todo.id).toMatch(/^todo-/);
     });
 
-    it('addTodo uses provided id if given', () => {
-      const todo = repo.addTodo({
-        id: 'custom-id',
-        user_notes: 'Custom id',
-        status: 'pending',
-      });
+    it('addTodo uses provided id if given', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const todo = repo.addTodo({ id: 'custom-id', user_notes: 'Custom id', status: 'pending' });
       expect(todo.id).toBe('custom-id');
     });
 
-    it('updateTodoStatus changes status', () => {
+    it('updateTodoStatus changes status', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       const todos = repo.getTodos();
       const firstTodo = todos[0];
       const updated = repo.updateTodoStatus(firstTodo.id, 'completed');
       expect(updated.status).toBe('completed');
     });
 
-    it('updateTodoStatus returns null for unknown id', () => {
+    it('updateTodoStatus returns null for unknown id', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       expect(repo.updateTodoStatus('nonexistent', 'completed')).toBeNull();
     });
 
-    it('updateTodoNotes changes notes', () => {
+    it('updateTodoNotes changes notes', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       const todos = repo.getTodos();
       const firstTodo = todos[0];
       const updated = repo.updateTodoNotes(firstTodo.id, 'New notes');
       expect(updated.user_notes).toBe('New notes');
     });
 
-    it('updateTodoNotes returns null for unknown id', () => {
+    it('updateTodoNotes returns null for unknown id', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       expect(repo.updateTodoNotes('nonexistent', 'notes')).toBeNull();
     });
 
-    it('deleteTodo removes a todo', () => {
+    it('deleteTodo removes a todo', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       const todos = repo.getTodos();
       const countBefore = todos.length;
       const result = repo.deleteTodo(todos[0].id);
@@ -169,38 +288,60 @@ describe('Repository', () => {
       expect(repo.getTodos().length).toBe(countBefore - 1);
     });
 
-    it('deleteTodo returns false for unknown id', () => {
+    it('deleteTodo returns false for unknown id', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       expect(repo.deleteTodo('nonexistent')).toBe(false);
     });
   });
 
-  describe('material inventory', () => {
-    it('getMaterialInventory returns an object', () => {
+  describe('material inventory (unchanged — user data)', () => {
+
+    it('getMaterialInventory returns an object', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       const inv = repo.getMaterialInventory();
       expect(typeof inv).toBe('object');
     });
 
-    it('getOwnedQuantity returns 0 for unknown material', () => {
+    it('getOwnedQuantity returns 0 for unknown material', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       expect(repo.getOwnedQuantity('Unknown Material')).toBe(0);
     });
 
-    it('setOwnedQuantity sets a quantity', () => {
+    it('setOwnedQuantity sets a quantity', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       const result = repo.setOwnedQuantity('Alloy Plate', 50);
       expect(result).toBe(50);
       expect(repo.getOwnedQuantity('Alloy Plate')).toBe(50);
     });
 
-    it('setOwnedQuantity handles NaN by setting 0', () => {
+    it('setOwnedQuantity handles NaN by setting 0', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       repo.setOwnedQuantity('Alloy Plate', 'abc');
       expect(repo.getOwnedQuantity('Alloy Plate')).toBe(0);
     });
 
-    it('setOwnedQuantity handles negative numbers by setting 0', () => {
+    it('setOwnedQuantity handles negative numbers by setting 0', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       repo.setOwnedQuantity('Alloy Plate', -5);
       expect(repo.getOwnedQuantity('Alloy Plate')).toBe(0);
     });
 
-    it('getMaterialInventory returns a copy', () => {
+    it('getMaterialInventory returns a copy', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
       const inv1 = repo.getMaterialInventory();
       inv1.TestMaterial = 999;
       const inv2 = repo.getMaterialInventory();
@@ -208,35 +349,154 @@ describe('Repository', () => {
     });
   });
 
+  describe('localStorage caching', () => {
+
+    it('caches fetched data in localStorage under warframe-items-cache', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      await repo.getAllItems();
+
+      const cached = JSON.parse(localStorage.getItem('warframe-items-cache'));
+      expect(cached).not.toBeNull();
+      expect(cached.version).toBe(MOCK_CACHE_VERSION);
+      expect(cached.items.length).toBe(4);
+      expect(cached.materials.length).toBe(5);
+      expect(cached.treeRelationships.length).toBe(2);
+    });
+
+    it('second repository instance loads from localStorage (version match)', async () => {
+      const fetchMock1 = mockFetchOk(FIXTURE_CACHE);
+      const repo1 = await newRepo(fetchMock1);
+      await repo1.getAllItems();
+      expect(fetchMock1).toHaveBeenCalledTimes(1);
+
+      const fetchMock2 = mockFetchOk(FIXTURE_CACHE);
+      const repo2 = await newRepo(fetchMock2);
+      const items = await repo2.getAllItems();
+
+      expect(fetchMock2).toHaveBeenCalledTimes(1);
+      expect(items.length).toBe(4);
+      expect(items[0].name).toBe('Excalibur');
+    });
+
+    it('re-fetches on version mismatch and updates localStorage', async () => {
+      const fetchMock1 = mockFetchOk(FIXTURE_CACHE);
+      const repo1 = await newRepo(fetchMock1);
+      await repo1.getAllItems();
+
+      // Overwrite localStorage with older version
+      const staleCache = {
+        version: '1.0.0-old',
+        cachedAt: '2025-01-01T00:00:00Z',
+        items: [...FIXTURE_CACHE.items],
+        materials: [...FIXTURE_CACHE.materials],
+        treeRelationships: [...FIXTURE_CACHE.treeRelationships],
+      };
+      localStorage.setItem('warframe-items-cache', JSON.stringify(staleCache));
+
+      const NEW_ITEM = {
+        id: 'item-new', name: 'NewItem', item_type: 'warframe', mastery_rank_required: 0,
+        is_user_tracked: false, blueprint_source: 'market',
+        wiki_url: 'https://wiki.warframe.com/w/NewItem',
+        created_at: '2026-07-06T00:00:00Z', updated_at: '2026-07-06T00:00:00Z'
+      };
+      const newCache = {
+        ...FIXTURE_CACHE,
+        version: '2.0.0-new',
+        items: [...FIXTURE_CACHE.items, NEW_ITEM],
+      };
+
+      const fetchMock2 = mockFetchOk(newCache);
+      const repo2 = await newRepo(fetchMock2);
+      const items = await repo2.getAllItems();
+
+      expect(fetchMock2).toHaveBeenCalledTimes(1);
+      expect(items.length).toBe(5);
+      expect(items[4].name).toBe('NewItem');
+
+      const cached = JSON.parse(localStorage.getItem('warframe-items-cache'));
+      expect(cached.version).toBe('2.0.0-new');
+      expect(cached.items.length).toBe(5);
+    });
+
+    it('uses localStorage cache when no fetch is available (offline fallback)', async () => {
+      const fetchMock = mockFetchFail(500);
+      vi.stubGlobal('fetch', fetchMock);
+      localStorage.clear();
+
+      // Pre-populate cache AFTER clear (simulates having visited the app before)
+      localStorage.setItem('warframe-items-cache', JSON.stringify({
+        version: MOCK_CACHE_VERSION,
+        cachedAt: '2026-07-06T00:00:00Z',
+        items: FIXTURE_CACHE.items,
+        materials: FIXTURE_CACHE.materials,
+        treeRelationships: FIXTURE_CACHE.treeRelationships,
+      }));
+
+      const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
+      const repo = new mod.default();
+      const items = await repo.getAllItems();
+
+      expect(items.length).toBe(4);
+      expect(items[0].name).toBe('Excalibur');
+    });
+
+    it('returns empty arrays when both fetch and cache fail', async () => {
+      const fetchMock = mockFetchFail(500);
+      const repo = await newRepo(fetchMock);
+      const items = await repo.getAllItems();
+
+      expect(items).toEqual([]);
+    });
+  });
+
   describe('edge cases: corrupted localStorage', () => {
+
     it('handles corrupted todos JSON gracefully', async () => {
       localStorage.setItem('warframe-todos', 'not-valid-json{');
-      const mod = await import('../../src/data/repository.js?t=' + Date.now());
-      const Repo = mod.default;
-      const r = new Repo();
-      const todos = r.getTodos();
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const todos = repo.getTodos();
       expect(Array.isArray(todos)).toBe(true);
       expect(todos.length).toBeGreaterThan(0);
     });
 
-    it('handles corrupted items JSON gracefully', async () => {
-      localStorage.setItem('warframe-items', 'corrupted...');
-      const mod = await import('../../src/data/repository.js?t=' + Date.now() + '1');
-      const Repo = mod.default;
-      const r = new Repo();
-      const items = r.getAllItems();
+    it('handles corrupted items-cache JSON gracefully (falls back to fetch)', async () => {
+      localStorage.setItem('warframe-items-cache', 'corrupted...');
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const items = await repo.getAllItems();
       expect(Array.isArray(items)).toBe(true);
-      expect(items.length).toBeGreaterThan(0);
+      expect(items.length).toBe(4);
     });
 
     it('handles corrupted material inventory JSON gracefully', async () => {
       localStorage.setItem('warframe-materials-inventory', 'broken');
-      const mod = await import('../../src/data/repository.js?t=' + Date.now() + '2');
-      const Repo = mod.default;
-      const r = new Repo();
-      const inv = r.getMaterialInventory();
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const inv = repo.getMaterialInventory();
       expect(typeof inv).toBe('object');
       expect(inv).toEqual({});
+    });
+  });
+
+  describe('constructor is synchronous', () => {
+
+    it('can be constructed without awaiting anything', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
+      const repo = new mod.default();
+
+      expect(repo).toBeDefined();
+      expect(repo.items).toEqual([]);
+      expect(typeof repo.getAllItems).toBe('function');
+
+      await repo.getAllItems();
+      expect(repo.items.length).toBe(4);
     });
   });
 });
