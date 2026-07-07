@@ -67,8 +67,21 @@ vi.mock('next/link', () => ({
     React.createElement('a', { href, ...props }, children),
 }));
 
-vi.mock('../../src/data/loadout-store.js', () => ({
-  default: mockLoadoutRepo,
+vi.mock('../../src/data/loadout-repository.js', () => ({
+  default: class {
+    syncFromServer() { return mockLoadoutRepo.syncFromServer(); }
+    forceSyncToServer() { return mockLoadoutRepo.forceSyncToServer(); }
+    getLoadoutById(id) { return mockLoadoutRepo.getLoadoutById(id); }
+    updateSlot(...args) { return mockLoadoutRepo.updateSlot(...args); }
+    updateRequirement(...args) { return mockLoadoutRepo.updateRequirement(...args); }
+    deleteLoadout(...args) { return mockLoadoutRepo.deleteLoadout(...args); }
+    deleteSlot(...args) { return mockLoadoutRepo.deleteSlot(...args); }
+    deleteRequirement(...args) { return mockLoadoutRepo.deleteRequirement(...args); }
+    addRequirement(...args) { return mockLoadoutRepo.addRequirement(...args); }
+    addSlot(...args) { return mockLoadoutRepo.addSlot(...args); }
+    getLoadouts(...args) { return mockLoadoutRepo.getLoadouts(...args); }
+    setSyncEventCallback(cb) { return mockLoadoutRepo.setSyncEventCallback(cb); }
+  },
 }));
 
 vi.mock('../../src/data/store.js', () => ({
