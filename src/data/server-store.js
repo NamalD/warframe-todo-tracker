@@ -166,6 +166,96 @@ function writeMaterialsInventory(data) {
  * Returns the parsed value or defaultValue if the table is empty
  * or the key is not recognised.
  */
+// ---------------------------------------------------------------------------
+// Version management via sync_meta table
+// ---------------------------------------------------------------------------
+
+/**
+ * Custom error thrown when a write is rejected due to a version conflict.
+ */
+export class ConflictError extends Error {
+  /**
+   * @param {string} key - The store key that conflicted
+   * @param {number} serverVersion - The current version on the server
+   */
+  constructor(key, serverVersion) {
+    super(`Version conflict for "${key}": server version is ${serverVersion}`);
+    this.name = 'ConflictError';
+    this.key = key;
+    this.serverVersion = serverVersion;
+  }
+}
+
+/**
+ * Read the current version counter for a store key from sync_meta.
+ * Returns 0 if no prior write has been recorded for this key.
+ */
+export function readStoreVersion(key) {
+  const db = getDb();
+  const row = db.prepare('SELECT value FROM sync_meta WHERE key = ?').get(`version:${key}`);
+  return row ? parseInt(row.value, 10) : 0;
+}
+
+/**
+ * Increment the version counter for a store key and return the new value.
+ */
+export function incrementStoreVersion(key) {
+  const db = getDb();
+  const versionKey = `version:${key}`;
+  const current = readStoreVersion(key);
+  const newVersion = current + 1;
+  db.prepare(
+    'INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?)'
+  ).run(versionKey, String(newVersion));
+  return newVersion;
+}
+
+// ---------------------------------------------------------------------------
+// Version-aware public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Read data and its current version for a given domain key.
+ * Returns `{ data, version }` where `version` is the domain-level
+ * version counter used for conflict resolution.
+ */
+export function readStoreWithVersion(key, defaultValue = null) {
+  const data = readStore(key, defaultValue);
+  const version = readStoreVersion(key);
+  return { data, version };
+}
+
+/**
+ * Write data for a given domain key with version validation.
+ *
+ * Compares the client-supplied version against the server's current version.
+ * Uses last-writer-wins (LWW) with strict ordering:
+ *   - If clientVersion >= storedVersion: accept the write, increment counter
+ *   - If clientVersion < storedVersion:  throw ConflictError with current version
+ *
+ * @param {string} key - Store key (loadouts, todos, materials-inventory)
+ * @param {*} data - Data to write
+ * @param {number} clientVersion - Version the client believes it has
+ * @returns {number} The new version after the write
+ * @throws {ConflictError} If client version is behind the server
+ */
+export function writeStoreWithVersion(key, data, clientVersion) {
+  const currentVersion = readStoreVersion(key);
+  if (clientVersion < currentVersion) {
+    throw new ConflictError(key, currentVersion);
+  }
+  writeStore(key, data);
+  // New version is clientVersion + 1, so the version counter always
+  // advances relative to the client's known state (even if the client's
+  // version was ahead of the server's).
+  const newVersion = clientVersion + 1;
+  const db = getDb();
+  db.prepare(
+    'INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?)'
+  ).run(`version:${key}`, String(newVersion));
+  return newVersion;
+}
+
 export function readStore(key, defaultValue = null) {
   const table = KEY_TABLE_MAP[key];
   if (!table) return defaultValue;

@@ -21,13 +21,14 @@ function cleanDataDir() {
   }
 }
 
+async function loadModule() {
+  const { vi: innerVi } = await import('vitest');
+  innerVi.resetModules();
+  return await import('../../src/data/server-store.js?t=' + Date.now());
+}
+
 describe('server-store (SQLite-backed)', () => {
   let serverStore;
-
-  async function loadModule() {
-    vi.resetModules();
-    return await import('../../src/data/server-store.js?t=' + Date.now());
-  }
 
   describe('readStore', () => {
     beforeEach(async () => {
@@ -180,6 +181,139 @@ describe('server-store (SQLite-backed)', () => {
       expect(serverStore.readStore('loadouts', [])).toHaveLength(1);
       expect(serverStore.readStore('todos', [])).toHaveLength(1);
       expect(Object.keys(serverStore.readStore('materials-inventory', {}))).toHaveLength(1);
+    });
+  });
+});
+
+describe('version-aware API (readStoreVersion / writeStoreWithVersion)', () => {
+  let serverStore;
+
+  beforeEach(async () => {
+    cleanDataDir();
+    serverStore = await loadModule();
+  });
+
+  describe('readStoreVersion', () => {
+    it('returns 0 when no writes have been performed', () => {
+      expect(serverStore.readStoreVersion('loadouts')).toBe(0);
+    });
+
+    it('returns 0 for any key that has never been written', () => {
+      expect(serverStore.readStoreVersion('todos')).toBe(0);
+      expect(serverStore.readStoreVersion('materials-inventory')).toBe(0);
+    });
+
+    it('returns the version after a writeStoreWithVersion call', () => {
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1', name: 'Test' }], 0);
+      expect(serverStore.readStoreVersion('loadouts')).toBe(1);
+    });
+
+    it('increments version on each write', () => {
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 0);  // → v1
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 1);  // → v2
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 2);  // → v3
+      expect(serverStore.readStoreVersion('loadouts')).toBe(3);
+    });
+  });
+
+  describe('readStoreWithVersion', () => {
+    it('returns data and version', () => {
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1', name: 'Build' }], 0);
+      const result = serverStore.readStoreWithVersion('loadouts', []);
+      expect(result.data).toEqual([{ id: 'l1', name: 'Build' }]);
+      expect(result.version).toBe(1);
+    });
+
+    it('returns default data with version 0 when store is empty', () => {
+      const result = serverStore.readStoreWithVersion('loadouts', []);
+      expect(result.data).toEqual([]);
+      expect(result.version).toBe(0);
+    });
+
+    it('tracks version independently per domain', () => {
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 0);
+      serverStore.writeStoreWithVersion('todos', [{ id: 't1' }], 0);
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 1);
+
+      expect(serverStore.readStoreWithVersion('loadouts', []).version).toBe(2);
+      expect(serverStore.readStoreWithVersion('todos', []).version).toBe(1);
+    });
+  });
+
+  describe('writeStoreWithVersion', () => {
+    it('accepts write when client version matches server version', () => {
+      const newVersion = serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 0);
+      expect(newVersion).toBe(1);
+      expect(serverStore.readStore('loadouts', [])).toEqual([{ id: 'l1' }]);
+    });
+
+    it('accepts write when client version is ahead of server', () => {
+      // Client version 5, server version 0 — accepted via LWW
+      // New version = clientVersion + 1 = 6
+      const newVersion = serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 5);
+      expect(newVersion).toBe(6);
+    });
+
+    it('rejects write when client version is behind server', () => {
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 0);  // → v1
+      expect(() => {
+        serverStore.writeStoreWithVersion('loadouts', [{ id: 'l2' }], 0);
+      }).toThrow(serverStore.ConflictError);
+    });
+
+    it('ConflictError has the correct server version', () => {
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 0);  // → v1
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'l1' }], 1);  // → v2
+
+      try {
+        serverStore.writeStoreWithVersion('loadouts', [{ id: 'l2' }], 1);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(serverStore.ConflictError);
+        expect(err.serverVersion).toBe(2);
+        expect(err.key).toBe('loadouts');
+      }
+    });
+
+    it('data is not written on version conflict', () => {
+      serverStore.writeStoreWithVersion('loadouts', [{ id: 'original' }], 0);  // → v1
+      expect(() => {
+        serverStore.writeStoreWithVersion('loadouts', [{ id: 'usurper' }], 0);
+      }).toThrow();
+      // Original data should be preserved
+      expect(serverStore.readStore('loadouts', [])).toEqual([{ id: 'original' }]);
+    });
+
+    it('works for todos domain', () => {
+      const v1 = serverStore.writeStoreWithVersion('todos', [{ id: 't1', user_notes: 'First' }], 0);
+      expect(v1).toBe(1);
+      expect(() => {
+        serverStore.writeStoreWithVersion('todos', [{ id: 't2' }], 0);
+      }).toThrow(serverStore.ConflictError);
+    });
+
+    it('works for materials-inventory domain', () => {
+      const v1 = serverStore.writeStoreWithVersion('materials-inventory', { 'Ferrite': 100 }, 0);
+      expect(v1).toBe(1);
+      const v2 = serverStore.writeStoreWithVersion('materials-inventory', { 'Ferrite': 200 }, 1);
+      expect(v2).toBe(2);
+      expect(() => {
+        serverStore.writeStoreWithVersion('materials-inventory', { 'Ferrite': 0 }, 1);
+      }).toThrow(serverStore.ConflictError);
+    });
+  });
+
+  describe('writeStore (backward compatible)', () => {
+    it('writeStore does not update version counter', () => {
+      serverStore.writeStore('loadouts', [{ id: 'l1' }]);
+      expect(serverStore.readStoreVersion('loadouts')).toBe(0);
+    });
+
+    it('mixed writeStore and writeStoreWithVersion works', () => {
+      serverStore.writeStore('loadouts', [{ id: 'l1' }]);  // no version tracking
+      const v1 = serverStore.writeStoreWithVersion('loadouts', [{ id: 'l2' }], 0);
+      expect(v1).toBe(1);
+      expect(serverStore.readStoreVersion('loadouts')).toBe(1);
     });
   });
 });

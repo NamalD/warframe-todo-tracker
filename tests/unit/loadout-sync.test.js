@@ -63,7 +63,7 @@ describe('LoadoutRepository sync behavior', () => {
         .mockRejectedValueOnce(new Error('Network error'));
 
       const promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
 
       // Local data should be preserved
@@ -94,8 +94,8 @@ describe('LoadoutRepository sync behavior', () => {
       const lastCall = globalThis.fetch.mock.calls[1];
       expect(lastCall[1].method).toBe('PUT');
       const body = JSON.parse(lastCall[1].body);
-      expect(body.length).toBe(1);
-      expect(body[0].name).toBe('Migrate Me');
+      expect(body.data.length).toBe(1);
+      expect(body.data[0].name).toBe('Migrate Me');
     });
 
     it('accepts empty server state as authoritative (no migration triggered)', async () => {
@@ -128,7 +128,7 @@ describe('LoadoutRepository sync behavior', () => {
         .mockRejectedValueOnce(new Error('Connection refused'));
 
       const promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
       expect(repo.lastSyncError).toBeTruthy();
     });
@@ -144,7 +144,7 @@ describe('LoadoutRepository sync behavior', () => {
         .mockRejectedValueOnce(new Error('First fail'));
 
       let promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
       expect(repo.lastSyncError).toBeTruthy();
 
@@ -173,7 +173,7 @@ describe('LoadoutRepository sync behavior', () => {
         .mockRejectedValueOnce(new Error('Down'));
 
       const promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
       // The sync calls pullFromServer which calls fetchWithRetry.
       // fetchWithRetry throws after max retries. pullFromServer catches
@@ -193,7 +193,7 @@ describe('LoadoutRepository sync behavior', () => {
 
       // Should not throw
       const promise = repo.syncFromServer();
-      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(3000);
       await promise;
       expect(repo.lastSyncError).toBeTruthy();
     });
