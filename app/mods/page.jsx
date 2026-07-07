@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import modRepo from '../../src/data/mod-store.js';
 
@@ -8,14 +8,14 @@ const RARITY_COLORS = {
   Common: '#9aa0ad', Uncommon: '#6fcf97', Rare: '#f2c94c', Legendary: '#eb5757',
 };
 
-function ModCard({ mod }) {
+function ModCard({ mod, onToggle }) {
   const [owned, setOwned] = useState(mod.owned);
   useEffect(() => { setOwned(mod.owned); }, [mod.owned]);
   const toggleOwned = async (e) => {
     e.stopPropagation(); e.preventDefault();
     const newOwned = !owned;
     setOwned(newOwned);
-    await modRepo.setModOwned(mod.id, newOwned);
+    await onToggle(mod.id, newOwned);
   };
   const rankText = owned ? `R${mod.rank}/${mod.fusion_limit}` : 'Not owned';
   const rarityColor = RARITY_COLORS[mod.rarity] || '#9aa0ad';
@@ -57,6 +57,12 @@ function ModsPage() {
     modRepo.getMods()
       .then((data) => { setMods(data); setLoading(false); })
       .catch((err) => { console.error('Failed to load mods:', err); setError(true); setLoading(false); });
+  }, []);
+
+  const handleModToggle = useCallback(async (modId, newOwned) => {
+    await modRepo.setModOwned(modId, newOwned);
+    const updatedMods = await modRepo.getMods();
+    setMods(updatedMods);
   }, []);
 
   const distinctTypes = useMemo(() => Array.from(new Set(mods.map(m => m.mod_type))).sort(), [mods]);
@@ -166,7 +172,7 @@ function ModsPage() {
           <input type="checkbox" checked={showOwnedOnly} onChange={e => setShowOwnedOnly(e.target.checked)} data-testid="mod-owned-filter" /> Show owned only
         </label>
       </div>
-      <div className="list">{filtered.map(mod => <ModCard key={mod.id} mod={mod} />)}</div>
+      <div className="list">{filtered.map(mod => <ModCard key={mod.id} mod={mod} onToggle={handleModToggle} />)}</div>
     </div>
   );
 }

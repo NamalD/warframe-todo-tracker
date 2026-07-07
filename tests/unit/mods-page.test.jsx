@@ -16,11 +16,17 @@ const SAMPLE_MODS = vi.hoisted(() => [
   { id:'mod-6', name:'Streamline', mod_type:'Warframe Mod', polarity:'naramon', rarity:'Uncommon', base_drain:4, fusion_limit:5, is_prime:false, is_augment:false, is_umbral:false, compat_name:null, wiki_url:'https://wiki.warframe.com/w/Streamline', owned:true, rank:5 },
 ]);
 
-const mockSetModOwned = vi.hoisted(() => vi.fn());
+const mockSetModOwned = vi.hoisted(() => vi.fn(async (id, owned) => {
+  const mod = SAMPLE_MODS.find(m => m.id === id);
+  if (mod) mod.owned = owned;
+}));
+const mockGetMods = vi.hoisted(() => vi.fn(() =>
+  Promise.resolve(SAMPLE_MODS.map(m => ({ ...m })))
+));
 
 vi.mock('../../src/data/mod-store.js', () => ({
   default: {
-    getMods: () => Promise.resolve(SAMPLE_MODS.map(m => ({ ...m }))),
+    getMods: mockGetMods,
     setModOwned: mockSetModOwned,
   },
 }));
@@ -239,6 +245,51 @@ describe('ModsPage', () => {
     fireEvent.click(checkbox);
     await waitFor(() => expect(mockSetModOwned).toHaveBeenCalledWith('mod-1', true));
     expect(screen.getByText('Mods')).toBeInTheDocument();
+  });
+
+  it('refresh mods list after owned toggle (parent state refresh)', async () => {
+    render(React.createElement(ModsPage));
+    await waitFor(() => expect(screen.getByText('Abating Link')).toBeInTheDocument());
+    expect(mockGetMods).toHaveBeenCalledTimes(1);
+    const checkbox = screen.getByTestId('mod-owned-checkbox-mod-1');
+    fireEvent.click(checkbox);
+    await waitFor(() => expect(mockGetMods).toHaveBeenCalledTimes(2));
+    expect(mockSetModOwned).toHaveBeenCalledWith('mod-1', true);
+  });
+
+  it('celebration appears when all mods become owned via toggle', async () => {
+    SAMPLE_MODS.forEach(m => { m.owned = true; });
+    SAMPLE_MODS[0].owned = false;
+    render(React.createElement(ModsPage));
+    await waitFor(() => expect(screen.getByText('Abating Link')).toBeInTheDocument());
+    expect(screen.queryByText(/collected every mod/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('mod-owned-checkbox-mod-1'));
+    fireEvent.click(screen.getByTestId('mod-owned-filter'));
+    await waitFor(() => {
+      expect(screen.getByTestId('mod-empty')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/collected every mod/)).toBeInTheDocument();
+  });
+
+  it('celebration disappears when a mod is toggled unowned after state refresh', async () => {
+    SAMPLE_MODS.forEach(m => { m.owned = true; });
+    render(React.createElement(ModsPage));
+    await waitFor(() => expect(screen.getByText('Primed Continuity')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('mod-owned-filter'));
+    await waitFor(() => {
+      expect(screen.getByTestId('mod-empty')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/collected every mod/)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('mod-owned-filter'));
+    await waitFor(() => {
+      expect(screen.getByText('Abating Link')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('mod-owned-checkbox-mod-1'));
+    await waitFor(() => {
+      expect(mockGetMods).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByText('Primed Continuity')).toBeInTheDocument();
+    expect(screen.queryByText(/collected every mod/)).not.toBeInTheDocument();
   });
 
   it('combines search + type filter', async () => {
