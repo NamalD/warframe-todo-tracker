@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .next/
+.next_old/
 .next-cache/
 .env.local
 .DS_Store
