@@ -499,4 +499,44 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       expect(repo.items.length).toBe(4);
     });
   });
+
+  describe('SSR guard — no window object', () => {
+
+    it('does not attempt fetch when window is undefined (SSR environment)', async () => {
+      const fetchMock = vi.fn().mockRejectedValue(
+        new TypeError('ERR_INVALID_URL')
+      );
+      vi.stubGlobal('fetch', fetchMock);
+
+      // Simulate SSR by removing the window global
+      const savedWindow = globalThis.window;
+      delete globalThis.window;
+
+      try {
+        const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
+        const repo = new mod.default();
+
+        // getAllItems triggers lazy init, which calls #loadData internally
+        const items = await repo.getAllItems();
+
+        // In SSR, fetch should never be called — the guard returns first
+        expect(fetchMock).not.toHaveBeenCalled();
+        // Returns the class defaults (empty arrays)
+        expect(items).toEqual([]);
+      } finally {
+        // Restore window for subsequent tests
+        globalThis.window = savedWindow;
+      }
+    });
+
+    it('still works normally when window exists (client-side)', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+      const items = await repo.getAllItems();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(items.length).toBe(4);
+      expect(items[0].name).toBe('Excalibur');
+    });
+  });
 });

@@ -78,6 +78,8 @@ export default class Repository {
   }
 
   async #loadData() {
+    // SSR — no fetch or localStorage available, return empty
+    if (typeof window === 'undefined') return;
     try {
       const response = await fetch('/data/wfcd-cache.json');
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
