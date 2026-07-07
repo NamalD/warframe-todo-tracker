@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: '/sources', label: 'Sources' },
   { href: '/todos', label: 'Todos' },
   { href: '/loadouts', label: 'Loadouts' },
+  { href: '/mods', label: 'Mods' },
   { href: '/shopping-list', label: 'Shopping List' },
 ];
 
