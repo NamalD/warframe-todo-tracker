@@ -20,7 +20,7 @@ describe('NavBar', () => {
 
   it('renders all navigation links (desktop)', () => {
     render(React.createElement(NavBar));
-    const links = ['Home', 'Items', 'Sources', 'Todos', 'Loadouts', 'Shopping List'];
+    const links = ['Home', 'Items', 'Sources', 'Todos', 'Loadouts', 'Mods', 'Shopping List'];
     links.forEach((label) => {
       const matches = screen.getAllByText(label);
       // At least one occurrence (desktop links)
