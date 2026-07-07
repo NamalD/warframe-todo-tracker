@@ -18,7 +18,9 @@ export default function NavBar() {
   return (
     <nav className="site-nav">
       <div className="nav-inner">
-        <strong className="brand">Warframe Tracker</strong>
+        <Link href="/" className="brand-link" data-testid="brand-link">
+          <strong className="brand">Warframe Tracker</strong>
+        </Link>
 
         {/* Desktop links */}
         <div className="nav-links">

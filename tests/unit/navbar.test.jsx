@@ -70,6 +70,25 @@ describe('NavBar', () => {
     expect(hamburger).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('brand link wraps the Warframe Tracker text', () => {
+    render(React.createElement(NavBar));
+    const brandLink = screen.getByTestId('brand-link');
+    expect(brandLink).toHaveTextContent('Warframe Tracker');
+  });
+
+  it('brand link has brand-link className to remove default underline', () => {
+    render(React.createElement(NavBar));
+    const brandLink = screen.getByTestId('brand-link');
+    expect(brandLink).toHaveClass('brand-link');
+  });
+
+  it('brand link preserves the brand styling', () => {
+    render(React.createElement(NavBar));
+    const brandLink = screen.getByTestId('brand-link');
+    const strong = brandLink.querySelector('strong.brand');
+    expect(strong).toBeTruthy();
+  });
+
   it('mobile menu contains all navigation links', () => {
     render(React.createElement(NavBar));
     const hamburger = screen.getByRole('button', { name: /open menu/i });

@@ -32,6 +32,12 @@ a:hover { color: #a8d8ff; }
   letter-spacing: 0.2px;
   color: #ffcf6a;
 }
+.brand-link {
+  text-decoration: none;
+}
+.brand-link:hover {
+  text-decoration: none;
+}
 .nav-links {
   display: flex;
   gap: 14px;
