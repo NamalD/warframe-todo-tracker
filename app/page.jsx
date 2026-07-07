@@ -2,12 +2,16 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import repo from '../src/data/store.js';
+import modRepo from '../src/data/mod-store.js';
 import LoadoutDashboardSection from '../src/components/loadout-dashboard-section.jsx';
+import BuildDashboardSection from '../src/components/build-dashboard-section.jsx';
 
 function Home() {
   const [items, setItems] = useState([]);
   const [todos, setTodos] = useState([]);
   const [materialsList, setMaterialsList] = useState([]);
+  const [trackedMods, setTrackedMods] = useState([]);
+  const [modsLoading, setModsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,6 +19,8 @@ function Home() {
       const allItems = await repo.getAllItems();
       setItems(allItems);
       setTodos(repo.getTodos());
+
+      const inv = repo.getMaterialInventory();
 
       // Materials needed: aggregate across tracked items
       const tracked = allItems.filter((it) => it.is_user_tracked);
@@ -31,11 +37,21 @@ function Home() {
         }
       }
       setMaterialsList(
-        Object.values(matMap).sort((a, b) => a.name.localeCompare(b.name))
+        Object.values(matMap).map((m) => {
+          const ownedQty = inv[m.name] ?? 0;
+          const deficit = Math.max(0, m.quantity - ownedQty);
+          return { ...m, owned: ownedQty, deficit, done: deficit <= 0 };
+        }).sort((a, b) => a.name.localeCompare(b.name))
       );
       setLoading(false);
     }
     load();
+  }, []);
+
+  useEffect(() => {
+    modRepo.getTrackedMods()
+      .then((data) => { setTrackedMods(data); setModsLoading(false); })
+      .catch(() => setModsLoading(false));
   }, []);
 
   // Tracked items
@@ -65,6 +81,11 @@ function Home() {
         <div className="card">
           <div className="skeleton" style={{ height: 18, width: 280, margin: '0 0 10px' }} />
           <div className="skeleton" style={{ height: 16, width: 200 }} />
+        </div>
+        <div className="card">
+          <h2><span className="skeleton" style={{ height: 18, width: 140, display: 'inline-block' }} /></h2>
+          <div className="skeleton" style={{ height: 28, width: 40, margin: '8px 0' }} />
+          <div className="skeleton" style={{ height: 14, width: 180 }} />
         </div>
       </div>
     );
@@ -116,6 +137,40 @@ function Home() {
         </div>
       </div>
 
+      {/* Mods to Acquire */}
+      <div className="card" style={{ marginBottom: 28 }} data-testid="mods-to-acquire-card">
+        <h2>Mods to Acquire</h2>
+        {modsLoading ? (
+          <div className="skeleton" style={{ height: 18, width: 120, margin: '8px 0' }} />
+        ) : trackedMods.length > 0 ? (
+          <>
+            <div style={{ fontSize: 32, fontWeight: 700, color: '#ffcf6a', margin: '8px 0' }}>
+              {trackedMods.length}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+              {trackedMods.map((mod) => (
+                <div key={mod.id}>
+                  <Link href={`/mods/${mod.id}`} style={{ color: '#7cc4ff', textDecoration: 'none', fontSize: 14 }}>
+                    {mod.name}
+                  </Link>
+                  <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                    {mod.rarity} &middot; {mod.mod_type}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p style={{ marginTop: 12 }}>
+              <Link href="/mods" className="btn">View all mods &rarr;</Link>
+            </p>
+          </>
+        ) : (
+          <div data-testid="mods-to-acquire-empty" style={{ padding: '14px 0' }}>
+            <p className="muted" style={{ margin: '0 0 10px' }}>Browse mods to start tracking.</p>
+            <Link href="/mods" className="btn">Browse mods &rarr;</Link>
+          </div>
+        )}
+      </div>
+
       {/* Materials needed summary */}
       {materialsList.length > 0 && (
         <div>
@@ -124,11 +179,17 @@ function Home() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
             {materialsList.map((mat) => (
-              <div className="card" key={mat.name}>
+              <div className="card" key={mat.name} style={mat.done ? { opacity: 0.65 } : undefined} data-testid={`material-card-${mat.name.toLowerCase().replace(/\s+/g, '-')}`}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                   <div>
                     <strong style={{ fontSize: 15, color: '#e7e9ee' }}>{mat.name}</strong>
-                    <div className="muted">x{mat.quantity}</div>
+                    <div className="muted">
+                      {mat.done ? (
+                        <span style={{ color: '#6fcf97' }}>✓ done</span>
+                      ) : (
+                        <span>needs {mat.deficit.toLocaleString()} (owned {mat.owned.toLocaleString()} / {mat.quantity.toLocaleString()})</span>
+                      )}
+                    </div>
                   </div>
                   <span className="badge">{mat.items.length} item{mat.items.length > 1 ? 's' : ''}</span>
                 </div>
