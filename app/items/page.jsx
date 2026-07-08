@@ -4,7 +4,7 @@ import Link from 'next/link';
 import repo from '../../src/data/store.js';
 
 function ItemsList() {
-  const [showTrackedOnly, setShowTrackedOnly] = useState(false);
+  const [showTrackedOnly, setShowTrackedOnly] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);

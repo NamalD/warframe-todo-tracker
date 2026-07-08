@@ -28,12 +28,27 @@ describe('ItemsList', () => {
     vi.clearAllMocks();
   });
 
-  it('renders all items by default', async () => {
+  it('renders only tracked items by default', async () => {
     render(React.createElement(ItemsList));
     await waitFor(() => {
-      mockItems.forEach((item) => {
-        expect(screen.getByText(item.name)).toBeInTheDocument();
-      });
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+      expect(screen.getByText('Rubico Prime')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Mesa')).not.toBeInTheDocument();
+    expect(screen.queryByText('Kronen Prime')).not.toBeInTheDocument();
+    expect(screen.queryByText('Akks Prime')).not.toBeInTheDocument();
+  });
+
+  it('shows all items when the tracked-only checkbox is unchecked', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    mockItems.forEach((item) => {
+      expect(screen.getByText(item.name)).toBeInTheDocument();
     });
   });
 
@@ -57,16 +72,17 @@ describe('ItemsList', () => {
     expect(screen.queryByText('Excalibur')).not.toBeInTheDocument();
   });
 
-  it('filters by tracked only checkbox', async () => {
+  it('re-checking tracked only after unchecking filters back down', async () => {
     render(React.createElement(ItemsList));
     await waitFor(() => {
       expect(screen.getByText('Excalibur')).toBeInTheDocument();
     });
 
     const checkbox = screen.getByRole('checkbox');
-    fireEvent.click(checkbox);
+    fireEvent.click(checkbox); // uncheck -> show all
+    expect(screen.getByText('Mesa')).toBeInTheDocument();
 
-    // Only tracked items should show
+    fireEvent.click(checkbox); // re-check -> tracked only
     expect(screen.getByText('Excalibur')).toBeInTheDocument();
     expect(screen.getByText('Rubico Prime')).toBeInTheDocument();
     expect(screen.queryByText('Mesa')).not.toBeInTheDocument();
@@ -88,11 +104,14 @@ describe('ItemsList', () => {
   it('renders item type badges', async () => {
     render(React.createElement(ItemsList));
     await waitFor(() => {
-      const warframeBadges = screen.getAllByText('warframe');
-      expect(warframeBadges.length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText('melee')).toBeInTheDocument();
-      expect(screen.getByText('primary')).toBeInTheDocument();
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByRole('checkbox')); // show all items
+
+    const warframeBadges = screen.getAllByText('warframe');
+    expect(warframeBadges.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('melee')).toBeInTheDocument();
+    expect(screen.getByText('primary')).toBeInTheDocument();
   });
 
   it('renders tracked badge for tracked items', async () => {
@@ -106,10 +125,13 @@ describe('ItemsList', () => {
   it('renders mastery rank requirement', async () => {
     render(React.createElement(ItemsList));
     await waitFor(() => {
-      expect(screen.getByText('MR 0')).toBeInTheDocument();
-      expect(screen.getByText('MR 4')).toBeInTheDocument();
-      expect(screen.getByText('MR 14')).toBeInTheDocument();
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByRole('checkbox')); // show all items
+
+    expect(screen.getByText('MR 0')).toBeInTheDocument();
+    expect(screen.getByText('MR 4')).toBeInTheDocument();
+    expect(screen.getByText('MR 14')).toBeInTheDocument();
   });
 
   it('renders blueprint source', async () => {
@@ -121,14 +143,11 @@ describe('ItemsList', () => {
     });
   });
 
-  it('combined filter: search + tracked only', async () => {
+  it('combined filter: search + tracked only (default)', async () => {
     render(React.createElement(ItemsList));
     await waitFor(() => {
       expect(screen.getByText('Excalibur')).toBeInTheDocument();
     });
-
-    const checkbox = screen.getByRole('checkbox');
-    fireEvent.click(checkbox);
 
     const input = screen.getByPlaceholderText('Search items by name...');
     fireEvent.change(input, { target: { value: 'rubico' } });
