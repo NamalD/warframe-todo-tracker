@@ -57,6 +57,9 @@ function Home() {
   // Tracked items
   const trackedItems = items.filter((it) => it.is_user_tracked);
 
+  // Materials still outstanding (hide fully-owned materials from the dashboard)
+  const outstandingMaterials = materialsList.filter((m) => !m.done);
+
   // Todo counts
   const pendingTodos = todos.filter((t) => t.status === 'pending');
   const inProgressTodos = todos.filter((t) => t.status === 'in_progress');
@@ -176,37 +179,39 @@ function Home() {
           <h2 style={{ fontSize: 18, color: '#ffcf6a', marginBottom: 14 }}>
             Materials Needed (Tracked Items)
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-            {materialsList.map((mat) => (
-              <div className="card" key={mat.name} style={mat.done ? { opacity: 0.65 } : undefined} data-testid={`material-card-${mat.name.toLowerCase().replace(/\s+/g, '-')}`}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                  <div>
-                    <strong style={{ fontSize: 15, color: '#e7e9ee' }}>{mat.name}</strong>
-                    <div className="muted">
-                      {mat.done ? (
-                        <span style={{ color: '#6fcf97' }}>✓ done</span>
-                      ) : (
+          {outstandingMaterials.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+              {outstandingMaterials.map((mat) => (
+                <div className="card" key={mat.name} data-testid={`material-card-${mat.name.toLowerCase().replace(/\s+/g, '-')}`}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <div>
+                      <strong style={{ fontSize: 15, color: '#e7e9ee' }}>{mat.name}</strong>
+                      <div className="muted">
                         <span>needs {mat.deficit.toLocaleString()} (owned {mat.owned.toLocaleString()} / {mat.quantity.toLocaleString()})</span>
-                      )}
+                      </div>
                     </div>
+                    <span className="badge">{mat.items.length} item{mat.items.length > 1 ? 's' : ''}</span>
                   </div>
-                  <span className="badge">{mat.items.length} item{mat.items.length > 1 ? 's' : ''}</span>
+                  <div style={{ marginTop: 8 }}>
+                    {mat.items.map((itemName) => (
+                      <div key={itemName} style={{ fontSize: 13, color: '#b6bcc7' }}>
+                        {itemName}
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ marginTop: 10 }}>
+                    <Link href={`/sources?material=${encodeURIComponent(mat.name)}`}>
+                      View sources &rarr;
+                    </Link>
+                  </p>
                 </div>
-                <div style={{ marginTop: 8 }}>
-                  {mat.items.map((itemName) => (
-                    <div key={itemName} style={{ fontSize: 13, color: '#b6bcc7' }}>
-                      {itemName}
-                    </div>
-                  ))}
-                </div>
-                <p style={{ marginTop: 10 }}>
-                  <Link href={`/sources?material=${encodeURIComponent(mat.name)}`}>
-                    View sources &rarr;
-                  </Link>
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card">
+              <p>All materials for your tracked items are already owned. ✓</p>
+            </div>
+          )}
         </div>
       )}
 

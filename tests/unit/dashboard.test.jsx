@@ -102,13 +102,11 @@ describe('Dashboard', () => {
     render(React.createElement(Home));
 
     await waitFor(() => {
-      expect(screen.getByText('Alloy Plate')).toBeInTheDocument();
+      expect(screen.getByText('Circuits')).toBeInTheDocument();
     });
 
-    // Alloy Plate: needed=2000 (1200+800), owned=2000, deficit=0 → done
-    const alloyCard = screen.getByText('Alloy Plate').closest('.card');
-    expect(alloyCard).toBeInTheDocument();
-    expect(alloyCard.textContent).toContain('done');
+    // Alloy Plate: needed=2000 (1200+800), owned=2000, deficit=0 → done, hidden entirely
+    expect(screen.queryByText('Alloy Plate')).not.toBeInTheDocument();
 
     // Circuits: needed=900 (600+300), owned=500, deficit=400
     const circuitsCard = screen.getByText('Circuits').closest('.card');
@@ -125,7 +123,7 @@ describe('Dashboard', () => {
     render(React.createElement(Home));
 
     await waitFor(() => {
-      expect(screen.getByText('Alloy Plate')).toBeInTheDocument();
+      expect(screen.getByText('Circuits')).toBeInTheDocument();
     });
 
     // Circuits: owned 500, should be visible
@@ -133,27 +131,24 @@ describe('Dashboard', () => {
     expect(circuitsCard.textContent).toContain('500');
   });
 
-  it('dims cards for fully-owned materials (deficit <= 0)', async () => {
+  it('hides fully-owned materials (deficit <= 0) from the dashboard', async () => {
     render(React.createElement(Home));
 
     await waitFor(() => {
-      expect(screen.getByText('Alloy Plate')).toBeInTheDocument();
+      expect(screen.getByText('Circuits')).toBeInTheDocument();
     });
 
-    // Alloy Plate: owned=2000, needed=2000, deficit=0 → done
-    const alloyCard = screen.getByText('Alloy Plate').closest('.card');
-    expect(alloyCard.style.opacity).toBe('0.65');
+    // Alloy Plate: owned=2000, needed=2000, deficit=0 → done, hidden
+    expect(screen.queryByText('Alloy Plate')).not.toBeInTheDocument();
 
-    // Circuits: owned=500, needed=900, deficit=400 → not done
-    const circuitsCard = screen.getByText('Circuits').closest('.card');
-    expect(circuitsCard.style.opacity).toBe('');
+    // Circuits: owned=500, needed=900, deficit=400 → not done, shown
+    expect(screen.getByText('Circuits')).toBeInTheDocument();
 
-    // Polymer Bundle: owned=0, needed=200, deficit=200 → not done
-    const polymerCard = screen.getByText('Polymer Bundle').closest('.card');
-    expect(polymerCard.style.opacity).toBe('');
+    // Polymer Bundle: owned=0, needed=200, deficit=200 → not done, shown
+    expect(screen.getByText('Polymer Bundle')).toBeInTheDocument();
   });
 
-  it('shows all materials cards dimmed when everything is owned', async () => {
+  it('shows an "all owned" message when every material is fully owned', async () => {
     // Override via shared mock state (no module cache mutation)
     mockState.inventory = () => ({
       'Alloy Plate': 5000,
@@ -165,13 +160,13 @@ describe('Dashboard', () => {
     render(React.createElement(Home));
 
     await waitFor(() => {
-      expect(screen.getByText('Alloy Plate')).toBeInTheDocument();
+      expect(screen.getByText(/Materials Needed/i)).toBeInTheDocument();
     });
 
     ['Alloy Plate', 'Circuits', 'Polymer Bundle', 'Nano Spores'].forEach((name) => {
-      const card = screen.getByText(name).closest('.card');
-      expect(card.style.opacity).toBe('0.65');
+      expect(screen.queryByText(name)).not.toBeInTheDocument();
     });
+    expect(screen.getByText(/already owned/i)).toBeInTheDocument();
   });
 
   it('shows no materials section when no items are tracked', async () => {
@@ -190,24 +185,24 @@ describe('Dashboard', () => {
     render(React.createElement(Home));
 
     await waitFor(() => {
-      expect(screen.getByText('Alloy Plate')).toBeInTheDocument();
+      expect(screen.getByText('Circuits')).toBeInTheDocument();
     });
 
-    const alloyCard = screen.getByText('Alloy Plate').closest('[data-testid]');
-    expect(alloyCard).toBeInTheDocument();
-    expect(alloyCard.getAttribute('data-testid')).toBe('material-card-alloy-plate');
+    const circuitsCard = screen.getByText('Circuits').closest('[data-testid]');
+    expect(circuitsCard).toBeInTheDocument();
+    expect(circuitsCard.getAttribute('data-testid')).toBe('material-card-circuits');
   });
 
   it('shows the items using each material in the card', async () => {
     render(React.createElement(Home));
 
     await waitFor(() => {
-      expect(screen.getByText('Alloy Plate')).toBeInTheDocument();
+      expect(screen.getByText('Circuits')).toBeInTheDocument();
     });
 
-    const alloyCard = screen.getByText('Alloy Plate').closest('.card');
-    expect(alloyCard.textContent).toContain('Excalibur');
-    expect(alloyCard.textContent).toContain('Mesa');
+    const circuitsCard = screen.getByText('Circuits').closest('.card');
+    expect(circuitsCard.textContent).toContain('Excalibur');
+    expect(circuitsCard.textContent).toContain('Mesa');
   });
 
   // ── Conditional rendering tests ────────────────────────────────
