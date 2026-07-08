@@ -173,6 +173,42 @@ describe('ModRepository', () => {
     });
   });
 
+  describe('getTrackedMods()', () => {
+    beforeEach(() => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(createMockCache()),
+      });
+    });
+
+    it('returns empty array when no mods have been interacted with', async () => {
+      const repo = new ModRepository();
+      const tracked = await repo.getTrackedMods();
+      expect(tracked).toEqual([]);
+    });
+
+    it('returns mods with a collection entry that are not owned', async () => {
+      const repo = new ModRepository();
+      // setModRank touches the collection without marking owned
+      await repo.setModOwned('mod-1', false);
+      await repo.setModRank('mod-2', 2);
+
+      const tracked = await repo.getTrackedMods();
+      expect(tracked.map((m) => m.id).sort()).toEqual(['mod-1', 'mod-2']);
+    });
+
+    it('excludes mods once they are marked owned', async () => {
+      const repo = new ModRepository();
+      await repo.setModRank('mod-1', 1);
+      let tracked = await repo.getTrackedMods();
+      expect(tracked.map((m) => m.id)).toEqual(['mod-1']);
+
+      await repo.setModOwned('mod-1', true);
+      tracked = await repo.getTrackedMods();
+      expect(tracked).toEqual([]);
+    });
+  });
+
   describe('setModOwned()', () => {
     beforeEach(() => {
       globalThis.fetch = vi.fn().mockResolvedValue({

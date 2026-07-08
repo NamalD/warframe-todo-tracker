@@ -136,6 +136,16 @@ export default class ModRepository {
     this.#persistCollection();
   }
 
+  async getTrackedMods() {
+    await this.#ensureInitialized();
+    return this.#mods
+      .filter((m) => {
+        const userState = this.#collection[m.id];
+        return userState && !userState.owned;
+      })
+      .map((m) => this.#getMod(m));
+  }
+
   getStats() {
     const total = this.#mods.length;
     let owned = 0;
