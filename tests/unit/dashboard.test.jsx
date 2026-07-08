@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 vi.mock('next/link', () => ({
@@ -62,6 +62,11 @@ vi.mock('../../src/data/store.js', () => ({
     getTodos: () => mockState.todos(),
     getMaterialInventory: () => mockState.inventory(),
     getMaterialsForItem: (id) => Promise.resolve(mockState.materials(id)),
+    setOwnedQuantity: (materialName, qty) => {
+      const parsed = parseInt(qty, 10);
+      const newQty = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+      return newQty;
+    },
   },
 }));
 
@@ -191,6 +196,24 @@ describe('Dashboard', () => {
     const circuitsCard = screen.getByText('Circuits').closest('[data-testid]');
     expect(circuitsCard).toBeInTheDocument();
     expect(circuitsCard.getAttribute('data-testid')).toBe('material-card-circuits');
+  });
+
+  it('lets the owned quantity be edited from the dashboard card', async () => {
+    render(React.createElement(Home));
+
+    await waitFor(() => {
+      expect(screen.getByText('Circuits')).toBeInTheDocument();
+    });
+
+    const input = screen.getByLabelText('Owned quantity for Circuits');
+    expect(input.value).toBe('500');
+
+    fireEvent.change(input, { target: { value: '900' } });
+
+    // Circuits: needed=900, owned now 900, deficit=0 -> done -> hidden per #2
+    await waitFor(() => {
+      expect(screen.queryByText('Circuits')).not.toBeInTheDocument();
+    });
   });
 
   it('shows the items using each material in the card', async () => {

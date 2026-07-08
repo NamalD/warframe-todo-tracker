@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import repo from '../src/data/store.js';
 import modRepo from '../src/data/mod-store.js';
@@ -52,6 +52,17 @@ function Home() {
     modRepo.getTrackedMods()
       .then((data) => { setTrackedMods(data); setModsLoading(false); })
       .catch(() => setModsLoading(false));
+  }, []);
+
+  const handleOwnedChange = useCallback((materialName, value) => {
+    const newQty = repo.setOwnedQuantity(materialName, value);
+    setMaterialsList((prev) =>
+      prev.map((m) => {
+        if (m.name !== materialName) return m;
+        const deficit = Math.max(0, m.quantity - newQty);
+        return { ...m, owned: newQty, deficit, done: deficit <= 0 };
+      })
+    );
   }, []);
 
   // Tracked items
@@ -198,6 +209,20 @@ function Home() {
                         {itemName}
                       </div>
                     ))}
+                  </div>
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <label className="muted" htmlFor={`owned-${mat.name}`} style={{ fontSize: 13 }}>
+                      Owned
+                    </label>
+                    <input
+                      id={`owned-${mat.name}`}
+                      className="owned-input"
+                      type="number"
+                      min="0"
+                      value={mat.owned}
+                      onChange={(e) => handleOwnedChange(mat.name, e.target.value)}
+                      aria-label={`Owned quantity for ${mat.name}`}
+                    />
                   </div>
                   <p style={{ marginTop: 10 }}>
                     <Link href={`/sources?material=${encodeURIComponent(mat.name)}`}>
