@@ -96,7 +96,7 @@ export default class BuildRepository {
     };
   }
 
-  createBuild({ name, item_id, custom_item_name, wiki_url, notes }) {
+  createBuild({ name, item_id, custom_item_name, wiki_url, notes, acquired }) {
     const id = this.#nextId('build');
     const now = this.#now();
     const build = {
@@ -104,7 +104,7 @@ export default class BuildRepository {
       name: name.trim(),
       item_id: item_id || null,
       custom_item_name: custom_item_name || null,
-      acquired: false,
+      acquired: acquired === true,
       notes: notes || '',
       wiki_url: wiki_url || null,
       created_at: now,

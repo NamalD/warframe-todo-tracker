@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getOptionsForSlot, getAllOptionNames } from '../../src/data/requirement-options.js';
+import { getOptionsForSlot, getAllSlotTypes } from '../../src/data/requirement-options.js';
 
 describe('requirement-options', () => {
   describe('getOptionsForSlot', () => {
@@ -9,25 +9,25 @@ describe('requirement-options', () => {
       expect(options.length).toBeGreaterThan(0);
       expect(options.find((o) => o.name === 'Orokin Reactor')).toBeTruthy();
       expect(options.find((o) => o.name === 'Forma')).toBeTruthy();
-      expect(options.find((o) => o.name === 'Exilus Adapter')).toBeTruthy();
+      expect(options.find((o) => o.name === 'Exilus Warframe Adapter')).toBeTruthy();
     });
 
     it('returns primary options for primary slot_type', () => {
       const options = getOptionsForSlot('primary');
       expect(options.find((o) => o.name === 'Orokin Catalyst')).toBeTruthy();
-      expect(options.find((o) => o.name === 'Riven Mod')).toBeTruthy();
+      expect(options.find((o) => o.name === 'Primary Arcane Adapter')).toBeTruthy();
     });
 
     it('returns secondary options for secondary slot_type', () => {
       const options = getOptionsForSlot('secondary');
       expect(options.find((o) => o.name === 'Orokin Catalyst')).toBeTruthy();
-      expect(options.find((o) => o.name === 'Riven Mod')).toBeTruthy();
+      expect(options.find((o) => o.name === 'Secondary Arcane Adapter')).toBeTruthy();
     });
 
     it('returns melee options for melee slot_type', () => {
       const options = getOptionsForSlot('melee');
       expect(options.find((o) => o.name === 'Orokin Catalyst')).toBeTruthy();
-      expect(options.find((o) => o.name === 'Riven Mod')).toBeTruthy();
+      expect(options.find((o) => o.name === 'Melee Arcane Adapter')).toBeTruthy();
     });
 
     it('returns companion options for companion slot_type', () => {
@@ -40,11 +40,9 @@ describe('requirement-options', () => {
       expect(options.find((o) => o.name === 'Orokin Reactor')).toBeTruthy();
     });
 
-    it('falls back to "other" options for unknown slot_type', () => {
+    it('returns an empty array for unknown slot_type', () => {
       const options = getOptionsForSlot('unknown-type');
-      expect(options.length).toBeGreaterThan(0);
-      // "other" has Forma, Orokin Catalyst, Orokin Reactor
-      expect(options.find((o) => o.name === 'Forma')).toBeTruthy();
+      expect(options).toEqual([]);
     });
 
     it('each option has a name property', () => {
@@ -73,20 +71,17 @@ describe('requirement-options', () => {
     });
   });
 
-  describe('getAllOptionNames', () => {
-    it('returns an array of unique option names', () => {
-      const names = getAllOptionNames();
-      expect(Array.isArray(names)).toBe(true);
-      expect(names.length).toBeGreaterThan(0);
-      expect(names.includes('Forma')).toBe(true);
-      expect(names.includes('Orokin Reactor')).toBe(true);
-      expect(names.includes('Orokin Catalyst')).toBe(true);
+  describe('getAllSlotTypes', () => {
+    it('returns an array of slot types with predefined options', () => {
+      const types = getAllSlotTypes();
+      expect(Array.isArray(types)).toBe(true);
+      expect(types).toEqual(expect.arrayContaining(['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other']));
     });
 
-    it('returns unique names (no duplicates)', () => {
-      const names = getAllOptionNames();
-      const unique = new Set(names);
-      expect(unique.size).toBe(names.length);
+    it('returns unique slot types (no duplicates)', () => {
+      const types = getAllSlotTypes();
+      const unique = new Set(types);
+      expect(unique.size).toBe(types.length);
     });
   });
 });
