@@ -47,6 +47,12 @@ fi
 log "=== Issue-closing commit(s) detected on main: $(echo "$CLOSED_ISSUES" | tr '\n' ' ') ==="
 log "New HEAD: $(git rev-parse --short HEAD)"
 
+# Compute auth hash for password protection
+if [ -n "${PASSWORD:-}" ]; then
+    export AUTH_HASH=$(echo -n "$PASSWORD" | sha256sum | cut -d' ' -f1)
+    log "Auth hash computed"
+fi
+
 log "Building Docker image..."
 docker compose build app 2>&1 | tee -a "$LOG_FILE" || {
     log "FAIL: Docker build failed — deploy aborted"

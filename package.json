@@ -16,6 +16,7 @@
   "dependencies": {
     "@wfcd/items": "^1.1275.0",
     "better-sqlite3": "^12.11.1",
+    "jose": "^6.2.3",
     "next": "^14.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -8,6 +8,9 @@ services:
     ports:
       - "3000:3000"
     restart: unless-stopped
+    environment:
+      - PASSWORD=${PASSWORD:-}
+      - AUTH_HASH=${AUTH_HASH:-}
     volumes:
       - ./data:/app/data
     labels:
