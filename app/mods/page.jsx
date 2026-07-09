@@ -12,7 +12,7 @@ function ModCard({ mod, onToggle }) {
   const [owned, setOwned] = useState(mod.owned);
   useEffect(() => { setOwned(mod.owned); }, [mod.owned]);
   const toggleOwned = async (e) => {
-    e.stopPropagation(); e.preventDefault();
+    e.stopPropagation();
     const newOwned = !owned;
     setOwned(newOwned);
     await onToggle(mod.id, newOwned);

@@ -94,44 +94,68 @@ test.describe('Loadouts list page', () => {
   });
 });
 
+const TEST_LOADOUT = {
+  id: 'loadout-test-1',
+  name: 'Test Loadout',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  slots: [
+    {
+      id: 'slot-test-1',
+      loadout_id: 'loadout-test-1',
+      slot_type: 'warframe',
+      item_id: 'item-1',
+      custom_item_name: null,
+      acquired: false,
+      notes: 'Test notes',
+      display_order: 0,
+      requirements: [
+        {
+          id: 'req-test-1',
+          loadout_slot_id: 'slot-test-1',
+          name: 'Test Requirement',
+          wiki_url: null,
+          user_notes: '',
+          acquired: false,
+          display_order: 0
+        }
+      ]
+    }
+  ]
+};
+
 test.describe('Loadout detail page', () => {
   test.beforeEach(async ({ page }) => {
-    // Seed a loadout in localStorage
-    await page.goto('/');
-    await page.evaluate(() => {
-      const data = {
-        loadouts: [{
-          id: 'loadout-test-1',
-          name: 'Test Loadout',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          slots: [
-            {
-              id: 'slot-test-1',
-              loadout_id: 'loadout-test-1',
-              slot_type: 'warframe',
-              item_id: 'item-1',
-              custom_item_name: null,
-              acquired: false,
-              notes: 'Test notes',
-              display_order: 0,
-              requirements: [
-                {
-                  id: 'req-test-1',
-                  loadout_slot_id: 'slot-test-1',
-                  name: 'Test Requirement',
-                  wiki_url: null,
-                  user_notes: '',
-                  acquired: false,
-                  display_order: 0
-                }
-              ]
-            }
-          ]
-        }]
-      };
-      localStorage.setItem('warframe-loadouts', JSON.stringify(data));
+    // The page's mount effect calls loadoutRepo.syncFromServer() first,
+    // which is authoritative and would otherwise overwrite whatever's
+    // seeded into localStorage with whatever's actually in the
+    // (persistent, shared) dev server's SQLite DB — see #13. Intercept the
+    // sync pull to echo back localStorage's current content instead of
+    // hitting the real API, so any test-specific seed (set via
+    // page.evaluate before/after this point) round-trips unchanged.
+    await page.route('**/api/loadouts', async (route) => {
+      if (route.request().method() === 'GET') {
+        const loadouts = await page.evaluate(() => {
+          try {
+            return JSON.parse(localStorage.getItem('warframe-loadouts') || '{}').loadouts || [];
+          } catch {
+            return [];
+          }
+        });
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ data: loadouts }),
+        });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+      }
     });
+
+    await page.goto('/');
+    await page.evaluate((loadout) => {
+      localStorage.setItem('warframe-loadouts', JSON.stringify({ loadouts: [loadout] }));
+    }, TEST_LOADOUT);
     await page.goto('/loadouts/loadout-test-1');
     await page.waitForTimeout(300);
   });
@@ -178,12 +202,12 @@ test.describe('Loadout detail page', () => {
     });
 
     test('clicking expand reveals requirements', async ({ page }) => {
-      await page.locator('button:has-text("Requirements")').click();
+      // Populated slots' requirements start expanded by default — no click
+      // needed (clicking would collapse it instead).
       await expect(page.locator('text=Test Requirement')).toBeVisible();
     });
 
     test('can add a requirement', async ({ page }) => {
-      await page.locator('button:has-text("Requirements")').click();
       await page.locator('button:has-text("+ Add Requirement")').click();
       await page.getByPlaceholder('Name (required)').fill('New Req');
       await page.getByRole('button', { name: 'Add', exact: true }).click();
@@ -235,10 +259,39 @@ test.describe('Loadout detail page', () => {
 
   test.describe('duplicate handling', () => {
     test('adding duplicate item shows alert', async ({ page }) => {
-      await page.getByRole('button', { name: '+ Add Slot' }).click();
+      // There's no standalone "+ Add Slot" button — loadouts have a fixed
+      // set of slot types, each populated in place by clicking it. The
+      // item dropdown is also filtered by slot type (see
+      // SLOT_TYPE_TO_ITEM_TYPE), except for slot types with no mapping
+      // (companion/archwing/other), which show every item unfiltered —
+      // that's the only way to reach the cross-slot duplicate check, so
+      // seed a second, empty "other" slot to populate with the already-used item.
+      await page.evaluate((loadout) => {
+        const withExtraSlot = {
+          ...loadout,
+          slots: [
+            ...loadout.slots,
+            {
+              id: 'slot-test-2',
+              loadout_id: loadout.id,
+              slot_type: 'other',
+              item_id: null,
+              custom_item_name: null,
+              acquired: false,
+              notes: '',
+              display_order: 1,
+              requirements: [],
+            },
+          ],
+        };
+        localStorage.setItem('warframe-loadouts', JSON.stringify({ loadouts: [withExtraSlot] }));
+      }, TEST_LOADOUT);
+      await page.reload();
+      await page.waitForTimeout(300);
 
-      // Try to add the same item (item-1 = Excalibur)
-      await page.locator('select').nth(1).selectOption('item-1');
+      await page.getByText('Empty slot — click to populate').click();
+      // Try to add the same item already used in the warframe slot (item-1 = Excalibur)
+      await page.locator('select').selectOption('item-1');
 
       let dialogMessage = '';
       page.on('dialog', async (dialog) => {
@@ -246,7 +299,7 @@ test.describe('Loadout detail page', () => {
         await dialog.accept();
       });
 
-      await page.getByRole('button', { name: 'Add', exact: true }).click();
+      await page.getByRole('button', { name: 'Save' }).click();
       await page.waitForTimeout(200);
       expect(dialogMessage).toContain('already in the loadout');
     });
@@ -265,6 +318,12 @@ test.describe('Loadout detail page', () => {
     });
 
     test('checkboxes have 44px touch targets', async ({ page }) => {
+      // The 44px touch-target sizing only applies within the mobile media
+      // query (@media max-width: 640px) — this must run at a mobile
+      // viewport, same as the sibling test above.
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.waitForTimeout(300);
+
       const checkbox = page.locator('.slot-card input[type="checkbox"]').first();
       const box = await checkbox.boundingBox();
       if (box) {

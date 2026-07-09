@@ -359,19 +359,19 @@ ul.plain li:last-child { border-bottom: none; }
   background: #5ad68e;
 }
 
-/* Mobile: larger touch targets */
+/* Mobile: larger touch targets (44px per WCAG/platform touch-target guidance) */
 @media (max-width: 640px) {
   .slot-card input[type="checkbox"] {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
   }
 
   .slot-card input[type="checkbox"]:checked::after {
-    left: 7px;
-    top: 3px;
-    width: 6px;
-    height: 12px;
+    left: 15px;
+    top: 5px;
+    width: 12px;
+    height: 22px;
   }
 }
 

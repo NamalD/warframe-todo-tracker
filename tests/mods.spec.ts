@@ -99,6 +99,14 @@ async function seedModData(page: Page, ownedModIds: string[] = []) {
     collection[id] = { owned: true, rank: 3 };
   }
 
+  // localStorage access via page.evaluate() throws a SecurityError on the
+  // default about:blank page (opaque origin) — some describe blocks'
+  // beforeEach navigate first (establishing the app's origin) and some
+  // don't, so this must not assume one or the other.
+  if (page.url() === 'about:blank') {
+    await page.goto('/mods');
+  }
+
   await page.evaluate(
     ({ cacheVersion, sampleMods, collection }) => {
       localStorage.setItem(
@@ -160,10 +168,13 @@ test.describe('Mods list page', () => {
     });
 
     test('displays rarity text on each card', async ({ page }) => {
-      await expect(page.locator('text=Common')).toBeVisible();
-      await expect(page.locator('text=Uncommon')).toBeVisible();
-      await expect(page.locator('text=Rare').first()).toBeVisible();
-      await expect(page.locator('text=Legendary')).toBeVisible();
+      // Scope to cards — the rarity filter <select> also has options with
+      // this same text, which would otherwise cause a strict-mode violation.
+      const cards = page.locator('[data-testid^="mod-card-"]');
+      await expect(cards.getByText('Common', { exact: true })).toBeVisible();
+      await expect(cards.getByText('Uncommon', { exact: true })).toBeVisible();
+      await expect(cards.getByText('Rare', { exact: true }).first()).toBeVisible();
+      await expect(cards.getByText('Legendary', { exact: true })).toBeVisible();
     });
 
     test('displays polarity text on each card', async ({ page }) => {
@@ -437,13 +448,15 @@ test.describe('Mod detail page', () => {
     test('shows Prime badge for prime mods', async ({ page }) => {
       await page.goto('/mods/mod-2');
       await page.waitForTimeout(300);
-      await expect(page.getByText('Prime')).toBeVisible();
+      // The mod name ("Primed Continuity") and wiki link URL both also
+      // contain "Prime" as a substring — scope to the actual badge element.
+      await expect(page.locator('.badge').getByText('Prime', { exact: true })).toBeVisible();
     });
 
     test('shows Umbral badge for umbral mods', async ({ page }) => {
       await page.goto('/mods/mod-3');
       await page.waitForTimeout(300);
-      await expect(page.getByText('Umbral')).toBeVisible();
+      await expect(page.locator('.badge').getByText('Umbral', { exact: true })).toBeVisible();
     });
 
     test('shows compatible with name in stats', async ({ page }) => {
