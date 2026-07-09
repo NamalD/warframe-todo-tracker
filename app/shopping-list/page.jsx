@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import repo from '../../src/data/store.js';
+import { aggregateTrackedMaterials } from '../../src/data/material-aggregator.js';
 
 function ShoppingList() {
   const [materials, setMaterials] = useState([]);
@@ -14,49 +15,16 @@ function ShoppingList() {
 
       await repo.initMaterials();
       const allItems = await repo.getAllItems();
-      const trackedItems = allItems.filter(
-        (it) => it.is_user_tracked || (it.track_incarnon_install && !it.incarnon_installed)
-      );
       const inv = repo.getMaterialInventory();
       setOwned(inv);
 
-      // Aggregate materials across tracked items
-      const materialsMap = {};
-      for (const item of trackedItems) {
-        const itemMaterials = await repo.getMaterialsForItem(item.id);
-        for (const m of itemMaterials) {
-          // Only include materials relevant to this item's tracking flags
-          if (m.is_incarnon_install ? !item.track_incarnon_install : !item.is_user_tracked) continue;
-          const key = m.material_name;
-          if (!materialsMap[key]) {
-            materialsMap[key] = {
-              name: m.material_name,
-              needed: 0,
-              wiki_url: m.wiki_url,
-              items: [],
-              itemIds: new Set()
-            };
-          }
-          materialsMap[key].needed += m.quantity_required;
-          if (!materialsMap[key].itemIds.has(item.id)) {
-            materialsMap[key].itemIds.add(item.id);
-            materialsMap[key].items.push({ id: item.id, name: item.name });
-          }
-        }
-      }
-
-      // Convert to array and compute deficit
-      const materialsList = Object.values(materialsMap).map((m) => {
-        const ownedQty = inv[m.name] ?? 0;
-        const deficit = Math.max(0, m.needed - ownedQty);
-        return {
-          ...m,
-          owned: ownedQty,
-          deficit,
-          done: deficit <= 0,
-          pct: Math.min(100, Math.round((ownedQty / m.needed) * 100))
-        };
-      });
+      // Use shared material aggregation utility
+      const combined = await aggregateTrackedMaterials(allItems, inv, (id) => repo.getMaterialsForItem(id));
+      const materialsList = combined.map((m) => ({
+        ...m,
+        needed: m.quantity,
+        pct: Math.min(100, Math.round((m.owned / m.quantity) * 100)),
+      }));
 
       // Sort: most deficit first, then alphabetically
       materialsList.sort((a, b) => {
@@ -286,7 +254,7 @@ function ShoppingList() {
                             fontSize: 11
                           }}
                         >
-                          {item.name}
+                          {item.label}
                         </Link>
                       ))}
                     </div>

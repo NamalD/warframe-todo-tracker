@@ -4,6 +4,7 @@ import Link from 'next/link';
 import repo from '../src/data/store.js';
 import modRepo from '../src/data/mod-store.js';
 import LoadoutDashboardSection from '../src/components/loadout-dashboard-section.jsx';
+import { aggregateTrackedMaterials } from '../src/data/material-aggregator.js';
 import BuildDashboardSection from '../src/components/build-dashboard-section.jsx';
 
 function Home() {
@@ -23,36 +24,7 @@ function Home() {
       setTodos(repo.getTodos());
 
       const inv = repo.getMaterialInventory();
-
-      // Materials needed: aggregate across tracked items (blueprint materials
-      // when is_user_tracked, Incarnon install materials when
-      // track_incarnon_install and not yet marked as installed)
-      const relevantItems = allItems.filter(
-        (it) => it.is_user_tracked || (it.track_incarnon_install && !it.incarnon_installed)
-      );
-      const matMap = {};
-      for (const item of relevantItems) {
-        const materials = await repo.getMaterialsForItem(item.id);
-        for (const m of materials) {
-          if (m.is_incarnon_install ? !item.track_incarnon_install : !item.is_user_tracked) continue;
-          const key = m.material_name;
-          if (!matMap[key]) {
-            matMap[key] = { name: m.material_name, quantity: 0, items: [] };
-          }
-          matMap[key].quantity += m.quantity_required;
-          matMap[key].items.push({
-            id: item.id,
-            label: m.is_incarnon_install ? `${item.name} (Incarnon Install)` : item.name,
-          });
-        }
-      }
-      setMaterialsList(
-        Object.values(matMap).map((m) => {
-          const ownedQty = inv[m.name] ?? 0;
-          const deficit = Math.max(0, m.quantity - ownedQty);
-          return { ...m, owned: ownedQty, deficit, done: deficit <= 0 };
-        }).sort((a, b) => a.name.localeCompare(b.name))
-      );
+      setMaterialsList(await aggregateTrackedMaterials(allItems, inv, (id) => repo.getMaterialsForItem(id)));
       setLoading(false);
     }
     load();
