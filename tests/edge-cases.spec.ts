@@ -22,7 +22,10 @@ test.describe('Edge cases and navigation', () => {
 
   test('navigates from home to items', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('link', { name: 'Items', exact: true }).click();
+    // NavBar renders both desktop and mobile nav links in the DOM
+    // simultaneously (#16) — scope to the desktop nav to avoid a strict-mode
+    // violation from the duplicate mobile-menu copy.
+    await page.locator('.nav-links').getByRole('link', { name: 'Items', exact: true }).click();
     await expect(page).toHaveURL(/\/items/);
   });
 

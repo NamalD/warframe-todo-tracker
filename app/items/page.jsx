@@ -60,7 +60,12 @@ function ItemsList() {
           &nbsp;Show tracked items only
         </label>
       </div>
-      {filtered.length === 0 && (
+      {filtered.length === 0 && showTrackedOnly && !searchText.trim() && (
+        <p className="muted">
+          No tracked items yet — showing 0 of {items.length} items. Uncheck &quot;Show tracked items only&quot; to browse everything.
+        </p>
+      )}
+      {filtered.length === 0 && (!showTrackedOnly || searchText.trim()) && (
         <p className="muted">No items match this filter.</p>
       )}
       <div className="list">
