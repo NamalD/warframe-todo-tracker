@@ -88,6 +88,7 @@ function ItemDetail({ params }) {
   useEffect(() => {
     setLoading(true);
     async function load() {
+      await repo.initMaterials();
       const data = await repo.getItemById(id);
       setItem(data);
       const mats = await repo.getMaterialsForItem(id);

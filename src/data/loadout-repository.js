@@ -1,83 +1,61 @@
 'use client';
-import { pullFromServer, pushToServer, deleteFromServer } from './sync-helper.js';
 
-const STORAGE_KEY = 'warframe-loadouts';
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
+
+function flattenLoadout({ data, ...rest }) {
+  return { ...rest, ...(data || {}) };
+}
+
+function stripDataFields(loadout) {
+  const { id, name, version, created_at, updated_at, ...data } = loadout;
+  return data;
+}
 
 export default class LoadoutRepository {
   #data;
-  #onSyncEvent = null;
-  #syncInProgress = false;
-  #pendingSync = null;
+  #initialized = false;
+  #initPromise = null;
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try { this.#data = JSON.parse(stored); }
-        catch (e) { this.#data = { loadouts: [] }; }
-      } else {
-        this.#data = { loadouts: [] };
-      }
-    } else {
-      this.#data = { loadouts: [] };
-    }
+    this.#data = { loadouts: [] };
   }
 
-  setSyncEventCallback(cb) { this.#onSyncEvent = cb; }
-  lastSyncError = null;
-
-  #persist() {
-    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, JSON.stringify(this.#data));
-    this.#pendingSync = this.#syncToServer().catch(() => {});
+  async init() {
+    if (this.#initialized) return;
+    if (this.#initPromise) return this.#initPromise;
+    this.#initPromise = this.#fetchAll();
+    await this.#initPromise;
+    this.#initialized = true;
   }
 
-  async forceSyncToServer() { return this.#syncToServer(); }
-
-  /** Returns a promise that resolves when any pending sync completes. */
-  async flushPendingSync() {
-    if (this.#pendingSync) await this.#pendingSync;
-    this.#pendingSync = null;
-  }
-
-  async #syncToServer() {
-    if (this.#syncInProgress) return false;
-    this.#syncInProgress = true;
+  async #fetchAll() {
     try {
-      const ok = await pushToServer('/api/loadouts', this.#data.loadouts, this.#onSyncEvent);
-      if (ok) this.lastSyncError = null;
-      return ok;
-    } finally {
-      this.#syncInProgress = false;
-    }
-  }
-
-  async syncFromServer() {
-    if (this.#syncInProgress) return;
-    this.#syncInProgress = true;
-    try {
-      const result = await pullFromServer('/api/loadouts', STORAGE_KEY, this.#onSyncEvent, 'loadouts');
-      if (result.fromServer) {
-        this.#data.loadouts = Array.isArray(result.data) ? result.data : [];
-        this.#persistLocal();
-        this.lastSyncError = null;
-      } else if (result.fromLocal) {
-        // Server unreachable — pullFromServer fell back to local data
-        this.lastSyncError = 'Server unreachable';
-        this.#persistLocal();
-      }
-      // Clear pending sync — server state is now authoritative
-      this.#pendingSync = null;
+      const res = await fetch('/api/loadouts');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      this.#data.loadouts = Array.isArray(body.data) ? body.data : [];
     } catch (err) {
-      this.lastSyncError = err.message;
-      if (this.#onSyncEvent) this.#onSyncEvent('error', 'Sync failed: ' + err.message);
-    } finally {
-      this.#syncInProgress = false;
+      console.error('Failed to fetch loadouts:', err);
+      this.#data.loadouts = [];
     }
   }
 
-  #persistLocal() {
-    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, JSON.stringify(this.#data));
+  async #patch(loadout) {
+    const payload = { data: stripDataFields(loadout), clientVersion: loadout.version || 0 };
+    const res = await fetch(`/api/loadouts/${loadout.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      console.error(`PATCH /api/loadouts/${loadout.id} failed:`, res.status);
+      return;
+    }
+    // Update in-memory version from server response
+    const updated = await res.json();
+    if (updated && updated.version) {
+      loadout.version = updated.version;
+    }
   }
 
   #now() { return new Date().toISOString(); }
@@ -99,7 +77,7 @@ export default class LoadoutRepository {
     };
   }
 
-  createLoadout({ name }) {
+  async createLoadout({ name }) {
     const id = this.#nextId('loadout');
     const now = this.#now();
     const loadout = {
@@ -111,30 +89,63 @@ export default class LoadoutRepository {
       }))
     };
     this.#data.loadouts.push(loadout);
-    this.#persist();
+    // Fire-and-forget server create
+    this.#serverCreate(loadout).catch(() => {});
     return this.getLoadoutById(id);
   }
 
-  updateLoadout(id, updates) {
+  async #serverCreate(loadout) {
+    try {
+      const res = await fetch('/api/loadouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: loadout.id,
+          name: loadout.name,
+          data: stripDataFields(loadout),
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        if (created && created.version) {
+          loadout.version = created.version;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to create loadout on server:', err);
+    }
+  }
+
+  async updateLoadout(id, updates) {
     const loadout = this.#data.loadouts.find((l) => l.id === id);
     if (!loadout) return null;
     Object.assign(loadout, updates, { updated_at: this.#now() });
-    this.#persist();
+    this.#patch(loadout).catch(() => {});
     return this.getLoadoutById(id);
   }
 
-  deleteLoadout(id) {
+  async deleteLoadout(id) {
     const target = this.#data.loadouts.find((l) => l.id === id);
     const before = this.#data.loadouts.length;
     this.#data.loadouts = this.#data.loadouts.filter((l) => l.id !== id);
     if (this.#data.loadouts.length !== before) {
-      this.#persistLocal();
-      // The bulk push (#persist) is an additive merge and can't propagate a
-      // delete (see #14) — tell the server directly instead.
-      this.#pendingSync = deleteFromServer('/api/loadouts', id, target?.version ?? 0, this.#onSyncEvent).catch(() => {});
+      const version = target?.version ?? 0;
+      this.#serverDelete(id, version).catch(() => {});
       return true;
     }
     return false;
+  }
+
+  async #serverDelete(id, version) {
+    try {
+      await fetch(`/api/loadouts/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientVersion: version }),
+      });
+    } catch (err) {
+      console.error('Failed to delete loadout on server:', err);
+    }
   }
 
   addSlot(loadoutId, slot) {
@@ -153,7 +164,7 @@ export default class LoadoutRepository {
     if (!loadout.slots) loadout.slots = [];
     loadout.slots.push(entry);
     loadout.updated_at = this.#now();
-    this.#persist();
+    this.#patch(loadout).catch(() => {});
     return { ...entry, requirements: [] };
   }
 
@@ -164,7 +175,7 @@ export default class LoadoutRepository {
     if (!slot) return null;
     Object.assign(slot, updates);
     loadout.updated_at = this.#now();
-    this.#persist();
+    this.#patch(loadout).catch(() => {});
     return { ...slot, requirements: (slot.requirements || []).map((r) => ({ ...r })) };
   }
 
@@ -176,7 +187,7 @@ export default class LoadoutRepository {
     slot.item_id = null; slot.custom_item_name = null;
     slot.acquired = false; slot.notes = ''; slot.requirements = [];
     loadout.updated_at = this.#now();
-    this.#persist();
+    this.#patch(loadout).catch(() => {});
     return true;
   }
 
@@ -193,7 +204,7 @@ export default class LoadoutRepository {
         if (!slot.requirements) slot.requirements = [];
         slot.requirements.push(entry);
         loadout.updated_at = this.#now();
-        this.#persist();
+        this.#patch(loadout).catch(() => {});
         return { ...entry };
       }
     }
@@ -205,7 +216,12 @@ export default class LoadoutRepository {
       const slot = (loadout.slots || []).find((s) => s.id === slotId);
       if (slot) {
         const req = (slot.requirements || []).find((r) => r.id === requirementId);
-        if (req) { Object.assign(req, updates); loadout.updated_at = this.#now(); this.#persist(); return { ...req }; }
+        if (req) {
+          Object.assign(req, updates);
+          loadout.updated_at = this.#now();
+          this.#patch(loadout).catch(() => {});
+          return { ...req };
+        }
       }
     }
     return null;
@@ -217,7 +233,11 @@ export default class LoadoutRepository {
       if (slot) {
         const before = (slot.requirements || []).length;
         slot.requirements = (slot.requirements || []).filter((r) => r.id !== requirementId);
-        if (slot.requirements.length !== before) { loadout.updated_at = this.#now(); this.#persist(); return true; }
+        if (slot.requirements.length !== before) {
+          loadout.updated_at = this.#now();
+          this.#patch(loadout).catch(() => {});
+          return true;
+        }
         return false;
       }
     }

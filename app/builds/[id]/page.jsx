@@ -31,7 +31,7 @@ function BuildDetailInner() {
 
   useEffect(() => {
     const br = buildStore;
-    br.syncFromServer().then(async () => {
+    br.init().then(async () => {
       setBuildRepo(br);
       const b = br.getBuildById(id);
       setBuild(b);

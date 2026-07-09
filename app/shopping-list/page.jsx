@@ -12,6 +12,7 @@ function ShoppingList() {
     async function load() {
       setLoading(true);
 
+      await repo.initMaterials();
       const allItems = await repo.getAllItems();
       const trackedItems = allItems.filter((it) => it.is_user_tracked);
       const inv = repo.getMaterialInventory();

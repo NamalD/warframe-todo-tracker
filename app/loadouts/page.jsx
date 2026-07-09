@@ -24,7 +24,7 @@ function LoadoutsPageInner() {
 
   useEffect(() => {
     const lr = loadoutStore;
-    lr.syncFromServer().then(() => {
+    lr.init().then(() => {
       setLoadoutRepo(lr);
       setLoadouts(lr.getLoadouts());
       setLoading(false);

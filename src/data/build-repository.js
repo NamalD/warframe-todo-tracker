@@ -1,80 +1,44 @@
 'use client';
-import { pullFromServer, pushToServer } from './sync-helper.js';
-
-const STORAGE_KEY = 'warframe-builds';
 
 export default class BuildRepository {
   #data;
-  #onSyncEvent = null;
-  #syncInProgress = false;
-  #pendingSync = null;
+  #initialized = false;
+  #initPromise = null;
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try { this.#data = JSON.parse(stored); }
-        catch (e) { this.#data = { builds: [] }; }
-      } else {
-        this.#data = { builds: [] };
-      }
-    } else {
-      this.#data = { builds: [] };
-    }
+    this.#data = { builds: [] };
   }
 
-  setSyncEventCallback(cb) { this.#onSyncEvent = cb; }
-  lastSyncError = null;
-
-  #persist() {
-    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, JSON.stringify(this.#data));
-    this.#pendingSync = this.#syncToServer().catch(() => {});
+  async init() {
+    if (this.#initialized) return;
+    if (this.#initPromise) return this.#initPromise;
+    this.#initPromise = this.#fetchAll();
+    await this.#initPromise;
+    this.#initialized = true;
   }
 
-  async forceSyncToServer() { return this.#syncToServer(); }
-
-  /** Returns a promise that resolves when any pending sync completes. */
-  async flushPendingSync() {
-    if (this.#pendingSync) await this.#pendingSync;
-    this.#pendingSync = null;
-  }
-
-  async #syncToServer() {
-    if (this.#syncInProgress) return false;
-    this.#syncInProgress = true;
+  async #fetchAll() {
     try {
-      const ok = await pushToServer('/api/builds', this.#data.builds, this.#onSyncEvent);
-      if (ok) this.lastSyncError = null;
-      return ok;
-    } finally {
-      this.#syncInProgress = false;
-    }
-  }
-
-  async syncFromServer() {
-    if (this.#syncInProgress) return;
-    this.#syncInProgress = true;
-    try {
-      const result = await pullFromServer('/api/builds', STORAGE_KEY, this.#onSyncEvent, 'builds');
-      if (result.fromServer) {
-        this.#data.builds = Array.isArray(result.data) ? result.data : [];
-        this.#persistLocal();
-        this.lastSyncError = null;
-      } else if (result.fromLocal) {
-        this.lastSyncError = 'Server unreachable';
-        this.#persistLocal();
-      }
-      this.#pendingSync = null;
+      const res = await fetch('/api/builds');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      this.#data.builds = Array.isArray(body) ? body : [];
     } catch (err) {
-      this.lastSyncError = err.message;
-      if (this.#onSyncEvent) this.#onSyncEvent('error', 'Sync failed: ' + err.message);
-    } finally {
-      this.#syncInProgress = false;
+      console.error('Failed to fetch builds:', err);
+      this.#data.builds = [];
     }
   }
 
-  #persistLocal() {
-    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, JSON.stringify(this.#data));
+  async #persistToServer() {
+    try {
+      await fetch('/api/builds', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.#data.builds),
+      });
+    } catch (err) {
+      console.error('Failed to persist builds:', err);
+    }
   }
 
   #now() { return new Date().toISOString(); }
@@ -112,7 +76,7 @@ export default class BuildRepository {
       requirements: []
     };
     this.#data.builds.push(build);
-    this.#persist();
+    this.#persistToServer().catch(() => {});
     return this.getBuildById(id);
   }
 
@@ -120,14 +84,17 @@ export default class BuildRepository {
     const build = this.#data.builds.find((b) => b.id === id);
     if (!build) return null;
     Object.assign(build, updates, { updated_at: this.#now() });
-    this.#persist();
+    this.#persistToServer().catch(() => {});
     return this.getBuildById(id);
   }
 
   deleteBuild(id) {
     const before = this.#data.builds.length;
     this.#data.builds = this.#data.builds.filter((b) => b.id !== id);
-    if (this.#data.builds.length !== before) { this.#persist(); return true; }
+    if (this.#data.builds.length !== before) {
+      this.#persistToServer().catch(() => {});
+      return true;
+    }
     return false;
   }
 
@@ -146,7 +113,7 @@ export default class BuildRepository {
     if (!build.requirements) build.requirements = [];
     build.requirements.push(entry);
     build.updated_at = this.#now();
-    this.#persist();
+    this.#persistToServer().catch(() => {});
     return { ...entry };
   }
 
@@ -157,7 +124,7 @@ export default class BuildRepository {
     if (!req) return null;
     Object.assign(req, updates);
     build.updated_at = this.#now();
-    this.#persist();
+    this.#persistToServer().catch(() => {});
     return { ...req };
   }
 
@@ -168,7 +135,7 @@ export default class BuildRepository {
     build.requirements = (build.requirements || []).filter((r) => r.id !== requirementId);
     if (build.requirements.length !== before) {
       build.updated_at = this.#now();
-      this.#persist();
+      this.#persistToServer().catch(() => {});
       return true;
     }
     return false;
@@ -178,7 +145,6 @@ export default class BuildRepository {
     const summary = [];
     for (const build of this.#data.builds) {
       if (build.acquired) {
-        // If the build item itself is acquired, only show if there are unacquired requirements
         const unacquiredReqs = (build.requirements || []).filter((r) => !r.acquired);
         if (unacquiredReqs.length === 0) continue;
         summary.push({
@@ -188,7 +154,6 @@ export default class BuildRepository {
           unacquired_reqs: unacquiredReqs.map((r) => ({ requirement_id: r.id, name: r.name }))
         });
       } else {
-        // Build not acquired — always show
         const unacquiredReqs = (build.requirements || []).filter((r) => !r.acquired);
         summary.push({
           id: build.id,

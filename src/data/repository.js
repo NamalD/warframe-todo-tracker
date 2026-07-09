@@ -1,12 +1,8 @@
 'use client';
 
-import { pullFromServer, pushToServer, deleteFromServer } from './sync-helper.js';
-
-const STORAGE_KEY = 'warframe-todos';
 const ITEMS_CACHE_KEY = 'warframe-items-cache';
-const MATERIALS_INVENTORY_KEY = 'warframe-materials-inventory';
 
-// Fallback seed todos (used when no localStorage data exists)
+// Fallback seed todos (used when server has no data)
 const SEED_TODOS = [
   {
     id: 'todo-1',
@@ -38,51 +34,72 @@ export default class Repository {
   materials = [];
   sources = [];
   treeRelationships = [];
-  todos = [];
+  todos = [...SEED_TODOS.map(t => ({ ...t }))];
   materialInventory = {};
-  lastSyncError = null;
 
   // Private fields
   #initialized = false;
-  #initPromise = null;
-  #onSyncEvent = null;
-  #syncInProgress = false;
-  #pendingSync = null;
+  #refDataInitialized = false;
+  #refDataInitPromise = null;
 
-  constructor() {
-    if (typeof window !== 'undefined') {
-      const storedTodos = localStorage.getItem(STORAGE_KEY);
-      if (storedTodos) {
-        try { this.todos = JSON.parse(storedTodos); } catch (_e) { this.todos = [...SEED_TODOS]; }
+  async initTodos() {
+    try {
+      const res = await fetch('/api/todos');
+      if (res.ok) {
+        const body = await res.json();
+        const serverData = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
+        if (Array.isArray(serverData) && serverData.length > 0) {
+          this.todos = serverData;
+        } else {
+          // Server empty — use seed data and push it
+          this.todos = [...SEED_TODOS];
+          this.#pushTodos().catch(() => {});
+        }
       } else {
         this.todos = [...SEED_TODOS];
       }
-      const storedInventory = localStorage.getItem(MATERIALS_INVENTORY_KEY);
-      if (storedInventory) {
-        try { this.materialInventory = JSON.parse(storedInventory); } catch (_e) { this.materialInventory = {}; }
-      } else {
-        this.materialInventory = {};
-      }
-    } else {
+    } catch {
       this.todos = [...SEED_TODOS];
-      this.materialInventory = {};
-      this.items = [];
-      this.materials = [];
-      this.treeRelationships = [];
     }
   }
 
-  // Lazy init — called internally by all data-access methods
-  async #ensureInitialized() {
-    if (this.#initialized) return;
-    if (this.#initPromise) return this.#initPromise;
-    this.#initPromise = this.#loadData();
-    await this.#initPromise;
-    this.#initialized = true;
+  async initMaterials() {
+    try {
+      const res = await fetch('/api/materials');
+      if (res.ok) {
+        const body = await res.json();
+        const serverData = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
+        if (typeof serverData === 'object' && serverData !== null && !Array.isArray(serverData)) {
+          this.materialInventory = serverData;
+        } else {
+          this.materialInventory = {};
+        }
+      } else {
+        this.materialInventory = {};
+      }
+    } catch {
+      this.materialInventory = {};
+    }
+  }
+
+  async #pushTodos() {
+    try {
+      await fetch('/api/todos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: this.todos, version: 0 }),
+      });
+    } catch { /* best-effort */ }
+  }
+
+  #ensureRefDataInitialized() {
+    if (this.#refDataInitialized) return Promise.resolve();
+    if (this.#refDataInitPromise) return this.#refDataInitPromise;
+    this.#refDataInitPromise = this.#loadData();
+    return this.#refDataInitPromise;
   }
 
   async #loadData() {
-    // SSR — no fetch or localStorage available, return empty
     if (typeof window === 'undefined') return;
     try {
       const response = await fetch('/data/wfcd-cache.json');
@@ -94,14 +111,12 @@ export default class Repository {
         if (cachedRaw) {
           try {
             const cached = JSON.parse(cachedRaw);
-            // Also gate on schemaVersion (see #18) — the @wfcd/items package
-            // version alone doesn't change when prebuild.mjs's output shape
-            // does, which previously left existing caches silently stale.
             if (cached.version === fetched.version && cached.schemaVersion === fetched.schemaVersion && cached.items) {
               this.items = cached.items;
               this.materials = cached.materials || [];
               this.treeRelationships = cached.treeRelationships || [];
               this.sources = cached.sources || [];
+              this.#refDataInitialized = true;
               return;
             }
           } catch (_e) { /* fall through */ }
@@ -124,6 +139,7 @@ export default class Repository {
           sources: fetched.sources
         }));
       }
+      this.#refDataInitialized = true;
     } catch (err) {
       if (typeof window !== 'undefined') {
         const cachedRaw = localStorage.getItem(ITEMS_CACHE_KEY);
@@ -134,145 +150,76 @@ export default class Repository {
             this.materials = cached.materials || [];
             this.treeRelationships = cached.treeRelationships || [];
             this.sources = cached.sources || [];
+            this.#refDataInitialized = true;
             return;
           } catch (_e) { /* fall through */ }
         }
       }
       console.error('Failed to load Warframe item data:', err);
+      this.#refDataInitialized = true;
     }
   }
 
-  // Sync callback
-  setSyncEventCallback(cb) { this.#onSyncEvent = cb; }
-
-  // Sync
-  async syncFromServer() {
-    if (this.#syncInProgress) return;
-    this.#syncInProgress = true;
-    try {
-      const todoResult = await pullFromServer('/api/todos', STORAGE_KEY, this.#onSyncEvent);
-      if (todoResult.fromServer) {
-        this.todos = Array.isArray(todoResult.data) ? todoResult.data : [];
-        this.#persistTodos();
-        this.lastSyncError = null;
-      } else if (todoResult.fromLocal) {
-        this.lastSyncError = 'Server unreachable (todos)';
-        this.#persistTodos();
-      }
-      const invResult = await pullFromServer('/api/materials', MATERIALS_INVENTORY_KEY, this.#onSyncEvent);
-      if (invResult.fromServer) {
-        this.materialInventory = (typeof invResult.data === 'object' && invResult.data !== null && !Array.isArray(invResult.data))
-          ? invResult.data : {};
-        this.#persistMaterialInventory();
-        this.lastSyncError = null;
-      } else if (invResult.fromLocal) {
-        if (!this.lastSyncError) this.lastSyncError = 'Server unreachable (materials)';
-        this.#persistMaterialInventory();
-      }
-      // Clear pending sync
-      this.#pendingSync = null;
-    } catch (err) {
-      this.lastSyncError = err.message;
-      if (this.#onSyncEvent) this.#onSyncEvent('error', `Sync failed: ${err.message}`);
-    } finally { this.#syncInProgress = false; }
-  }
-
-  async forceSyncToServer() {
-    const todosOk = await pushToServer('/api/todos', this.todos, this.#onSyncEvent);
-    const invOk = await pushToServer('/api/materials', this.materialInventory, this.#onSyncEvent);
-    if (todosOk || invOk) this.lastSyncError = null;
-    return { todosOk, invOk };
-  }
-
-  #syncTodosToServer() {
-    const promise = pushToServer('/api/todos', this.todos, this.#onSyncEvent).then((ok) => { if (ok) this.lastSyncError = null; return ok; });
-    this.#pendingSync = promise.catch(() => {});
-    return promise;
-  }
-
-  #syncInventoryToServer() {
-    const promise = pushToServer('/api/materials', this.materialInventory, this.#onSyncEvent).then((ok) => { if (ok) this.lastSyncError = null; return ok; });
-    this.#pendingSync = promise.catch(() => {});
-    return promise;
-  }
-
-  /** Returns a promise that resolves when any pending sync completes. */
-  async flushPendingSync() {
-    if (this.#pendingSync) await this.#pendingSync;
-    this.#pendingSync = null;
-  }
-
-  // Persistence
-  #persistTodos() {
-    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, JSON.stringify(this.todos));
-  }
-
-  #persistItems() {
-    if (typeof window !== 'undefined') {
-      const existing = localStorage.getItem(ITEMS_CACHE_KEY);
-      let cacheData = {};
-      if (existing) { try { cacheData = JSON.parse(existing); } catch (_e) { /* use empty */ } }
-      cacheData.items = this.items;
-      localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify(cacheData));
-    }
-  }
-
-  #persistMaterialInventory() {
-    if (typeof window !== 'undefined') localStorage.setItem(MATERIALS_INVENTORY_KEY, JSON.stringify(this.materialInventory));
-  }
-
-  // Material Inventory (unchanged — user data)
+  // Material Inventory
   getMaterialInventory() { return { ...this.materialInventory }; }
   getOwnedQuantity(materialName) { return this.materialInventory[materialName] ?? 0; }
   setOwnedQuantity(materialName, qty) {
     const parsed = parseInt(qty, 10);
     if (isNaN(parsed) || parsed < 0) this.materialInventory[materialName] = 0;
     else this.materialInventory[materialName] = parsed;
-    this.#persistMaterialInventory();
-    this.#syncInventoryToServer();
+    this.#patchMaterial(materialName, this.materialInventory[materialName]).catch(() => {});
     return this.materialInventory[materialName];
+  }
+
+  async #patchMaterial(name, quantity) {
+    try {
+      await fetch('/api/materials', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ material_name: name, quantity, clientVersion: 0 }),
+      });
+    } catch { /* best-effort */ }
   }
 
   // Items (async — lazy init)
   async updateItem(id, updates) {
-    await this.#ensureInitialized();
+    await this.#ensureRefDataInitialized();
     const target = this.items.find((i) => i.id === id);
     if (!target) return null;
     Object.assign(target, updates);
-    this.#persistItems();
     return { ...target };
   }
 
   async getAllItems() {
-    await this.#ensureInitialized();
+    await this.#ensureRefDataInitialized();
     return this.items.map((it) => ({ ...it }));
   }
 
   async getItemById(id) {
-    await this.#ensureInitialized();
+    await this.#ensureRefDataInitialized();
     const item = this.items.find((i) => i.id === id);
     return item ? { ...item } : null;
   }
 
   async getMaterialsForItem(id) {
-    await this.#ensureInitialized();
+    await this.#ensureRefDataInitialized();
     return this.materials.filter((m) => m.craftable_item_id === id).map((m) => ({ ...m }));
   }
 
-  // Sources (async — lazy init, derived from @wfcd/items `drops` at prebuild time)
+  // Sources
   async getAllSources() {
-    await this.#ensureInitialized();
+    await this.#ensureRefDataInitialized();
     return this.sources.map((s) => ({ ...s }));
   }
 
   async getSourcesForMaterial(name) {
-    await this.#ensureInitialized();
+    await this.#ensureRefDataInitialized();
     return this.sources.filter((s) => s.material_name === name).map((s) => ({ ...s }));
   }
 
-  // Tree Relationships (async — lazy init)
+  // Tree Relationships
   async getTreeForItem(id) {
-    await this.#ensureInitialized();
+    await this.#ensureRefDataInitialized();
     const children = this.treeRelationships
       .filter((r) => r.parent_item_id === id)
       .map((r) => {
@@ -288,14 +235,13 @@ export default class Repository {
     return { children, parents };
   }
 
-  // Todos (unchanged — no lazy init needed)
+  // Todos
   getTodos() { return this.todos.map((t) => ({ ...t })); }
 
   addTodo(todo) {
     const entry = { ...todo, id: todo.id || `todo-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
     this.todos.push(entry);
-    this.#persistTodos();
-    this.#syncTodosToServer();
+    this.#pushTodos().catch(() => {});
     return { ...entry };
   }
 
@@ -304,8 +250,7 @@ export default class Repository {
     if (!target) return null;
     target.status = status;
     target.updated_at = new Date().toISOString();
-    this.#persistTodos();
-    this.#syncTodosToServer();
+    this.#patchTodo(target).catch(() => {});
     return { ...target };
   }
 
@@ -314,9 +259,25 @@ export default class Repository {
     if (!target) return null;
     target.user_notes = notes;
     target.updated_at = new Date().toISOString();
-    this.#persistTodos();
-    this.#syncTodosToServer();
+    this.#patchTodo(target).catch(() => {});
     return { ...target };
+  }
+
+  async #patchTodo(todo) {
+    try {
+      const { id, ...updates } = todo;
+      const res = await fetch(`/api/todos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates, clientVersion: todo.version || 0 }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        if (updated && updated.version) {
+          todo.version = updated.version;
+        }
+      }
+    } catch { /* best-effort */ }
   }
 
   deleteTodo(id) {
@@ -324,12 +285,19 @@ export default class Repository {
     const before = this.todos.length;
     this.todos = this.todos.filter((t) => t.id !== id);
     if (this.todos.length !== before) {
-      this.#persistTodos();
-      // The bulk push (#syncTodosToServer) is an additive merge and can't
-      // propagate a delete (see #14) — tell the server directly instead.
-      this.#pendingSync = deleteFromServer('/api/todos', id, target?.version ?? 0, this.#onSyncEvent).catch(() => {});
+      this.#deleteTodoOnServer(id, target?.version ?? 0).catch(() => {});
       return true;
     }
     return false;
+  }
+
+  async #deleteTodoOnServer(id, version) {
+    try {
+      await fetch(`/api/todos/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientVersion: version }),
+      });
+    } catch { /* best-effort */ }
   }
 }

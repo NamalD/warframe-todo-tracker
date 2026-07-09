@@ -18,6 +18,8 @@ function Todos() {
 
   useEffect(() => {
     async function load() {
+      await repo.initTodos();
+      await repo.initMaterials();
       const allItems = await repo.getAllItems();
       setItems(allItems);
       setTodos(repo.getTodos());

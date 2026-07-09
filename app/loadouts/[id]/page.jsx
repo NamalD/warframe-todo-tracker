@@ -47,7 +47,7 @@ function LoadoutDetailInner() {
 
   useEffect(() => {
     const lr = loadoutStore;
-    lr.syncFromServer().then(async () => {
+    lr.init().then(async () => {
       setLoadoutRepo(lr);
       const l = lr.getLoadoutById(id);
       setLoadout(l);
