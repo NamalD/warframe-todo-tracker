@@ -14,7 +14,7 @@ function ShoppingList() {
 
       await repo.initMaterials();
       const allItems = await repo.getAllItems();
-      const trackedItems = allItems.filter((it) => it.is_user_tracked);
+      const trackedItems = allItems.filter((it) => it.is_user_tracked || it.track_incarnon_install);
       const inv = repo.getMaterialInventory();
       setOwned(inv);
 
@@ -23,6 +23,8 @@ function ShoppingList() {
       for (const item of trackedItems) {
         const itemMaterials = await repo.getMaterialsForItem(item.id);
         for (const m of itemMaterials) {
+          // Only include materials relevant to this item's tracking flags
+          if (m.is_incarnon_install ? !item.track_incarnon_install : !item.is_user_tracked) continue;
           const key = m.material_name;
           if (!materialsMap[key]) {
             materialsMap[key] = {
