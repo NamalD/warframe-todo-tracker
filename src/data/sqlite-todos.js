@@ -13,7 +13,7 @@ import crypto from 'node:crypto';
 // Allowed statuses and priorities — enforced on create
 // ---------------------------------------------------------------------------
 
-const VALID_STATUSES = ['pending', 'in_progress', 'completed', 'abandoned'];
+const VALID_STATUSES = ['pending', 'in_progress', 'completed', 'abandoned', 'blocked'];
 const VALID_PRIORITIES = ['low', 'medium', 'high'];
 
 // ---------------------------------------------------------------------------

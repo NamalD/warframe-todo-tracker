@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS todos (
     linked_material_name TEXT,
     user_notes          TEXT DEFAULT '',
     status              TEXT NOT NULL DEFAULT 'pending'
-                        CHECK(status IN ('pending','in_progress','completed','abandoned')),
+                        CHECK(status IN ('pending','in_progress','completed','abandoned','blocked')),
     priority            TEXT DEFAULT 'medium'
                         CHECK(priority IN ('low','medium','high')),
     due_at              TEXT,
@@ -109,6 +109,31 @@ CREATE INDEX IF NOT EXISTS idx_conflict_log_resolved ON conflict_log(resolved_at
 
 const MIGRATIONS = [
   { version: 1, description: 'Initial SQLite schema — migrated from JSON files', sql: INITIAL_SCHEMA_SQL },
+  {
+    version: 2,
+    description: 'Add "blocked" to valid todo statuses',
+    sql: `BEGIN TRANSACTION;
+      CREATE TABLE todos_new (
+        id                  TEXT PRIMARY KEY,
+        craftable_item_id   TEXT,
+        linked_material_name TEXT,
+        user_notes          TEXT DEFAULT '',
+        status              TEXT NOT NULL DEFAULT 'pending'
+                            CHECK(status IN ('pending','in_progress','completed','abandoned','blocked')),
+        priority            TEXT DEFAULT 'medium'
+                            CHECK(priority IN ('low','medium','high')),
+        due_at              TEXT,
+        version             INTEGER NOT NULL DEFAULT 0,
+        created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO todos_new SELECT * FROM todos;
+      DROP TABLE todos;
+      ALTER TABLE todos_new RENAME TO todos;
+      CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status);
+      CREATE INDEX IF NOT EXISTS idx_todos_updated_at ON todos(updated_at);
+      COMMIT;`,
+  },
 ];
 
 // ---------------------------------------------------------------------------
