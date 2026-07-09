@@ -1,0 +1,63 @@
+name: Commit Message Check
+
+on: [push]
+
+jobs:
+  check-commit-messages:
+    name: Check commit messages reference an issue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        run: |
+          # Get the range of commits to check
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            BEFORE="${{ github.event.before }}"
+            AFTER="${{ github.event.after }}"
+            if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              # First push to a branch — check all commits up to AFTER
+              RANGE="$AFTER"
+            else
+              RANGE="$BEFORE..$AFTER"
+            fi
+          fi
+
+          FAILED=0
+          for sha in $(git log --format="%H" "$RANGE" 2>/dev/null); do
+            # Skip merge commits
+            PARENTS=$(git cat-file -p "$sha" | head -5 | grep -c "^parent ")
+            if [ "$PARENTS" -gt 1 ]; then
+              continue
+            fi
+
+            SUBJECT=$(git log --format="%s" "$sha" -1)
+            BODY=$(git log --format="%b" "$sha" -1)
+
+            # Check for closing keywords in subject or body
+            if echo "$SUBJECT" | grep -qE '(Closes|Fixes|Resolves) #[0-9]+'; then
+              continue
+            fi
+            if echo "$BODY" | grep -qE '(Closes|Fixes|Resolves) #[0-9]+'; then
+              continue
+            fi
+
+            echo "::error::Commit $sha is missing a closing reference (Closes/Fixes/Resolves #N)"
+            echo "  Subject: $SUBJECT"
+            FAILED=1
+          done
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo ""
+            echo "Every commit must contain one of:"
+            echo "  Closes #N    (in subject or body)"
+            echo "  Fixes #N     (in subject or body)"
+            echo "  Resolves #N  (in subject or body)"
+            exit 1
+          fi
+
+          echo "All commit messages are valid."
