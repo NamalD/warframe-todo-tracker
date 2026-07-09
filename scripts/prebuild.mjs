@@ -27,7 +27,7 @@ const ROOT = resolve(__dirname, '..');
  * change with no package bump previously went unnoticed by any existing
  * cache, silently hiding new fields from returning users).
  */
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -399,7 +399,7 @@ async function main() {
   console.log('[prebuild] Loading @wfcd/items...');
   const { default: Items } = await import('@wfcd/items');
 
-  const categories = ['Warframes', 'Primary', 'Secondary', 'Melee'];
+  const categories = ['Warframes', 'Primary', 'Secondary', 'Melee', 'Sentinels'];
   console.log(`[prebuild] Loading categories: ${categories.join(', ')}`);
 
   const raw = new Items({ category: categories, i18n: false, i18nOnObject: false });
