@@ -101,6 +101,19 @@ CREATE TABLE IF NOT EXISTS conflict_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_conflict_log_resolved ON conflict_log(resolved_at);
+
+-- ============================================================
+-- USER ITEM DATA
+-- Per-item user flags (tracked, Incarnon tracking, installed).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS user_item_data (
+    item_id                     TEXT PRIMARY KEY,
+    is_user_tracked             INTEGER NOT NULL DEFAULT 0,
+    track_incarnon_install      INTEGER NOT NULL DEFAULT 0,
+    incarnon_installed          INTEGER NOT NULL DEFAULT 0,
+    version                     INTEGER NOT NULL DEFAULT 0,
+    updated_at                  TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `;
 
 // ---------------------------------------------------------------------------

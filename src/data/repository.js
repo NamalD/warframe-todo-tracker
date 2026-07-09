@@ -161,6 +161,8 @@ export default class Repository {
               this.treeRelationships = cached.treeRelationships || [];
               this.sources = cached.sources || [];
               this.#refDataInitialized = true;
+              // Merge server-side item flags into cached data
+              this.#syncUserItemFlags().catch(() => {});
               return;
             }
           } catch (_e) { /* fall through */ }
@@ -184,6 +186,8 @@ export default class Repository {
         }));
       }
       this.#refDataInitialized = true;
+      // Merge persisted item flags (tracked, Incarnon) from server
+      this.#syncUserItemFlags().catch(() => {});
     } catch (err) {
       if (typeof window !== 'undefined') {
         const cachedRaw = localStorage.getItem(ITEMS_CACHE_KEY);
@@ -232,6 +236,14 @@ export default class Repository {
     if (!target) return null;
     Object.assign(target, updates);
     this.#persistItems();
+
+    // Push flag changes to the server for cross-device sync
+    for (const [key, value] of Object.entries(updates)) {
+      if (['is_user_tracked', 'track_incarnon_install', 'incarnon_installed'].includes(key)) {
+        this.#pushUserItemFlag(id, key, value);
+      }
+    }
+
     return { ...target };
   }
 
@@ -259,6 +271,43 @@ export default class Repository {
     if (existing) { try { cacheData = JSON.parse(existing); } catch {} }
     cacheData.items = this.items;
     localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify(cacheData));
+  }
+
+  /**
+   * Fetch per-item user flags from the server and merge them into
+   * the in-memory items array. Syncs: is_user_tracked, track_incarnon_install,
+   * incarnon_installed.
+   */
+  async #syncUserItemFlags() {
+    if (typeof window === 'undefined') return;
+    try {
+      const res = await fetch('/api/user-items');
+      if (!res.ok) return;
+      const body = await res.json();
+      const flags = body.data || {};
+      for (const item of this.items) {
+        const f = flags[item.id];
+        if (f) {
+          if (f.is_user_tracked !== undefined) item.is_user_tracked = f.is_user_tracked;
+          if (f.track_incarnon_install !== undefined) item.track_incarnon_install = f.track_incarnon_install;
+          if (f.incarnon_installed !== undefined) item.incarnon_installed = f.incarnon_installed;
+        }
+      }
+    } catch { /* best-effort */ }
+  }
+
+  /**
+   * Push a single item flag change to the server.
+   */
+  async #pushUserItemFlag(itemId, field, value) {
+    if (typeof window === 'undefined') return;
+    try {
+      await fetch('/api/user-items', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: itemId, fields: { [field]: value } }),
+      });
+    } catch { /* best-effort */ }
   }
 
   // Sources
