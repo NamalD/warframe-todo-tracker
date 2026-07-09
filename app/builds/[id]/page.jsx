@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import buildStore from '../../../src/data/build-store.js';
 import repo from '../../../src/data/store.js';
+import SearchableSelect from '../../components/searchable-select';
 
 function BuildDetailInner() {
   const params = useParams();
@@ -221,17 +222,14 @@ function BuildDetailInner() {
           </div>
         ) : linkingItem ? (
           <div className="filters" style={{ marginBottom: 8 }}>
-            <select
+            <SearchableSelect
               value={selectedItemId}
-              onChange={(e) => setSelectedItemId(e.target.value)}
+              onChange={(val) => setSelectedItemId(val)}
+              options={items.map(it => ({ value: it.id, label: it.name }))}
+              placeholder="Select an item..."
               style={{ minWidth: 180 }}
               data-testid="link-item-select"
-            >
-              <option value="">Select an item...</option>
-              {items.map((it) => (
-                <option key={it.id} value={it.id}>{it.name}</option>
-              ))}
-            </select>
+            />
             <button className="btn primary" onClick={handleLinkItem} disabled={!selectedItemId}>Link</button>
             <button className="btn" onClick={() => setLinkingItem(false)}>Cancel</button>
           </div>

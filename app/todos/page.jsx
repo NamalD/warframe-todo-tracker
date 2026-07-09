@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import repo from '../../src/data/store.js';
+import SearchableSelect from '../components/searchable-select';
 
 const STATUS_OPTIONS = ['pending', 'in_progress', 'completed', 'blocked'];
 
@@ -96,29 +97,21 @@ function Todos() {
             value={newForm.notes}
             onChange={(e) => setNewForm({ ...newForm, notes: e.target.value })}
           />
-          <select
+          <SearchableSelect
             value={newForm.craftable_item_id}
-            onChange={(e) => setNewForm({ ...newForm, craftable_item_id: e.target.value })}
-          >
-            <option value="">Item (optional)</option>
-            {items.map((it) => (
-              <option key={it.id} value={it.id}>
-                {it.name}
-              </option>
-            ))}
-          </select>
-          <select
+            onChange={(val) => setNewForm({ ...newForm, craftable_item_id: val })}
+            options={items.map(it => ({ value: it.id, label: it.name }))}
+            placeholder="Item (optional)"
+            style={{ minWidth: 160 }}
+          />
+          <SearchableSelect
             value={newForm.linked_material_name}
-            onChange={(e) => setNewForm({ ...newForm, linked_material_name: e.target.value })}
+            onChange={(val) => setNewForm({ ...newForm, linked_material_name: val })}
+            options={materials.map(m => ({ value: m.material_name, label: m.material_name }))}
+            placeholder="Material (optional)"
             disabled={!newForm.craftable_item_id || materials.length === 0}
-          >
-            <option value="">Material (optional)</option>
-            {materials.map((m) => (
-              <option key={m.material_name} value={m.material_name}>
-                {m.material_name}
-              </option>
-            ))}
-          </select>
+            style={{ minWidth: 160 }}
+          />
           <select
             value={newForm.status}
             onChange={(e) => setNewForm({ ...newForm, status: e.target.value })}

@@ -15,12 +15,28 @@ function itemMaterials(name) {
 const excaliburMaterials = itemMaterials('Excalibur');
 const rubicoPrimeMaterials = itemMaterials('Rubico Prime');
 
+/**
+ * Select an option in a SearchableSelect by typing to filter then clicking.
+ * Uses the input's placeholder text to find the right component.
+ */
+async function selectSearchableOption(page, placeholder, optionLabel) {
+  const input = page.getByPlaceholder(placeholder);
+  await input.click();
+  await input.fill(optionLabel);
+  // Wait for dropdown to appear with filtered options
+  await page.waitForTimeout(300);
+  // Click the option by text inside the dropdown only (exact match)
+  const dropdown = page.locator('[style*="position: absolute"][style*="z-index: 10"]');
+  await dropdown.getByText(optionLabel, { exact: true }).click();
+  await page.waitForTimeout(200);
+}
+
 test.describe('Todos page', () => {
   const UNIQUE_NOTES = `E2E regression todo ${Date.now()}`;
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/todos');
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
   });
 
   test('loads seed todos', async ({ page }) => {
@@ -47,41 +63,52 @@ test.describe('Todos page', () => {
   });
 
   test.describe('item and material selection', () => {
-    test('item dropdown lists craftable items', async ({ page }) => {
-      const itemSelect = page.locator('select').first();
-      const options = await itemSelect.locator('option').allTextContents();
-      expect(options).toContain('Item (optional)');
-      expect(options).toContain('Excalibur');
-      expect(options).toContain('Mesa');
-      expect(options).toContain('Kronen Prime');
+    test('item searchable select lists craftable items', async ({ page }) => {
+      // Focus the item SearchableSelect to open the dropdown
+      const itemInput = page.getByPlaceholder('Item (optional)');
+      await itemInput.click();
+      await page.waitForTimeout(200);
+      // The dropdown should show items
+      const dropdownOptions = page.locator('[style*="position: absolute"][style*="z-index: 10"] div');
+      const texts = await dropdownOptions.allTextContents();
+      expect(texts).toContain('Excalibur');
+      expect(texts).toContain('Mesa');
+      expect(texts).toContain('Kronen Prime');
+      // Close by clicking elsewhere
+      await page.locator('h1').click();
     });
 
     test('selecting an item populates material dropdown', async ({ page }) => {
-      const selects = page.locator('select');
-      const itemSelect = selects.nth(0);
-      const materialSelect = selects.nth(1);
+      const materialInput = page.getByPlaceholder('Material (optional)');
 
       // Before selecting anything, material dropdown should be disabled
-      await expect(materialSelect).toBeDisabled();
+      await expect(materialInput).toBeDisabled();
 
-      // Select Excalibur
-      await itemSelect.selectOption({ label: 'Excalibur' });
+      // Select Excalibur via the SearchableSelect
+      await selectSearchableOption(page, 'Item (optional)', 'Excalibur');
+
+      // Material dropdown should now be enabled
+      await expect(materialInput).not.toBeDisabled();
+
+      // Open material dropdown to check options
+      await materialInput.click();
       await page.waitForTimeout(200);
-
-      // Material dropdown should now be enabled and have options
-      await expect(materialSelect).not.toBeDisabled();
-      const matOptions = await materialSelect.locator('option').allTextContents();
-      expect(matOptions).toContain('Material (optional)');
-      expect(matOptions).toContain(excaliburMaterials[0].material_name);
-      expect(matOptions).toContain(excaliburMaterials[1].material_name);
+      const matOptions = page.locator('[style*="position: absolute"][style*="z-index: 10"] div');
+      const matTexts = await matOptions.allTextContents();
+      expect(matTexts).toContain(excaliburMaterials[0].material_name);
+      expect(matTexts).toContain(excaliburMaterials[1].material_name);
     });
 
     test('creates todo linked to item and material', async ({ page }) => {
       const material = rubicoPrimeMaterials[0].material_name;
-      const selects = page.locator('select');
-      await selects.nth(0).selectOption({ label: 'Rubico Prime' });
-      await page.waitForTimeout(200);
-      await selects.nth(1).selectOption(material);
+
+      // Select Rubico Prime
+      await selectSearchableOption(page, 'Item (optional)', 'Rubico Prime');
+
+      // Select material
+      await selectSearchableOption(page, 'Material (optional)', material);
+
+      // Add the todo
       await page.getByPlaceholder('Notes').fill('Farm for Rubico');
       await page.getByRole('button', { name: 'Add' }).click();
       await page.waitForTimeout(300);

@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import buildStore from '../../src/data/build-store.js';
+import SearchableSelect from '../components/searchable-select';
 
 function isBuildComplete(build) {
   if (!build.acquired) return false;
@@ -151,20 +152,17 @@ function BuildsPageInner() {
           <h2>New Build</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="filters">
-              <select
+              <SearchableSelect
                 value={newItemId}
-                onChange={(e) => {
-                  setNewItemId(e.target.value);
-                  if (e.target.value) setNewCustomName('');
+                onChange={(val) => {
+                  setNewItemId(val);
+                  if (val) setNewCustomName('');
                 }}
+                options={items.map(it => ({ value: it.id, label: it.name }))}
+                placeholder="Select item from database..."
                 style={{ minWidth: 200 }}
                 data-testid="build-item-select"
-              >
-                <option value="">Select item from database...</option>
-                {items.map((it) => (
-                  <option key={it.id} value={it.id}>{it.name}</option>
-                ))}
-              </select>
+              />
               <span className="muted" style={{ fontSize: 13 }}>or</span>
               <input
                 type="text"
