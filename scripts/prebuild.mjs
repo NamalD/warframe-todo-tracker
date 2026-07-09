@@ -64,8 +64,8 @@ function constructWikiUrl(name) {
  * Incarnon Genesis installation costs, keyed by base weapon name.
  * @wfcd/items has no crafting/build data for Incarnon Genesis adapters (see
  * issue #5) — DE doesn't expose these in the public API/manifest — so this
- * is manually transcribed from the Warframe Wiki. Starter set; expand as
- * needed.
+ * is manually transcribed from the Warframe Wiki. All 45 Incarnon Genesis
+ * weapons as of this writing.
  */
 const INCARNON_GENESIS_INSTALL_COSTS = {
   Gorgon: [
@@ -92,6 +92,206 @@ const INCARNON_GENESIS_INSTALL_COSTS = {
     { name: 'Pathos Clamp', quantity: 20 },
     { name: 'Yao Shrub', quantity: 70 },
     { name: 'Saggen Pearl', quantity: 150 },
+  ],
+  'Ack & Brunt': [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Ariette Scale', quantity: 300 },
+  ],
+  Angstrum: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Ueymag', quantity: 70 },
+    { name: 'Lamentus', quantity: 80 },
+  ],
+  Anku: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Ueymag', quantity: 70 },
+    { name: 'Ariette Scale', quantity: 300 },
+  ],
+  Atomos: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Yao Shrub', quantity: 70 },
+    { name: 'Lamentus', quantity: 80 },
+  ],
+  Ballistica: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Kovnik', quantity: 80 },
+    { name: 'Silphsela', quantity: 60 },
+  ],
+  Bo: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Kovnik', quantity: 80 },
+  ],
+  Boar: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Tasoma Extract', quantity: 60 },
+  ],
+  Bronco: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Silphsela', quantity: 60 },
+  ],
+  Burston: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Maw Fang', quantity: 20 },
+  ],
+  'Ceramic Dagger': [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Connla Sprout', quantity: 80 },
+  ],
+  Cestra: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Saggen Pearl', quantity: 150 },
+    { name: 'Kovnik', quantity: 80 },
+  ],
+  Dera: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Eevani', quantity: 80 },
+    { name: 'Ueymag', quantity: 70 },
+  ],
+  Despair: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Silphsela', quantity: 60 },
+    { name: 'Yao Shrub', quantity: 70 },
+  ],
+  Destreza: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Rune Marrow', quantity: 60 },
+  ],
+  'Dual Ichor': [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Kovnik', quantity: 80 },
+  ],
+  'Dual Toxocyst': [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Yao Shrub', quantity: 70 },
+    { name: 'Eevani', quantity: 80 },
+  ],
+  Furax: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Ariette Scale', quantity: 300 },
+  ],
+  Furis: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Yao Shrub', quantity: 70 },
+    { name: 'Lamentus', quantity: 80 },
+  ],
+  Gammacor: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Ueymag', quantity: 70 },
+    { name: 'Lamentus', quantity: 80 },
+  ],
+  Hate: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Maw Fang', quantity: 20 },
+  ],
+  Kunai: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Yao Shrub', quantity: 70 },
+    { name: 'Eevani', quantity: 80 },
+  ],
+  Lato: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Yao Shrub', quantity: 70 },
+    { name: 'Nacreous Pebble', quantity: 100 },
+  ],
+  Latron: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Maw Fang', quantity: 20 },
+  ],
+  Magistar: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Aggristone', quantity: 150 },
+  ],
+  Miter: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Tasoma Extract', quantity: 60 },
+  ],
+  'Nami Solo': [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Aggristone', quantity: 150 },
+  ],
+  Obex: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Nacreous Pebble', quantity: 100 },
+    { name: 'Lamentus', quantity: 80 },
+  ],
+  Okina: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Maw Fang', quantity: 20 },
+    { name: 'Lamentus', quantity: 80 },
+  ],
+  Paris: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Silphsela', quantity: 60 },
+  ],
+  Sibear: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Connla Sprout', quantity: 80 },
+  ],
+  Sicarus: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Nacreous Pebble', quantity: 100 },
+    { name: 'Aggristone', quantity: 150 },
+  ],
+  Skana: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Dracroot', quantity: 70 },
+    { name: 'Connla Sprout', quantity: 80 },
+  ],
+  Soma: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Silphsela', quantity: 60 },
+  ],
+  Strun: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Tasoma Extract', quantity: 60 },
+  ],
+  Stug: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Aggristone', quantity: 150 },
+    { name: 'Tasoma Extract', quantity: 60 },
+  ],
+  Sybaris: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Saggen Pearl', quantity: 150 },
+    { name: 'Ueymag', quantity: 70 },
+  ],
+  Torid: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Maw Fang', quantity: 20 },
+  ],
+  Vasto: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Yao Shrub', quantity: 70 },
+    { name: 'Saggen Pearl', quantity: 150 },
+  ],
+  Vectis: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Eevani', quantity: 80 },
+    { name: 'Saggen Pearl', quantity: 150 },
+  ],
+  Zylok: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Yao Shrub', quantity: 70 },
+    { name: 'Nacreous Pebble', quantity: 100 },
   ],
 };
 

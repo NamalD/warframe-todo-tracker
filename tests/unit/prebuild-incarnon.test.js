@@ -34,9 +34,22 @@ describe('Incarnon Genesis install costs (prebuild output)', () => {
     }
   });
 
-  it('has at least one item flagged has_incarnon_genesis', () => {
+  it('has all 45 Incarnon Genesis weapons flagged', () => {
     const flagged = data.items.filter((i) => i.has_incarnon_genesis);
-    expect(flagged.length).toBeGreaterThan(0);
+    expect(flagged.length).toBe(45);
+  });
+
+  it('every has_incarnon_genesis item has exactly 3 install materials, each quantity > 0', () => {
+    const flagged = data.items.filter((i) => i.has_incarnon_genesis);
+    for (const item of flagged) {
+      const mats = data.materials.filter(
+        (m) => m.craftable_item_id === item.id && m.is_incarnon_install
+      );
+      expect(mats, `${item.name} should have 3 install materials`).toHaveLength(3);
+      for (const m of mats) {
+        expect(m.quantity_required, `${item.name} / ${m.material_name}`).toBeGreaterThan(0);
+      }
+    }
   });
 
   it('Gorgon has Incarnon Genesis install materials matching the wiki', () => {
