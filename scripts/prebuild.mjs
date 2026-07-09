@@ -283,6 +283,34 @@ async function main() {
   console.log(`[prebuild] Materials: ${materials.length}`);
   console.log(`[prebuild] Tree relationships: ${resolvedTree.length}`);
 
+  // ── Sources (material drop locations) ───────────────────────────
+  // Common crafting resources (Orokin Cell, Alloy Plate, etc.) live in the
+  // Misc category with type "Resource", not the Resources category alone —
+  // load both and derive sources from any entry with a non-empty `drops`
+  // array (see docs/wfcd-integration.md §7).
+  console.log('[prebuild] Loading Misc+Resources for sources...');
+  const resourcePool = new Items({ category: ['Misc', 'Resources'], i18n: false, i18nOnObject: false });
+  console.log(`[prebuild] Loaded ${resourcePool.length} misc/resource items`);
+
+  const sources = [];
+  let sourceSeq = 1;
+  for (const res of resourcePool) {
+    if (!res.drops || res.drops.length === 0) continue;
+    for (const d of res.drops) {
+      sources.push({
+        id: `source-${sourceSeq++}`,
+        material_name: res.name,
+        source_name: d.location || 'Unknown',
+        source_type: (d.type || 'unknown').toLowerCase(),
+        location_details: `${d.rarity || 'Unknown'} (${d.rotation || 'any rotation'})`,
+        drop_chance_pct: d.chance ?? 0,
+        is_user_tracked: false,
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+  console.log(`[prebuild] Sources: ${sources.length}`);
+
   // ── Get package version ─────────────────────────────────────────
   const pkgPath = resolve(ROOT, 'node_modules/@wfcd/items/package.json');
   let version = 'unknown';
@@ -300,6 +328,7 @@ async function main() {
     items,
     materials,
     treeRelationships: resolvedTree,
+    sources,
   };
 
   const outDir = resolve(ROOT, 'public/data');

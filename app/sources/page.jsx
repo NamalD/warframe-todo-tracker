@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -18,10 +18,31 @@ function SourcesInner() {
   const searchParams = useSearchParams();
   const highlight = searchParams.get('material');
 
-  const sources = repo.getAllSources();
+  const [sources, setSources] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    repo.getAllSources().then((data) => {
+      setSources(data);
+      setLoading(false);
+    });
+  }, []);
+
   const grouped = useMemo(() => groupBy(sources, 'material_name'), [sources]);
 
   const materialNames = Object.keys(grouped).sort();
+
+  if (loading) {
+    return (
+      <div>
+        <div className="skeleton" style={{ height: 28, width: 160, margin: '0 0 14px' }} />
+        <div className="card">
+          <div className="skeleton" style={{ height: 16, width: 120, margin: '0 0 10px' }} />
+          <div className="skeleton" style={{ height: 16, width: 200 }} />
+        </div>
+      </div>
+    );
+  }
 
   if (materialNames.length === 0) {
     return <p className="muted">No sources on record.</p>;

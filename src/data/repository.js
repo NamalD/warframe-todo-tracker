@@ -98,7 +98,7 @@ export default class Repository {
               this.items = cached.items;
               this.materials = cached.materials || [];
               this.treeRelationships = cached.treeRelationships || [];
-              this.sources = [];
+              this.sources = cached.sources || [];
               return;
             }
           } catch (_e) { /* fall through */ }
@@ -108,7 +108,7 @@ export default class Repository {
       this.items = fetched.items || [];
       this.materials = fetched.materials || [];
       this.treeRelationships = fetched.treeRelationships || [];
-      this.sources = [];
+      this.sources = fetched.sources || [];
 
       if (typeof window !== 'undefined') {
         localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify({
@@ -116,7 +116,8 @@ export default class Repository {
           cachedAt: fetched.cachedAt,
           items: fetched.items,
           materials: fetched.materials,
-          treeRelationships: fetched.treeRelationships
+          treeRelationships: fetched.treeRelationships,
+          sources: fetched.sources
         }));
       }
     } catch (err) {
@@ -128,7 +129,7 @@ export default class Repository {
             this.items = cached.items || [];
             this.materials = cached.materials || [];
             this.treeRelationships = cached.treeRelationships || [];
-            this.sources = [];
+            this.sources = cached.sources || [];
             return;
           } catch (_e) { /* fall through */ }
         }
@@ -254,9 +255,16 @@ export default class Repository {
     return this.materials.filter((m) => m.craftable_item_id === id).map((m) => ({ ...m }));
   }
 
-  // Sources — deprecated (TODO: wfcd sources — see docs/wfcd-integration.md §7)
-  getAllSources() { return []; }
-  getSourcesForMaterial(_name) { return []; }
+  // Sources (async — lazy init, derived from @wfcd/items `drops` at prebuild time)
+  async getAllSources() {
+    await this.#ensureInitialized();
+    return this.sources.map((s) => ({ ...s }));
+  }
+
+  async getSourcesForMaterial(name) {
+    await this.#ensureInitialized();
+    return this.sources.filter((s) => s.material_name === name).map((s) => ({ ...s }));
+  }
 
   // Tree Relationships (async — lazy init)
   async getTreeForItem(id) {

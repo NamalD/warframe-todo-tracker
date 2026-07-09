@@ -24,6 +24,11 @@ const FIXTURE_CACHE = {
     { id: 'tree-1', parent_item_id: 'item-1', child_item_id: 'item-111', quantity_required: 1, created_at: '2026-07-06T00:00:00Z' },
     { id: 'tree-2', parent_item_id: 'item-2', child_item_id: 'item-112', quantity_required: 1, created_at: '2026-07-06T00:00:00Z' },
   ],
+  sources: [
+    { id: 'source-1', material_name: 'Orokin Cell', source_name: 'Void/Hepit', source_type: 'mission', location_details: 'Common (A)', drop_chance_pct: 12.5, is_user_tracked: false, created_at: '2026-07-06T00:00:00Z' },
+    { id: 'source-2', material_name: 'Orokin Cell', source_name: 'Void/Ani', source_type: 'mission', location_details: 'Uncommon (B)', drop_chance_pct: 8.3, is_user_tracked: false, created_at: '2026-07-06T00:00:00Z' },
+    { id: 'source-3', material_name: 'Alloy Plate', source_name: 'Venus/Malva', source_type: 'mission', location_details: 'Common (any rotation)', drop_chance_pct: 25, is_user_tracked: false, created_at: '2026-07-06T00:00:00Z' },
+  ],
 };
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -153,23 +158,43 @@ describe('Repository (wfcd-cache lazy loading)', () => {
     });
   });
 
-  describe('sources (deprecated)', () => {
+  describe('sources', () => {
 
-    it('getAllSources returns empty array', async () => {
+    it('getAllSources returns all source records', async () => {
       const fetchMock = mockFetchOk(FIXTURE_CACHE);
       const repo = await newRepo(fetchMock);
 
-      // Sync, works before init
-      expect(repo.getAllSources()).toEqual([]);
-      // Still empty after init
-      await repo.getAllItems();
-      expect(repo.getAllSources()).toEqual([]);
+      const sources = await repo.getAllSources();
+      expect(sources).toHaveLength(3);
+      expect(sources.map((s) => s.id)).toEqual(['source-1', 'source-2', 'source-3']);
     });
 
-    it('getSourcesForMaterial returns empty array', async () => {
-      const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
-      const repo = new mod.default();
-      expect(repo.getSourcesForMaterial('Alloy Plate')).toEqual([]);
+    it('getSourcesForMaterial filters by material name', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      const orokinSources = await repo.getSourcesForMaterial('Orokin Cell');
+      expect(orokinSources).toHaveLength(2);
+      expect(orokinSources.every((s) => s.material_name === 'Orokin Cell')).toBe(true);
+
+      const alloySources = await repo.getSourcesForMaterial('Alloy Plate');
+      expect(alloySources).toHaveLength(1);
+    });
+
+    it('getSourcesForMaterial returns empty array for unknown material', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      const repo = await newRepo(fetchMock);
+
+      expect(await repo.getSourcesForMaterial('Nonexistent Material')).toEqual([]);
+    });
+
+    it('sources survive the localStorage cache-hit path', async () => {
+      const fetchMock = mockFetchOk(FIXTURE_CACHE);
+      await newRepo(fetchMock); // populates localStorage cache
+
+      const repo2 = await newRepo(mockFetchOk(FIXTURE_CACHE));
+      const sources = await repo2.getAllSources();
+      expect(sources).toHaveLength(3);
     });
   });
 
