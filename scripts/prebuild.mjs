@@ -306,6 +306,40 @@ const INCARNON_GENESIS_INSTALL_COSTS = {
 };
 
 /**
+ * Variant names that share an Incarnon Genesis adapter with a base weapon.
+ */
+const INCARNON_VARIANT_MAP = {
+  'Prisma Gorgon': 'Gorgon',
+  'Mk1-Strun': 'Strun',
+  'Prisma Angstrum': 'Angstrum',
+  'Rakta Ballistica': 'Ballistica',
+  'Mk1-Braton': 'Braton',
+  'Mk1-Bo': 'Bo',
+  'Telos Boltor': 'Boltor',
+  'Mk1-Furax': 'Furax',
+  'Dex Furis': 'Furis',
+  'Mk1-Furis': 'Furis',
+  'Mk1-Kunai': 'Kunai',
+  'Lato Prime': 'Lato',
+  'Sancti Magistar': 'Magistar',
+  'Machete Wraith': 'Machete',
+  'Prisma Machete': 'Machete',
+  'Prisma Obex': 'Obex',
+  'Mk1-Paris': 'Paris',
+  'Prisma Skana': 'Skana',
+  'Skana Prime': 'Skana',
+  'Dex Sybaris': 'Sybaris',
+};
+
+/** Helpers to look up Incarnon costs by base name or variant name */
+function getIncarnonCost(name) {
+  return INCARNON_GENESIS_INSTALL_COSTS[name] || INCARNON_GENESIS_INSTALL_COSTS[INCARNON_VARIANT_MAP[name]];
+}
+function hasIncarnonGenesis(name) {
+  return !!getIncarnonCost(name);
+}
+
+/**
  * Normalize raw WFCD mod type to our app model.
  * See docs/designs/mod-tracking-feature.md §3.3
  */
@@ -376,7 +410,7 @@ async function main() {
     // market-bought weapons like Lex) that still need an Incarnon Genesis
     // install cost tracked.
     if (!item.components || item.components.length === 0) {
-      return !!INCARNON_GENESIS_INSTALL_COSTS[item.name];
+      return hasIncarnonGenesis(item.name);
     }
     return true;
   });
@@ -392,7 +426,7 @@ async function main() {
 
   for (const rawItem of craftable) {
     const itemId = `item-${itemSeq++}`;
-    const incarnonCost = INCARNON_GENESIS_INSTALL_COSTS[rawItem.name];
+    const incarnonCost = getIncarnonCost(rawItem.name);
 
     items.push({
       id: itemId,
