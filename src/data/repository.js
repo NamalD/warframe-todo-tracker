@@ -186,6 +186,7 @@ export default class Repository {
     const target = this.items.find((i) => i.id === id);
     if (!target) return null;
     Object.assign(target, updates);
+    this.#persistItems();
     return { ...target };
   }
 
@@ -203,6 +204,16 @@ export default class Repository {
   async getMaterialsForItem(id) {
     await this.#ensureRefDataInitialized();
     return this.materials.filter((m) => m.craftable_item_id === id).map((m) => ({ ...m }));
+  }
+
+  // Persist items to localStorage cache so tracking flags survive page reloads
+  #persistItems() {
+    if (typeof window === 'undefined') return;
+    const existing = localStorage.getItem(ITEMS_CACHE_KEY);
+    let cacheData = {};
+    if (existing) { try { cacheData = JSON.parse(existing); } catch {} }
+    cacheData.items = this.items;
+    localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify(cacheData));
   }
 
   // Sources

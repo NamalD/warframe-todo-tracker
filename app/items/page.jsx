@@ -4,17 +4,34 @@ import Link from 'next/link';
 import repo from '../../src/data/store.js';
 
 function ItemsList() {
-  const [showTrackedOnly, setShowTrackedOnly] = useState(true);
+  const [showTrackedOnly, setShowTrackedOnly] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     repo.getAllItems().then((data) => {
       setItems(data);
+      // Only auto-enable tracked-only view if the user actually has
+      // tracked items — avoids showing "0 of N items" on first visit.
+      const hasTracked = data.some((it) => it.is_user_tracked);
+      setShowTrackedOnly(hasTracked);
+      setInitialized(true);
       setLoading(false);
     });
   }, []);
+
+  let filtered = showTrackedOnly
+    ? items.filter((it) => it.is_user_tracked)
+    : items;
+
+  if (searchText.trim()) {
+    const query = searchText.toLowerCase();
+    filtered = filtered.filter((it) =>
+      it.name.toLowerCase().includes(query)
+    );
+  }
 
   if (loading) {
     return (
@@ -28,16 +45,9 @@ function ItemsList() {
     );
   }
 
-  let filtered = showTrackedOnly
-    ? items.filter((it) => it.is_user_tracked)
-    : items;
-
-  if (searchText.trim()) {
-    const query = searchText.toLowerCase();
-    filtered = filtered.filter((it) =>
-      it.name.toLowerCase().includes(query)
-    );
-  }
+  // Don't render main content until after the initial tracked-check runs,
+  // to avoid flashing all items then switching to tracked-only.
+  if (!initialized) return null;
 
   return (
     <div>

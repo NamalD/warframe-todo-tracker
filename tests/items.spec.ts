@@ -2,17 +2,22 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Items list page', () => {
   test.beforeEach(async ({ page }) => {
+    // Intercept user-data API calls to prevent interference from other tests
+    await page.route(/\/api\/todos/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+    });
+    await page.route(/\/api\/materials/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: {} }) });
+    });
     await page.goto('/items');
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(300);
   });
 
   test.describe('card rendering', () => {
-    // These tests exercise the general list, not tracked-only filtering —
-    // a fresh browser context starts with nothing tracked, and the list
-    // defaults to tracked-only (#1), so uncheck it first.
+    // Fresh context starts with nothing tracked, so the list defaults
+    // to showing all items (no tracked-only filter).
     test.beforeEach(async ({ page }) => {
-      await page.getByLabel('Show tracked items only').uncheck();
-      await page.waitForTimeout(200);
+      // No setup needed — default is all-items view
     });
 
     test('renders item cards', async ({ page }) => {
@@ -33,31 +38,34 @@ test.describe('Items list page', () => {
   });
 
   test.describe('tracked-only filter', () => {
-    test('checkbox limits visible cards', async ({ page }) => {
-      // Start from the full list so checking actually reduces the count —
-      // a fresh context has zero tracked items, so the default (checked)
-      // state already shows zero cards.
-      await page.getByLabel('Show tracked items only').uncheck();
-      await page.waitForTimeout(200);
+    test('checkbox limits to zero when nothing is tracked', async ({ page }) => {
+      // With no tracked items, checking the filter shows 0 cards
       const allCards = await page.locator('.card').count();
+      expect(allCards).toBeGreaterThan(0);
 
       await page.getByLabel('Show tracked items only').check();
       await page.waitForTimeout(300);
       const filtered = await page.locator('.card').count();
-      expect(filtered).toBeLessThan(allCards);
+      expect(filtered).toBe(0);
     });
 
     test('unchecking restores full list', async ({ page }) => {
       await page.getByLabel('Show tracked items only').check();
       await page.waitForTimeout(200);
+      // Should show 0 when nothing is tracked
+      const filtered = await page.locator('.card').count();
+      expect(filtered).toBe(0);
+
       await page.getByLabel('Show tracked items only').uncheck();
       await page.waitForTimeout(200);
       const allCards = await page.locator('.card').count();
       expect(allCards).toBeGreaterThan(5);
     });
 
-    test('shows an empty-state message when nothing is tracked', async ({ page }) => {
-      // Default state: tracked-only checked, fresh context has nothing tracked.
+    test('shows an empty-state message when tracked-only is checked with no tracked items', async ({ page }) => {
+      // Enable the filter to trigger the empty state
+      await page.getByLabel('Show tracked items only').check();
+      await page.waitForTimeout(200);
       await expect(page.getByText(/no tracked items yet/i)).toBeVisible();
     });
   });
@@ -90,10 +98,12 @@ test.describe('Items list page', () => {
       await page.getByRole('button', { name: 'Track' }).click();
       await expect(page.getByRole('button', { name: 'Untrack' })).toBeVisible();
 
-      await page.goto('/items');
-      await page.waitForTimeout(200);
+      await page.goto('/items', { waitUntil: 'networkidle' });
+      // Wait for the page to fully initialize (useEffect fetches items, sets tracked default)
+      await page.getByLabel('Show tracked items only').waitFor({ state: 'visible', timeout: 5000 });
+      // After tracking, showTrackedOnly defaults to true. Uncheck to see all items.
       await page.getByLabel('Show tracked items only').uncheck();
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(300);
 
       const trackedCard = page.locator('.card').filter({ hasText: firstTitle });
       await expect(trackedCard.locator('.badge', { hasText: 'tracked' })).toBeVisible();
