@@ -27,7 +27,7 @@ const ROOT = resolve(__dirname, '..');
  * change with no package bump previously went unnoticed by any existing
  * cache, silently hiding new fields from returning users).
  */
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -515,6 +515,56 @@ async function main() {
       }
     }
   }
+
+  // ── Custom vendor items (not in @wfcd/items) ────────────────────
+  // Tektolyst Artifacts — Focus School weapons from Marie Leroux
+  // Purchase: 150 Lyroic Bridge + 150 Ren Hypercore + 150 Ascaris Prime
+  const customSeqStart = craftable.length + 1;
+  const CUSTOM_VENDOR_ITEMS = [
+    { name: 'Lorak', school: 'Zenurik', type: 'Grimoire', wiki: 'https://wiki.warframe.com/w/Lorak' },
+    { name: 'Vexoric', school: 'Naramon', type: 'Sword', wiki: 'https://wiki.warframe.com/w/Vexoric' },
+    { name: 'Thara', school: 'Madurai', type: 'Staff', wiki: 'https://wiki.warframe.com/w/Thara' },
+    { name: 'Cogron', school: 'Unairu', type: 'Fist', wiki: 'https://wiki.warframe.com/w/Cogron' },
+    { name: 'Nidri', school: 'Vazarin', type: 'Scythe', wiki: 'https://wiki.warframe.com/w/Nidri' },
+  ];
+  const purchaseMaterials = [
+    { name: 'Lyroic Bridge', qty: 150 },
+    { name: 'Ren Hypercore', qty: 150 },
+    { name: 'Ascaris Prime', qty: 150 },
+  ];
+
+  for (const vi of CUSTOM_VENDOR_ITEMS) {
+    const itemId = `item-${craftable.length + 1}`;
+    items.push({
+      id: itemId,
+      name: vi.name,
+      item_type: 'tektolyst_artifact',
+      mastery_rank_required: 5,
+      wiki_url: vi.wiki,
+      blueprint_source: `Marie Leroux (${vi.school})`,
+      has_incarnon_genesis: false,
+      track_incarnon_install: false,
+      is_user_tracked: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    craftable.push({ uniqueName: `custom-${vi.name.toLowerCase()}`, name: vi.name });
+
+    for (const mat of purchaseMaterials) {
+      materials.push({
+        id: `mat-${matSeq++}`,
+        craftable_item_id: itemId,
+        material_name: mat.name,
+        component_unique_name: `custom-${mat.name.toLowerCase().replace(/ /g, '_')}`,
+        quantity_required: mat.qty,
+        is_incarnon_install: false,
+        is_intermediate: false,
+        wiki_url: constructWikiUrl(mat.name),
+      });
+    }
+  }
+
+  console.log(`[prebuild] Custom vendor items: ${CUSTOM_VENDOR_ITEMS.length}`);
 
   // ── Resolve tree relationships to IDs ───────────────────────────
   const itemByUniqueName = new Map();

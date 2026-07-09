@@ -182,6 +182,8 @@ td { color: #cdd1db; }
 .badge.melee { color: #56ccf2; }
 .badge.companion { color: #bb6bd9; }
 .badge.archwing { color: #f2994a; }
+.badge.sentinels { color: #a0d2db; }
+.badge.tektolyst_artifact { color: #c4a2fc; }
 .badge.other { color: #9aa0ad; }
 
 .btn {
