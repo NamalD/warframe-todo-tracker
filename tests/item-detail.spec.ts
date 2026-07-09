@@ -83,3 +83,52 @@ test.describe('Item detail page', () => {
     await expect(page.locator('main')).toBeVisible();
   });
 });
+
+test.describe('Incarnon Genesis install tracking', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/items/item-219'); // Gorgon
+    await page.waitForTimeout(200);
+  });
+
+  test('shows Incarnon Genesis Install card for Gorgon', async ({ page }) => {
+    await expect(page.locator('.card:has-text("Incarnon Genesis Install")')).toBeVisible();
+  });
+
+  test('Incarnon materials are hidden until tracked', async ({ page }) => {
+    const card = page.locator('.card:has-text("Incarnon Genesis Install")');
+    await expect(card.getByText('Not tracked.')).toBeVisible();
+    await expect(card.locator('table')).toHaveCount(0);
+  });
+
+  test('tracking Incarnon install reveals its materials table', async ({ page }) => {
+    const card = page.locator('.card:has-text("Incarnon Genesis Install")');
+    await card.getByRole('button', { name: 'Track' }).click();
+    await expect(card.locator('table')).toBeVisible();
+    await expect(card.getByText('Pathos Clamp')).toBeVisible();
+    await expect(card.getByText('Rune Marrow')).toBeVisible();
+    await expect(card.getByText('Tasoma Extract')).toBeVisible();
+  });
+
+  test('Incarnon materials do not appear in the base Required Materials table', async ({ page }) => {
+    const requiredCard = page.locator('.card:has-text("Required Materials")');
+    await expect(requiredCard.getByText('Pathos Clamp')).toHaveCount(0);
+  });
+
+  test('Incarnon tracking persists across reload', async ({ page }) => {
+    const card = page.locator('.card:has-text("Incarnon Genesis Install")');
+    await card.getByRole('button', { name: 'Track' }).click();
+    await expect(card.getByRole('button', { name: 'Untrack' })).toBeVisible();
+
+    await page.reload();
+    await page.waitForTimeout(200);
+    const reloadedCard = page.locator('.card:has-text("Incarnon Genesis Install")');
+    await expect(reloadedCard.getByRole('button', { name: 'Untrack' })).toBeVisible();
+    await expect(reloadedCard.locator('table')).toBeVisible();
+  });
+
+  test('does not show Incarnon Genesis Install card for items without it', async ({ page }) => {
+    await page.goto('/items/item-1'); // Excalibur
+    await page.waitForTimeout(200);
+    await expect(page.locator('.card:has-text("Incarnon Genesis Install")')).toHaveCount(0);
+  });
+});

@@ -4,6 +4,69 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import repo from '../../../src/data/store.js';
 
+function MaterialsTable({ materials, owned, onOwnedChange }) {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>Material</th>
+          <th>Needed</th>
+          <th>Owned</th>
+          <th>Progress</th>
+          <th>Sources</th>
+        </tr>
+      </thead>
+      <tbody>
+        {materials.map((m) => {
+          const ownedQty = owned[m.material_name] ?? 0;
+          const needed = m.quantity_required;
+          const pct = Math.min(100, Math.round((ownedQty / needed) * 100));
+          const done = ownedQty >= needed;
+          return (
+            <tr key={m.id}>
+              <td>
+                <a href={m.wiki_url} target="_blank" rel="noreferrer">
+                  {m.material_name}
+                </a>
+              </td>
+              <td>{needed}</td>
+              <td>
+                <input
+                  className="owned-input"
+                  type="number"
+                  min="0"
+                  value={ownedQty}
+                  onChange={(e) => onOwnedChange(m.material_name, e.target.value)}
+                  aria-label={`Owned quantity for ${m.material_name}`}
+                />
+              </td>
+              <td>
+                <div className="progress-cell">
+                  <div className="progress-bar">
+                    <div
+                      className={`progress-fill${done ? ' done' : ''}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className={`progress-label${done ? ' done' : ''}`}>
+                    {ownedQty}/{needed}
+                    {done && ' ✓'}
+                  </span>
+                </div>
+              </td>
+              <td>
+                <Link href={`/sources?material=${encodeURIComponent(m.material_name)}`}>
+                  View sources
+                </Link>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 function ItemDetail({ params }) {
   const routeParams = useParams();
   const id = params?.id || routeParams?.id;
@@ -59,6 +122,15 @@ function ItemDetail({ params }) {
     setItem(updated);
   };
 
+  const incarnonTrackToggle = async () => {
+    await repo.updateItem(id, { track_incarnon_install: !item.track_incarnon_install });
+    const updated = await repo.getItemById(id);
+    setItem(updated);
+  };
+
+  const blueprintMaterials = materials.filter((m) => !m.is_incarnon_install);
+  const incarnonMaterials = materials.filter((m) => m.is_incarnon_install);
+
   return (
     <div className="detail">
       <div className="detail-header">
@@ -90,66 +162,25 @@ function ItemDetail({ params }) {
 
       <div className="card" style={{ marginTop: 14 }}>
         <h2>Required Materials</h2>
-        {materials.length === 0 && <p className="muted">No materials on record.</p>}
-        <table>
-          <thead>
-            <tr>
-              <th>Material</th>
-              <th>Needed</th>
-              <th>Owned</th>
-              <th>Progress</th>
-              <th>Sources</th>
-            </tr>
-          </thead>
-          <tbody>
-            {materials.map((m) => {
-              const ownedQty = owned[m.material_name] ?? 0;
-              const needed = m.quantity_required;
-              const pct = Math.min(100, Math.round((ownedQty / needed) * 100));
-              const done = ownedQty >= needed;
-              return (
-                <tr key={m.id}>
-                  <td>
-                    <a href={m.wiki_url} target="_blank" rel="noreferrer">
-                      {m.material_name}
-                    </a>
-                  </td>
-                  <td>{needed}</td>
-                  <td>
-                    <input
-                      className="owned-input"
-                      type="number"
-                      min="0"
-                      value={ownedQty}
-                      onChange={(e) => handleOwnedChange(m.material_name, e.target.value)}
-                      aria-label={`Owned quantity for ${m.material_name}`}
-                    />
-                  </td>
-                  <td>
-                    <div className="progress-cell">
-                      <div className="progress-bar">
-                        <div
-                          className={`progress-fill${done ? ' done' : ''}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className={`progress-label${done ? ' done' : ''}`}>
-                        {ownedQty}/{needed}
-                        {done && ' ✓'}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <Link href={`/sources?material=${encodeURIComponent(m.material_name)}`}>
-                      View sources
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {blueprintMaterials.length === 0 && <p className="muted">No materials on record.</p>}
+        <MaterialsTable materials={blueprintMaterials} owned={owned} onOwnedChange={handleOwnedChange} />
       </div>
+
+      {item.has_incarnon_genesis && (
+        <div className="card" style={{ marginTop: 14 }}>
+          <div className="detail-header">
+            <h2>Incarnon Genesis Install</h2>
+            <button className="btn primary" onClick={incarnonTrackToggle}>
+              {item.track_incarnon_install ? 'Untrack' : 'Track'}
+            </button>
+          </div>
+          {item.track_incarnon_install ? (
+            <MaterialsTable materials={incarnonMaterials} owned={owned} onOwnedChange={handleOwnedChange} />
+          ) : (
+            <p className="muted">Not tracked. Click Track to include install materials in your Materials Needed dashboard.</p>
+          )}
+        </div>
+      )}
 
       <div className="card" style={{ marginTop: 14 }}>
         <h2>Crafting Tree</h2>

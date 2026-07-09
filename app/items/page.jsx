@@ -75,6 +75,9 @@ function ItemsList() {
                 {it.is_user_tracked && (
                   <span className="badge">tracked</span>
                 )}
+                {it.track_incarnon_install && (
+                  <span className="badge">Incarnon tracked</span>
+                )}
               </div>
               <div className="muted">MR {it.mastery_rank_required}</div>
             </div>

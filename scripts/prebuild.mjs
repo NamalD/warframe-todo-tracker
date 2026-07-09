@@ -61,6 +61,41 @@ function constructWikiUrl(name) {
 }
 
 /**
+ * Incarnon Genesis installation costs, keyed by base weapon name.
+ * @wfcd/items has no crafting/build data for Incarnon Genesis adapters (see
+ * issue #5) — DE doesn't expose these in the public API/manifest — so this
+ * is manually transcribed from the Warframe Wiki. Starter set; expand as
+ * needed.
+ */
+const INCARNON_GENESIS_INSTALL_COSTS = {
+  Gorgon: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Tasoma Extract', quantity: 60 },
+  ],
+  Braton: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Tasoma Extract', quantity: 60 },
+  ],
+  Dread: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Tasoma Extract', quantity: 60 },
+  ],
+  Boltor: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Rune Marrow', quantity: 60 },
+    { name: 'Silphsela', quantity: 60 },
+  ],
+  Lex: [
+    { name: 'Pathos Clamp', quantity: 20 },
+    { name: 'Yao Shrub', quantity: 70 },
+    { name: 'Saggen Pearl', quantity: 150 },
+  ],
+};
+
+/**
  * Normalize raw WFCD mod type to our app model.
  * See docs/designs/mod-tracking-feature.md §3.3
  */
@@ -124,11 +159,15 @@ async function main() {
 
   // Filter to craftable items (has components array)
   const craftable = raw.filter((item) => {
-    // Must have components to craft
-    if (!item.components || item.components.length === 0) return false;
     // Exclude sentinel weapons / archwing (not typical player-craftable)
     if (item.productCategory === 'SentinelWeapons') return false;
     if (item.category === 'Archwing') return false;
+    // Must have components to craft — except items with no blueprint (e.g.
+    // market-bought weapons like Lex) that still need an Incarnon Genesis
+    // install cost tracked.
+    if (!item.components || item.components.length === 0) {
+      return !!INCARNON_GENESIS_INSTALL_COSTS[item.name];
+    }
     return true;
   });
   console.log(`[prebuild] Craftable items: ${craftable.length}`);
@@ -143,6 +182,7 @@ async function main() {
 
   for (const rawItem of craftable) {
     const itemId = `item-${itemSeq++}`;
+    const incarnonCost = INCARNON_GENESIS_INSTALL_COSTS[rawItem.name];
 
     items.push({
       id: itemId,
@@ -152,6 +192,8 @@ async function main() {
       is_user_tracked: false,
       blueprint_source: deriveBlueprintSource(rawItem),
       wiki_url: rawItem.wikiaUrl || constructWikiUrl(rawItem.name),
+      has_incarnon_genesis: !!incarnonCost,
+      track_incarnon_install: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
@@ -171,6 +213,24 @@ async function main() {
           quantity_required: comp.itemCount ?? 1,
           wiki_url: (compItem && compItem.wikiaUrl) || constructWikiUrl(name),
           is_intermediate: isIntermediate,
+          is_incarnon_install: false,
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    // ── Incarnon Genesis install cost (not part of @wfcd/items) ────
+    if (incarnonCost) {
+      for (const mat of incarnonCost) {
+        materials.push({
+          id: `mat-${matSeq++}`,
+          craftable_item_id: itemId,
+          material_name: mat.name,
+          component_unique_name: null,
+          quantity_required: mat.quantity,
+          wiki_url: constructWikiUrl(mat.name),
+          is_intermediate: false,
+          is_incarnon_install: true,
           created_at: new Date().toISOString(),
         });
       }
