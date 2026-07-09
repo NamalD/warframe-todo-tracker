@@ -14,7 +14,9 @@ function ShoppingList() {
 
       await repo.initMaterials();
       const allItems = await repo.getAllItems();
-      const trackedItems = allItems.filter((it) => it.is_user_tracked || it.track_incarnon_install);
+      const trackedItems = allItems.filter(
+        (it) => it.is_user_tracked || (it.track_incarnon_install && !it.incarnon_installed)
+      );
       const inv = repo.getMaterialInventory();
       setOwned(inv);
 

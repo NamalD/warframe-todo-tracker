@@ -25,8 +25,11 @@ function Home() {
       const inv = repo.getMaterialInventory();
 
       // Materials needed: aggregate across tracked items (blueprint materials
-      // when is_user_tracked, Incarnon install materials when track_incarnon_install)
-      const relevantItems = allItems.filter((it) => it.is_user_tracked || it.track_incarnon_install);
+      // when is_user_tracked, Incarnon install materials when
+      // track_incarnon_install and not yet marked as installed)
+      const relevantItems = allItems.filter(
+        (it) => it.is_user_tracked || (it.track_incarnon_install && !it.incarnon_installed)
+      );
       const matMap = {};
       for (const item of relevantItems) {
         const materials = await repo.getMaterialsForItem(item.id);
