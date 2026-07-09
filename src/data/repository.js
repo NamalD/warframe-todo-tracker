@@ -163,7 +163,7 @@ export default class Repository {
               this.sources = cached.sources || [];
               this.#refDataInitialized = true;
               // Merge server-side item flags into cached data
-              this.#syncUserItemFlags().catch(() => {});
+              await this.#syncUserItemFlags().catch(() => {});
               return;
             }
           } catch (_e) { /* fall through */ }
@@ -188,7 +188,7 @@ export default class Repository {
       }
       this.#refDataInitialized = true;
       // Merge persisted item flags (tracked, Incarnon) from server
-      this.#syncUserItemFlags().catch(() => {});
+      await this.#syncUserItemFlags().catch(() => {});
     } catch (err) {
       if (typeof window !== 'undefined') {
         const cachedRaw = localStorage.getItem(ITEMS_CACHE_KEY);
@@ -239,11 +239,13 @@ export default class Repository {
     this.#persistItems();
 
     // Push flag changes to the server for cross-device sync
+    const promises = [];
     for (const [key, value] of Object.entries(updates)) {
       if (['is_user_tracked', 'track_incarnon_install', 'incarnon_installed'].includes(key)) {
-        this.#pushUserItemFlag(id, key, value);
+        promises.push(this.#pushUserItemFlag(id, key, value));
       }
     }
+    await Promise.allSettled(promises);
 
     return { ...target };
   }
