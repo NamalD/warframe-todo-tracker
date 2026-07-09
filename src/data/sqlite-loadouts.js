@@ -142,6 +142,9 @@ export function updateLoadout(db, id, data, clientVersion) {
 
   // Conflict: client is working from a stale base
   if (clientVersion < serverVersion) {
+    db.prepare('INSERT INTO conflict_log (table_name, record_id, client_version, server_version, device_id) VALUES (?, ?, ?, ?, ?)').run(
+      'loadouts', id, clientVersion, serverVersion, device_id || 'unknown'
+    );
     return {
       conflict: true,
       serverVersion,
@@ -194,6 +197,9 @@ export function deleteLoadout(db, id, clientVersion) {
 
   // Conflict: client is working from a stale base
   if (clientVersion < serverVersion) {
+    db.prepare('INSERT INTO conflict_log (table_name, record_id, client_version, server_version, device_id) VALUES (?, ?, ?, ?, ?)').run(
+      'loadouts', id, clientVersion, serverVersion, device_id || 'unknown'
+    );
     return {
       conflict: true,
       serverVersion,

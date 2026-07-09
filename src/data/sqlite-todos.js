@@ -139,6 +139,9 @@ export function updateTodo(db, id, updates, clientVersion) {
 
   // Conflict: client is working from a stale base
   if (clientVersion < serverVersion) {
+    db.prepare('INSERT INTO conflict_log (table_name, record_id, client_version, server_version, device_id) VALUES (?, ?, ?, ?, ?)').run(
+      'todos', id, clientVersion, serverVersion, device || 'unknown'
+    );
     return {
       conflict: true,
       serverVersion,
@@ -229,6 +232,9 @@ export function deleteTodo(db, id, clientVersion) {
 
   // Conflict: client is working from a stale base
   if (clientVersion < serverVersion) {
+    db.prepare('INSERT INTO conflict_log (table_name, record_id, client_version, server_version, device_id) VALUES (?, ?, ?, ?, ?)').run(
+      'todos', id, clientVersion, serverVersion, device || 'unknown'
+    );
     return {
       conflict: true,
       serverVersion,
