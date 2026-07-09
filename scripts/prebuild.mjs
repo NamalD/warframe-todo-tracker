@@ -27,7 +27,7 @@ const ROOT = resolve(__dirname, '..');
  * change with no package bump previously went unnoticed by any existing
  * cache, silently hiding new fields from returning users).
  */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
