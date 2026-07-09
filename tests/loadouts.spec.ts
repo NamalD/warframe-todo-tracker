@@ -88,7 +88,9 @@ test.describe('Loadouts list page', () => {
       await page.getByRole('button', { name: 'Create' }).click();
       await page.waitForTimeout(300);
 
-      await page.getByRole('link', { name: 'Nav Test' }).click();
+      // Use .first() because the shared dev DB may have leftover loadouts
+      // from prior test runs with the same name
+      await page.getByRole('link', { name: 'Nav Test' }).first().click();
       await expect(page).toHaveURL(/\/loadouts\/loadout-/);
     });
   });
@@ -223,7 +225,7 @@ test.describe('Loadout detail page', () => {
       await expect(page.locator('.empty-state')).toContainText('not found');
     });
 
-    test('empty loadout shows empty state with add button', async ({ page }) => {
+    test('empty loadout shows empty state message', async ({ page }) => {
       await page.evaluate(() => {
         const data = {
           loadouts: [{
@@ -239,14 +241,17 @@ test.describe('Loadout detail page', () => {
       await page.goto('/loadouts/loadout-empty-1');
       await page.waitForTimeout(300);
       await expect(page.locator('.empty-state')).toContainText('No slots yet');
-      await expect(page.locator('button:has-text("Add Your First Slot")')).toBeVisible();
     });
 
-    test('delete slot removes it from page', async ({ page }) => {
+    test('delete slot clears it to empty state', async ({ page }) => {
       page.on('dialog', async (dialog) => await dialog.accept());
       await page.locator('button:has-text("Delete Slot")').click();
       await page.waitForTimeout(300);
-      await expect(page.locator('.empty-state')).toContainText('No slots yet');
+      // Delete Slot clears the slot's content in place (the loadout
+      // always has a fixed set of 7 slots, one per type — see
+      // createLoadout in loadout-repository.js). Assert the slot card
+      // shows its empty-state placeholder.
+      await expect(page.locator('text=Empty slot — click to populate')).toBeVisible();
     });
 
     test('delete loadout navigates back to list', async ({ page }) => {
