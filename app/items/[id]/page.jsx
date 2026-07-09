@@ -138,6 +138,12 @@ function ItemDetail({ params }) {
     setItem(updated);
   };
 
+  const incarnonInstalledToggle = async () => {
+    await repo.updateItem(id, { incarnon_installed: !item.incarnon_installed });
+    const updated = await repo.getItemById(id);
+    setItem(updated);
+  };
+
   const blueprintMaterials = materials.filter((m) => !m.is_incarnon_install);
   const incarnonMaterials = materials.filter((m) => m.is_incarnon_install);
 
@@ -185,7 +191,24 @@ function ItemDetail({ params }) {
             </button>
           </div>
           {item.track_incarnon_install ? (
-            <MaterialsTable materials={incarnonMaterials} owned={owned} onOwnedChange={handleOwnedChange} />
+            <>
+              <MaterialsTable materials={incarnonMaterials} owned={owned} onOwnedChange={handleOwnedChange} />
+              <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!item.incarnon_installed}
+                    onChange={incarnonInstalledToggle}
+                  />
+                  Incarnon adapter installed
+                </label>
+                {item.incarnon_installed && (
+                  <span className="badge" style={{ background: '#1a2e1a', color: '#6fcf97', borderColor: '#2a4a2a' }}>
+                    ✓ done
+                  </span>
+                )}
+              </div>
+            </>
           ) : (
             <p className="muted">Not tracked. Click Track to include install materials in your Materials Needed dashboard.</p>
           )}

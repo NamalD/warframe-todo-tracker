@@ -75,6 +75,10 @@ function Home() {
   // Tracked items
   const trackedItems = items.filter((it) => it.is_user_tracked);
 
+  // Incarnon-tracked items not yet installed
+  const pendingIncarnon = items.filter((it) => it.track_incarnon_install && !it.incarnon_installed);
+  const completedIncarnon = items.filter((it) => it.track_incarnon_install && it.incarnon_installed);
+
   // Materials still outstanding (hide fully-owned materials from the dashboard)
   const outstandingMaterials = materialsList.filter((m) => !m.done);
 
@@ -135,6 +139,43 @@ function Home() {
             )}
           </p>
         </div>
+
+        {(pendingIncarnon.length > 0 || completedIncarnon.length > 0) && (
+          <div className="card" data-testid="incarnon-card">
+            <h2>Incarnon Installations</h2>
+            {pendingIncarnon.length > 0 && (
+              <div style={{ margin: '8px 0' }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#ff6b6b' }}>
+                  {pendingIncarnon.length}
+                </div>
+                <span className="badge" style={{ background: '#2e1a1a', color: '#ff6b6b', borderColor: '#4a2a2a' }}>
+                  pending install
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+                  {pendingIncarnon.map((it) => (
+                    <Link
+                      key={it.id}
+                      href={`/items/${it.id}`}
+                      style={{ color: '#7cc4ff', textDecoration: 'none', fontSize: 14 }}
+                    >
+                      {it.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            {completedIncarnon.length > 0 && (
+              <div style={{ margin: '8px 0' }}>
+                <div style={{ fontSize: 20, fontWeight: 600, color: '#6fcf97' }}>
+                  {completedIncarnon.length}
+                </div>
+                <span className="badge" style={{ background: '#1a2e1a', color: '#6fcf97', borderColor: '#2a4a2a' }}>
+                  installed
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {todos.length > 0 && (
           <div className="card" data-testid="todos-card">
