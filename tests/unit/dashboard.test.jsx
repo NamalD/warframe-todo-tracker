@@ -20,6 +20,7 @@ const mockMaterials = {
     { material_name: 'Alloy Plate', quantity_required: 1200, wiki_url: 'https://wiki/alloy_plate', craftable_item_id: 'item-1' },
     { material_name: 'Circuits', quantity_required: 600, wiki_url: 'https://wiki/circuits', craftable_item_id: 'item-1' },
     { material_name: 'Polymer Bundle', quantity_required: 200, wiki_url: 'https://wiki/polymer', craftable_item_id: 'item-1' },
+    { material_name: 'Orokin Cell', quantity_required: 1, wiki_url: 'https://wiki/orokin_cell', craftable_item_id: 'item-1' },
   ],
   'item-2': [
     { material_name: 'Alloy Plate', quantity_required: 800, wiki_url: 'https://wiki/alloy_plate', craftable_item_id: 'item-2' },
@@ -160,6 +161,7 @@ describe('Dashboard', () => {
       'Circuits': 5000,
       'Polymer Bundle': 5000,
       'Nano Spores': 5000,
+      'Orokin Cell': 1,
     });
 
     render(React.createElement(Home));
@@ -168,7 +170,7 @@ describe('Dashboard', () => {
       expect(screen.getByText(/Materials Needed/i)).toBeInTheDocument();
     });
 
-    ['Alloy Plate', 'Circuits', 'Polymer Bundle', 'Nano Spores'].forEach((name) => {
+    ['Alloy Plate', 'Circuits', 'Polymer Bundle', 'Nano Spores', 'Orokin Cell'].forEach((name) => {
       expect(screen.queryByText(name)).not.toBeInTheDocument();
     });
     expect(screen.getByText(/already owned/i)).toBeInTheDocument();
@@ -214,6 +216,36 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(screen.queryByText('Circuits')).not.toBeInTheDocument();
     });
+  });
+
+  it('shows a checkbox (not a number input) for a material needing only 1', async () => {
+    render(React.createElement(Home));
+
+    await waitFor(() => {
+      expect(screen.getByText('Orokin Cell')).toBeInTheDocument();
+    });
+
+    const input = screen.getByLabelText('Owned quantity for Orokin Cell');
+    expect(input.type).toBe('checkbox');
+    expect(input.checked).toBe(false);
+
+    fireEvent.click(input);
+
+    // Orokin Cell: needed=1, owned now 1, deficit=0 -> done -> hidden per #2
+    await waitFor(() => {
+      expect(screen.queryByText('Orokin Cell')).not.toBeInTheDocument();
+    });
+  });
+
+  it('still shows a number input for materials needing more than 1', async () => {
+    render(React.createElement(Home));
+
+    await waitFor(() => {
+      expect(screen.getByText('Circuits')).toBeInTheDocument();
+    });
+
+    const input = screen.getByLabelText('Owned quantity for Circuits');
+    expect(input.type).toBe('number');
   });
 
   it('shows the items using each material in the card', async () => {

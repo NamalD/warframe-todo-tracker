@@ -31,14 +31,23 @@ function MaterialsTable({ materials, owned, onOwnedChange }) {
               </td>
               <td>{needed}</td>
               <td>
-                <input
-                  className="owned-input"
-                  type="number"
-                  min="0"
-                  value={ownedQty}
-                  onChange={(e) => onOwnedChange(m.material_name, e.target.value)}
-                  aria-label={`Owned quantity for ${m.material_name}`}
-                />
+                {needed === 1 ? (
+                  <input
+                    type="checkbox"
+                    checked={ownedQty >= 1}
+                    onChange={(e) => onOwnedChange(m.material_name, e.target.checked ? 1 : 0)}
+                    aria-label={`Owned quantity for ${m.material_name}`}
+                  />
+                ) : (
+                  <input
+                    className="owned-input"
+                    type="number"
+                    min="0"
+                    value={ownedQty}
+                    onChange={(e) => onOwnedChange(m.material_name, e.target.value)}
+                    aria-label={`Owned quantity for ${m.material_name}`}
+                  />
+                )}
               </td>
               <td>
                 <div className="progress-cell">

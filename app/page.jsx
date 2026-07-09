@@ -219,15 +219,25 @@ function Home() {
                     <label className="muted" htmlFor={`owned-${mat.name}`} style={{ fontSize: 13 }}>
                       Owned
                     </label>
-                    <input
-                      id={`owned-${mat.name}`}
-                      className="owned-input"
-                      type="number"
-                      min="0"
-                      value={mat.owned}
-                      onChange={(e) => handleOwnedChange(mat.name, e.target.value)}
-                      aria-label={`Owned quantity for ${mat.name}`}
-                    />
+                    {mat.quantity === 1 ? (
+                      <input
+                        id={`owned-${mat.name}`}
+                        type="checkbox"
+                        checked={mat.owned >= 1}
+                        onChange={(e) => handleOwnedChange(mat.name, e.target.checked ? 1 : 0)}
+                        aria-label={`Owned quantity for ${mat.name}`}
+                      />
+                    ) : (
+                      <input
+                        id={`owned-${mat.name}`}
+                        className="owned-input"
+                        type="number"
+                        min="0"
+                        value={mat.owned}
+                        onChange={(e) => handleOwnedChange(mat.name, e.target.value)}
+                        aria-label={`Owned quantity for ${mat.name}`}
+                      />
+                    )}
                   </div>
                   <p style={{ marginTop: 10 }}>
                     <Link href={`/sources?material=${encodeURIComponent(mat.name)}`}>

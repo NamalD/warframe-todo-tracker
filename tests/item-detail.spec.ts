@@ -91,6 +91,14 @@ test.describe('Item detail page', () => {
     expect(body).toContain(excaliburMaterials[0].material_name);
   });
 
+  test('shows a checkbox (not a number input) for materials needing only 1', async ({ page }) => {
+    const qtyOneMaterial = excaliburMaterials.find((m) => m.quantity_required === 1);
+    expect(qtyOneMaterial).toBeTruthy();
+    const row = page.locator('table tbody tr').filter({ hasText: qtyOneMaterial.material_name });
+    await expect(row.locator('input[type="checkbox"]')).toBeVisible();
+    await expect(row.locator('input[type="number"]')).toHaveCount(0);
+  });
+
   test('renders crafting tree', async ({ page }) => {
     await expect(page.locator('.card:has-text("Crafting Tree")')).toBeVisible();
   });
