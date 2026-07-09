@@ -1,9 +1,30 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Item IDs are assigned by prebuild.mjs in @wfcd/items iteration order, which
+// isn't guaranteed stable across package versions/regenerations (see #12) —
+// resolve Excalibur's current id/materials by name instead of hardcoding IDs.
+const wfcdCache = JSON.parse(
+  readFileSync(resolve(__dirname, '../public/data/wfcd-cache.json'), 'utf8')
+);
+const excalibur = wfcdCache.items.find((i) => i.name === 'Excalibur');
+const excaliburMaterials = wfcdCache.materials.filter(
+  (m) => m.craftable_item_id === excalibur.id && !m.is_incarnon_install
+);
 
 test.describe('Item detail page', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/items/item-1');
+    await page.goto(`/items/${excalibur.id}`);
     await page.waitForTimeout(200);
+    // Reference data always starts untracked — normalize to tracked so the
+    // rest of this suite (which exercises the Untrack path) has a
+    // deterministic starting state.
+    const trackBtn = page.getByRole('button', { name: 'Track' });
+    if (await trackBtn.isVisible().catch(() => false)) {
+      await trackBtn.click();
+      await expect(page.getByRole('button', { name: 'Untrack' })).toBeVisible();
+    }
   });
 
   test('renders item title', async ({ page }) => {
@@ -33,16 +54,18 @@ test.describe('Item detail page', () => {
     await page.getByRole('button', { name: 'Untrack' }).click();
     await expect(page.getByRole('button', { name: 'Track' })).toBeVisible();
 
-    // Navigate to items list — tracked badge should be gone for item-1
+    // Navigate to items list — but Excalibur is now untracked, and the list
+    // defaults to tracked-only, so uncheck that filter to find it.
     await page.goto('/items');
     await page.waitForTimeout(200);
-    const item1Card = page.locator('.card').filter({ has: page.locator('a.link-title[href="/items/item-1"]') });
-    await expect(item1Card).toBeVisible();
-    await expect(item1Card.locator('.badge', { hasText: 'tracked' })).toHaveCount(0);
+    await page.getByRole('checkbox').uncheck();
+    const itemCard = page.locator('.card').filter({ has: page.locator(`a.link-title[href="/items/${excalibur.id}"]`) });
+    await expect(itemCard).toBeVisible();
+    await expect(itemCard.locator('.badge', { hasText: 'tracked' })).toHaveCount(0);
 
     // Navigate back to item detail — button should still say "Track"
-    await item1Card.locator('.link-title').click();
-    await expect(page).toHaveURL(/\/items\/item-1/);
+    await itemCard.locator('.link-title').click();
+    await expect(page).toHaveURL(new RegExp(`/items/${excalibur.id}$`));
     await expect(page.getByRole('button', { name: 'Track' })).toBeVisible();
   });
 
@@ -65,7 +88,7 @@ test.describe('Item detail page', () => {
 
   test('materials table contains known material', async ({ page }) => {
     const body = await page.locator('table tbody').innerText();
-    expect(body).toContain('Alloy Plate');
+    expect(body).toContain(excaliburMaterials[0].material_name);
   });
 
   test('renders crafting tree', async ({ page }) => {
@@ -85,8 +108,10 @@ test.describe('Item detail page', () => {
 });
 
 test.describe('Incarnon Genesis install tracking', () => {
+  const gorgon = wfcdCache.items.find((i) => i.name === 'Gorgon');
+
   test.beforeEach(async ({ page }) => {
-    await page.goto('/items/item-219'); // Gorgon
+    await page.goto(`/items/${gorgon.id}`);
     await page.waitForTimeout(200);
   });
 
@@ -127,7 +152,7 @@ test.describe('Incarnon Genesis install tracking', () => {
   });
 
   test('does not show Incarnon Genesis Install card for items without it', async ({ page }) => {
-    await page.goto('/items/item-1'); // Excalibur
+    await page.goto(`/items/${excalibur.id}`);
     await page.waitForTimeout(200);
     await expect(page.locator('.card:has-text("Incarnon Genesis Install")')).toHaveCount(0);
   });

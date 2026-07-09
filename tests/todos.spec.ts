@@ -1,4 +1,19 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Item IDs are assigned by prebuild.mjs in @wfcd/items iteration order, which
+// isn't guaranteed stable across package versions/regenerations (see #12) —
+// resolve by name against the actual generated cache instead of hardcoding IDs.
+const wfcdCache = JSON.parse(
+  readFileSync(resolve(__dirname, '../public/data/wfcd-cache.json'), 'utf8')
+);
+function itemMaterials(name) {
+  const item = wfcdCache.items.find((i) => i.name === name);
+  return wfcdCache.materials.filter((m) => m.craftable_item_id === item.id && !m.is_incarnon_install);
+}
+const excaliburMaterials = itemMaterials('Excalibur');
+const rubicoPrimeMaterials = itemMaterials('Rubico Prime');
 
 test.describe('Todos page', () => {
   const UNIQUE_NOTES = `E2E regression todo ${Date.now()}`;
@@ -50,40 +65,41 @@ test.describe('Todos page', () => {
       await expect(materialSelect).toBeDisabled();
 
       // Select Excalibur
-      await itemSelect.selectOption('item-1');
+      await itemSelect.selectOption({ label: 'Excalibur' });
       await page.waitForTimeout(200);
 
       // Material dropdown should now be enabled and have options
       await expect(materialSelect).not.toBeDisabled();
       const matOptions = await materialSelect.locator('option').allTextContents();
       expect(matOptions).toContain('Material (optional)');
-      expect(matOptions).toContain('Alloy Plate');
-      expect(matOptions).toContain('Polymer Bundle');
+      expect(matOptions).toContain(excaliburMaterials[0].material_name);
+      expect(matOptions).toContain(excaliburMaterials[1].material_name);
     });
 
     test('creates todo linked to item and material', async ({ page }) => {
+      const material = rubicoPrimeMaterials[0].material_name;
       const selects = page.locator('select');
-      await selects.nth(0).selectOption('item-4'); // Rubico Prime
+      await selects.nth(0).selectOption({ label: 'Rubico Prime' });
       await page.waitForTimeout(200);
-      await selects.nth(1).selectOption('Argon Crystal');
-      await page.getByPlaceholder('Notes').fill('Farm Argon for Rubico');
+      await selects.nth(1).selectOption(material);
+      await page.getByPlaceholder('Notes').fill('Farm for Rubico');
       await page.getByRole('button', { name: 'Add' }).click();
       await page.waitForTimeout(300);
 
       // The todo should show the item name as a link — check the last card added
       const todoCards = page.locator('.card');
       const lastCard = todoCards.last();
-      await expect(lastCard.getByRole('link', { name: 'Rubico Prime' })).toBeVisible();
+      await expect(lastCard.getByRole('link', { name: 'Rubico Prime', exact: true })).toBeVisible();
       // The material link to sources should appear
-      await expect(lastCard.getByRole('link', { name: 'Source: Argon Crystal' })).toBeVisible();
+      await expect(lastCard.getByRole('link', { name: `Source: ${material}` })).toBeVisible();
 
       // Verify localStorage has the linked data
       const data = await page.evaluate(() => localStorage.getItem('warframe-todos'));
       const todos = JSON.parse(data || '[]');
-      const created = todos.find((t) => t.user_notes === 'Farm Argon for Rubico');
+      const created = todos.find((t) => t.user_notes === 'Farm for Rubico');
       expect(created).toBeTruthy();
-      expect(created.craftable_item_id).toBe('item-4');
-      expect(created.linked_material_name).toBe('Argon Crystal');
+      expect(created.craftable_item_id).toBe(wfcdCache.items.find((i) => i.name === 'Rubico Prime').id);
+      expect(created.linked_material_name).toBe(material);
     });
 
     test('can create freeform todo without item or material', async ({ page }) => {
