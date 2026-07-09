@@ -1,51 +1,61 @@
 /**
  * Predefined upgrade options for loadout equipment slots, organized by slot_type.
- * Each option has a name and wiki_url (Warframe Fandom).
+ * Wiki URLs are derived from names via constructWikiUrl-style transformation
+ * in the component that renders them.
  */
 
 const REQUIREMENT_OPTIONS = {
   warframe: [
-    { name: 'Orokin Reactor', wiki_url: 'https://wiki.warframe.com/w/Orokin_Reactor' },
-    { name: 'Exilus Warframe Adapter', wiki_url: 'https://wiki.warframe.com/w/Exilus_Warframe_Adapter' },
-    { name: 'Forma', wiki_url: 'https://wiki.warframe.com/w/Forma' },
-    { name: 'Aura Forma', wiki_url: 'https://wiki.warframe.com/w/Aura_Forma' },
-    { name: 'Umbra Forma', wiki_url: 'https://wiki.warframe.com/w/Umbra_Forma' },
+    { name: 'Orokin Reactor' },
+    { name: 'Exilus Warframe Adapter' },
+    { name: 'Forma' },
+    { name: 'Aura Forma' },
+    { name: 'Umbra Forma' },
   ],
   primary: [
-    { name: 'Orokin Catalyst', wiki_url: 'https://wiki.warframe.com/w/Orokin_Catalyst' },
-    { name: 'Exilus Weapon Adapter', wiki_url: 'https://wiki.warframe.com/w/Exilus_Weapon_Adapter' },
-    { name: 'Primary Arcane Adapter', wiki_url: 'https://wiki.warframe.com/w/Primary_Arcane_Adapter' },
-    { name: 'Forma', wiki_url: 'https://wiki.warframe.com/w/Forma' },
+    { name: 'Orokin Catalyst' },
+    { name: 'Exilus Weapon Adapter' },
+    { name: 'Primary Arcane Adapter' },
+    { name: 'Forma' },
   ],
   secondary: [
-    { name: 'Orokin Catalyst', wiki_url: 'https://wiki.warframe.com/w/Orokin_Catalyst' },
-    { name: 'Exilus Weapon Adapter', wiki_url: 'https://wiki.warframe.com/w/Exilus_Weapon_Adapter' },
-    { name: 'Secondary Arcane Adapter', wiki_url: 'https://wiki.warframe.com/w/Secondary_Arcane_Adapter' },
-    { name: 'Forma', wiki_url: 'https://wiki.warframe.com/w/Forma' },
+    { name: 'Orokin Catalyst' },
+    { name: 'Exilus Weapon Adapter' },
+    { name: 'Secondary Arcane Adapter' },
+    { name: 'Forma' },
   ],
   melee: [
-    { name: 'Orokin Catalyst', wiki_url: 'https://wiki.warframe.com/w/Orokin_Catalyst' },
-    { name: 'Exilus Weapon Adapter', wiki_url: 'https://wiki.warframe.com/w/Exilus_Weapon_Adapter' },
-    { name: 'Melee Arcane Adapter', wiki_url: 'https://wiki.warframe.com/w/Melee_Arcane_Adapter' },
-    { name: 'Stance Forma', wiki_url: 'https://wiki.warframe.com/w/Stance_Forma' },
-    { name: 'Forma', wiki_url: 'https://wiki.warframe.com/w/Forma' },
-    { name: 'Umbra Forma', wiki_url: 'https://wiki.warframe.com/w/Umbra_Forma' },
+    { name: 'Orokin Catalyst' },
+    { name: 'Exilus Weapon Adapter' },
+    { name: 'Melee Arcane Adapter' },
+    { name: 'Stance Forma' },
+    { name: 'Forma' },
+    { name: 'Umbra Forma' },
   ],
   companion: [
-    { name: 'Orokin Reactor', wiki_url: 'https://wiki.warframe.com/w/Orokin_Reactor' },
+    { name: 'Orokin Reactor' },
   ],
   archwing: [
-    { name: 'Orokin Reactor', wiki_url: 'https://wiki.warframe.com/w/Orokin_Reactor' },
-    { name: 'Forma', wiki_url: 'https://wiki.warframe.com/w/Forma' },
+    { name: 'Orokin Reactor' },
+    { name: 'Forma' },
   ],
   other: [
-    { name: 'Orokin Catalyst', wiki_url: 'https://wiki.warframe.com/w/Orokin_Catalyst' },
-    { name: 'Orokin Reactor', wiki_url: 'https://wiki.warframe.com/w/Orokin_Reactor' },
-    { name: 'Forma', wiki_url: 'https://wiki.warframe.com/w/Forma' },
-    { name: 'Gravimag', wiki_url: 'https://wiki.warframe.com/w/Gravimag' },
-    { name: 'Archgun Arcane Adapter', wiki_url: 'https://wiki.warframe.com/w/Archgun_Arcane_Adapter' },
+    { name: 'Orokin Catalyst' },
+    { name: 'Orokin Reactor' },
+    { name: 'Forma' },
+    { name: 'Gravimag' },
+    { name: 'Archgun Arcane Adapter' },
   ],
 };
+
+/**
+ * Construct a wiki URL for a given item name.
+ * @param {string} name
+ * @returns {string}
+ */
+function constructWikiUrl(name) {
+  return `https://wiki.warframe.com/w/${encodeURIComponent(name.replace(/ /g, '_'))}`;
+}
 
 /**
  * Get predefined requirement options for a given slot type.
@@ -57,7 +67,10 @@ export function getOptionsForSlot(slotType) {
   if (!opts) {
     return [];
   }
-  return opts.slice();
+  return opts.map((o) => ({
+    ...o,
+    wiki_url: constructWikiUrl(o.name),
+  }));
 }
 
 /**

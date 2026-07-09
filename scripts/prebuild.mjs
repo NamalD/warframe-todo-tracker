@@ -27,7 +27,7 @@ const ROOT = resolve(__dirname, '..');
  * change with no package bump previously went unnoticed by any existing
  * cache, silently hiding new fields from returning users).
  */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -353,29 +353,42 @@ function normalizeModType(rawType) {
     'Warframe': 'Warframe Mod',
     'Rifle Mod': 'Rifle Mod',
     'Rifle': 'Rifle Mod',
+    'Primary Mod': 'Primary Mod',
+    'Primary': 'Primary Mod',
     'Shotgun Mod': 'Shotgun Mod',
     'Shotgun': 'Shotgun Mod',
     'Melee Mod': 'Melee Mod',
     'Melee': 'Melee Mod',
     'Pistol Mod': 'Pistol Mod',
     'Pistol': 'Pistol Mod',
+    'Secondary Mod': 'Secondary Mod',
+    'Secondary': 'Secondary Mod',
     'Stance Mod': 'Stance Mod',
     'Stance': 'Stance Mod',
     'Aura': 'Aura',
     'Aura Mod': 'Aura',
     'Parazon Mod': 'Parazon Mod',
     'Parazon': 'Parazon Mod',
+    'Arch-Gun Mod': 'Arch-Gun Mod',
+    'Archwing Mod': 'Archwing Mod',
+    'Arch-Melee Mod': 'Arch-Melee Mod',
+    'Necramech Mod': 'Necramech Mod',
+    'K-Drive Mod': 'K-Drive Mod',
+    'Posture Mod': 'Posture Mod',
+    'Peculiar Mod': 'Peculiar Mod',
+    'Companion Mod': 'Companion Mod',
+    'Companion': 'Companion Mod',
+    'Sentinel Mod': 'Sentinel Mod',
+    'Sentinel': 'Sentinel Mod',
+    'Robotic': 'Sentinel Mod',
+    'Transmutation Mod': 'Transmutation Mod',
+    'Mod Set Mod': 'Mod Set Mod',
+    'Railjack Mod': 'Railjack Mod',
+    'Plexus Mod': 'Plexus Mod',
+    'Focus Way Mod': 'Focus Way Mod',
+    'Tektolyst Artifact Mod': 'Tektolyst Artifact Mod',
   };
   if (map[t]) return map[t];
-
-  // Archwing variants
-  if (t.includes('Archwing') || t === 'Arch Mech' || t === 'Arch-Gun') return 'Archwing Mod';
-
-  // Sentinel / Robotic variants
-  if (t.includes('Sentinel') || t === 'Robotic') return 'Sentinel Mod';
-
-  // Railjack / Plexus variants
-  if (t.includes('Railjack') || t.includes('Plexus')) return 'Railjack Mod';
 
   return 'Other';
 }
