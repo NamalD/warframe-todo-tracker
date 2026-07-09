@@ -1,5 +1,6 @@
 'use client';
 
+const STORAGE_KEY = 'warframe-loadouts';
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
 
 function flattenLoadout({ data, ...rest }) {
@@ -34,10 +35,41 @@ export default class LoadoutRepository {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = await res.json();
       this.#data.loadouts = Array.isArray(body.data) ? body.data : [];
+      // One-time migration: if server returned empty but old localStorage
+      // has data, push it to the server so it's not lost (see #23/#19).
+      if (this.#data.loadouts.length === 0) {
+        this.#migrateFromLocalStorage();
+      }
     } catch (err) {
       console.error('Failed to fetch loadouts:', err);
       this.#data.loadouts = [];
     }
+  }
+
+  async #migrateFromLocalStorage() {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      const localLoadouts = parsed.loadouts || parsed || [];
+      if (!Array.isArray(localLoadouts) || localLoadouts.length === 0) return;
+      this.#data.loadouts = localLoadouts;
+      // Push each loadout to the server via POST (creates new DB records)
+      for (const loadout of localLoadouts) {
+        await fetch('/api/loadouts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: loadout.id,
+            name: loadout.name,
+            data: stripDataFields(loadout),
+          }),
+        });
+      }
+      // Mark as migrated so the background push doesn't re-create them
+      localStorage.removeItem(STORAGE_KEY);
+    } catch { /* best-effort */ }
   }
 
   async #patch(loadout) {

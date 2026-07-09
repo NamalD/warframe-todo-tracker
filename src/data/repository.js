@@ -1,6 +1,8 @@
 'use client';
 
 const ITEMS_CACHE_KEY = 'warframe-items-cache';
+const OLD_TODOS_KEY = 'warframe-todos';
+const OLD_MATERIALS_KEY = 'warframe-materials-inventory';
 
 // Fallback seed todos (used when server has no data)
 const SEED_TODOS = [
@@ -51,8 +53,12 @@ export default class Repository {
         if (Array.isArray(serverData) && serverData.length > 0) {
           this.todos = serverData;
         } else {
-          // Server empty — use seed data locally without pushing
-          this.todos = [...SEED_TODOS];
+          // Server empty — check for orphaned localStorage data from the
+          // old sync-layer era (pre-#23/#19) and migrate it to the server.
+          if (!(await this.#migrateTodosFromLocalStorage())) {
+            // No localStorage data either — use seed data locally
+            this.todos = [...SEED_TODOS];
+          }
         }
       } else {
         this.todos = [...SEED_TODOS];
@@ -68,10 +74,13 @@ export default class Repository {
       if (res.ok) {
         const body = await res.json();
         const serverData = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
-        if (typeof serverData === 'object' && serverData !== null && !Array.isArray(serverData)) {
+        if (typeof serverData === 'object' && serverData !== null && !Array.isArray(serverData) && Object.keys(serverData).length > 0) {
           this.materialInventory = serverData;
         } else {
-          this.materialInventory = {};
+          // Server empty — try migrating from old localStorage
+          if (!this.#migrateMaterialsFromLocalStorage()) {
+            this.materialInventory = {};
+          }
         }
       } else {
         this.materialInventory = {};
@@ -79,6 +88,42 @@ export default class Repository {
     } catch {
       this.materialInventory = {};
     }
+  }
+
+  #migrateMaterialsFromLocalStorage() {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = localStorage.getItem(OLD_MATERIALS_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (typeof data !== 'object' || data === null) return false;
+      this.materialInventory = data;
+      localStorage.removeItem(OLD_MATERIALS_KEY);
+      return true;
+    } catch { return false; }
+  }
+
+  /**
+   * One-time migration: read old localStorage data from the sync-layer era
+   * (pre-#23/#19) and push it to the server so it's not lost.
+   * @returns {Promise<boolean>} true if data was migrated
+   */
+  async #migrateTodosFromLocalStorage() {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = localStorage.getItem(OLD_TODOS_KEY);
+      if (!raw) return false;
+      const localTodos = JSON.parse(raw);
+      if (!Array.isArray(localTodos) || localTodos.length === 0) return false;
+      this.todos = localTodos;
+      await fetch('/api/todos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: localTodos, version: 0 }),
+      });
+      localStorage.removeItem(OLD_TODOS_KEY);
+      return true;
+    } catch { return false; }
   }
 
   async #pushTodos() {
