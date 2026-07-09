@@ -269,6 +269,38 @@ export async function pushToServer(url, data, onEvent) {
 }
 
 /**
+ * Delete a single record on the server by id, with version-based conflict
+ * detection (see `DELETE /api/loadouts/[id]` / `DELETE /api/todos/[id]`).
+ *
+ * Bulk push endpoints (`PUT /api/loadouts`, `PUT /api/todos`) are additive
+ * merges (see #14) and cannot infer deletes from a client's local list —
+ * deleting a record must go through this per-record endpoint instead.
+ *
+ * @param {string} baseUrl - Domain base URL, e.g. '/api/loadouts'
+ * @param {string} id - Record id to delete
+ * @param {number} clientVersion - The version the client last saw
+ * @param {function} [onEvent] - Optional callback for sync events
+ * @returns {Promise<boolean>} true if the delete succeeded (or the record was already gone)
+ */
+export async function deleteFromServer(baseUrl, id, clientVersion, onEvent) {
+  try {
+    const res = await fetchWithRetry(`${baseUrl}/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientVersion }),
+    });
+    if (!res.ok && res.status !== 404) {
+      if (onEvent) onEvent('error', `Delete failed: HTTP ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    if (onEvent) onEvent('error', err.message);
+    return false;
+  }
+}
+
+/**
  * Pull data from the server and update a local copy.
  *
  * Combines pullFromServer with automatic local storage update.

@@ -324,10 +324,10 @@ describe('sqlite-todos module', () => {
   });
 
   // -----------------------------------------------------------------------
-  // replaceAllTodos
+  // mergeNewTodos
   // -----------------------------------------------------------------------
 
-  describe('replaceAllTodos()', () => {
+  describe('mergeNewTodos()', () => {
     beforeEach(() => {
       db.prepare(
         `INSERT INTO todos (id, craftable_item_id, user_notes, status, priority, version, created_at, updated_at)
@@ -339,40 +339,46 @@ describe('sqlite-todos module', () => {
       ).run('old2', 'item_b', 'Another old', 'completed', 'high', 2, '2026-01-03T00:00:00Z', '2026-01-04T00:00:00Z');
     });
 
-    it('replaces all rows with the new todos', () => {
+    it('inserts new todos without touching existing rows (see #14)', () => {
       const newTodos = [
         { id: 'new1', craftable_item_id: 'item_x', user_notes: 'New todo', status: 'pending', priority: 'high' },
         { id: 'new2', craftable_item_id: 'item_y', status: 'in_progress', priority: 'medium' },
       ];
 
-      todos.replaceAllTodos(db, newTodos);
+      todos.mergeNewTodos(db, newTodos);
 
       const rows = db.prepare('SELECT * FROM todos ORDER BY id').all();
-      expect(rows).toHaveLength(2);
-      expect(rows[0].id).toBe('new1');
-      expect(rows[0].craftable_item_id).toBe('item_x');
-      expect(rows[0].user_notes).toBe('New todo');
-      expect(rows[0].status).toBe('pending');
-      expect(rows[0].priority).toBe('high');
-      expect(rows[0].version).toBe(1);
-      expect(rows[1].id).toBe('new2');
-      expect(rows[1].craftable_item_id).toBe('item_y');
-      expect(rows[1].user_notes).toBe('');
-      expect(rows[1].status).toBe('in_progress');
-      expect(rows[1].version).toBe(1);
+      expect(rows).toHaveLength(4);
+      expect(rows.map((r) => r.id)).toEqual(['new1', 'new2', 'old1', 'old2']);
+      const inserted = rows.find((r) => r.id === 'new1');
+      expect(inserted.craftable_item_id).toBe('item_x');
+      expect(inserted.user_notes).toBe('New todo');
+      expect(inserted.status).toBe('pending');
+      expect(inserted.priority).toBe('high');
+      expect(inserted.version).toBe(1);
     });
 
-    it('replaces with an empty array (clears the table)', () => {
-      todos.replaceAllTodos(db, []);
+    it('does not delete existing rows when given an empty array', () => {
+      todos.mergeNewTodos(db, []);
 
       const count = db.prepare('SELECT COUNT(*) as c FROM todos').get().c;
-      expect(count).toBe(0);
+      expect(count).toBe(2);
+    });
+
+    it('ignores an incoming todo whose id already exists (never overwrites)', () => {
+      todos.mergeNewTodos(db, [
+        { id: 'old1', user_notes: 'Clobbered?', status: 'completed', priority: 'low' },
+      ]);
+
+      const row = db.prepare('SELECT * FROM todos WHERE id = ?').get('old1');
+      expect(row.user_notes).toBe('Old todo');
+      expect(row.status).toBe('pending');
     });
 
     it('is atomic — on failure, old rows remain', () => {
       // Provide a todo without an id to cause a NOT NULL violation
       expect(() => {
-        todos.replaceAllTodos(db, [
+        todos.mergeNewTodos(db, [
           { id: 'good1', user_notes: 'Good', status: 'pending', priority: 'medium' },
           { user_notes: 'Bad', status: 'pending', priority: 'medium' }, // missing id
         ]);
@@ -385,12 +391,12 @@ describe('sqlite-todos module', () => {
       expect(rows[1].id).toBe('old2');
     });
 
-    it('sets version=1 and timestamps for bulk-replaced rows', () => {
-      todos.replaceAllTodos(db, [
+    it('sets version=1 and timestamps for newly-inserted rows', () => {
+      todos.mergeNewTodos(db, [
         { id: 'r1', user_notes: 'Fresh', status: 'pending', priority: 'medium' },
       ]);
 
-      const row = db.prepare('SELECT * FROM todos').get();
+      const row = db.prepare('SELECT * FROM todos WHERE id = ?').get('r1');
       expect(row.version).toBe(1);
       expect(row.created_at).toBeTruthy();
       expect(row.updated_at).toBeTruthy();

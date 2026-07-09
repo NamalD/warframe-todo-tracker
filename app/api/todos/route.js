@@ -1,5 +1,5 @@
 import { getDb } from '../../../src/data/database.js';
-import { getAllTodos, replaceAllTodos, createTodo } from '../../../src/data/sqlite-todos.js';
+import { getAllTodos, mergeNewTodos, createTodo } from '../../../src/data/sqlite-todos.js';
 
 export async function GET() {
   try {
@@ -48,7 +48,10 @@ export async function PUT(request) {
       return Response.json({ error: 'Expected data to be an array of todos' }, { status: 400 });
     }
     const db = getDb();
-    replaceAllTodos(db, data);
+    // Merge (insert-if-new), never a destructive replace — see #14: a
+    // device's bulk push must not erase todos created on other devices.
+    // Edits to existing todos go through PATCH /api/todos/[id].
+    mergeNewTodos(db, data);
     return Response.json({ ok: true });
   } catch (err) {
     console.error(`[api/todos PUT] ${err.message}`);

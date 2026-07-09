@@ -346,70 +346,11 @@ describe('sqlite-materials module', () => {
     });
   });
 
-  // -----------------------------------------------------------------------
-  // replaceAllMaterials
-  // -----------------------------------------------------------------------
-
-  describe('replaceAllMaterials()', () => {
-    beforeEach(() => {
-      // Insert some existing rows
-      db.prepare(
-        "INSERT INTO materials_inventory (material_name, quantity, version, updated_at) VALUES (?, ?, ?, ?)"
-      ).run('Old Material', 100, 5, '2026-01-01T00:00:00Z');
-      db.prepare(
-        "INSERT INTO materials_inventory (material_name, quantity, version, updated_at) VALUES (?, ?, ?, ?)"
-      ).run('Another Old', 200, 3, '2026-01-02T00:00:00Z');
-    });
-
-    it('replaces all materials with a new inventory object', () => {
-      const inventory = {
-        'Polymer Bundle': 500,
-        'Nano Spores': 12000,
-      };
-
-      materials.replaceAllMaterials(db, inventory);
-
-      const result = materials.getAllMaterials(db);
-      expect(result).toEqual({
-        'Polymer Bundle': 500,
-        'Nano Spores': 12000,
-      });
-      expect(result['Old Material']).toBeUndefined();
-    });
-
-    it('clears all materials when given an empty object', () => {
-      materials.replaceAllMaterials(db, {});
-
-      const result = materials.getAllMaterials(db);
-      expect(result).toEqual({});
-    });
-
-    it('sets version=1 for all replaced materials', () => {
-      materials.replaceAllMaterials(db, { 'New Mat': 50 });
-
-      const row = db.prepare('SELECT * FROM materials_inventory').get();
-      expect(row.version).toBe(1);
-    });
-
-    it('is atomic — on failure, old rows remain', () => {
-      // Simulate a failure by passing a non-serializable argument
-      // (replaceAllMaterials doesn't have a validation-phase failure normally,
-      // so we just verify the transaction pattern works for valid data)
-      const inventory = { 'Replacement': 999 };
-      materials.replaceAllMaterials(db, inventory);
-
-      const rows = db.prepare('SELECT * FROM materials_inventory').all();
-      expect(rows).toHaveLength(1);
-      expect(rows[0].material_name).toBe('Replacement');
-    });
-
-    it('sets timestamps for bulk-replaced rows', () => {
-      materials.replaceAllMaterials(db, { 'Fresh Mat': 100 });
-
-      const row = db.prepare('SELECT * FROM materials_inventory').get();
-      expect(row.updated_at).toBeTruthy();
-    });
-  });
+  // Note: materials_inventory used to have a `replaceAllMaterials` destructive
+  // bulk-replace function (DELETE FROM + reinsert), removed per #14 — any
+  // device's bulk push would wipe out materials only set on other devices.
+  // The API route now uses `batchUpsert` (per-key merge, tested above)
+  // instead, which is safe by construction.
 
   // -----------------------------------------------------------------------
   // Integration scenarios
@@ -442,7 +383,7 @@ describe('sqlite-materials module', () => {
       expect(stale.serverVersion).toBe(2);
     });
 
-    it('supports batch upsert then replace all', () => {
+    it('supports batch upsert merging with existing entries', () => {
       materials.upsertMaterial(db, 'Initial', 10);
 
       materials.batchUpsert(db, [
@@ -456,8 +397,13 @@ describe('sqlite-materials module', () => {
         'Batch B': 200,
       });
 
-      materials.replaceAllMaterials(db, { 'Final': 999 });
-      expect(materials.getAllMaterials(db)).toEqual({ 'Final': 999 });
+      // A further batch upsert only touches the keys it mentions
+      materials.batchUpsert(db, [{ material_name: 'Batch A', quantity: 150 }]);
+      expect(materials.getAllMaterials(db)).toEqual({
+        'Initial': 10,
+        'Batch A': 150,
+        'Batch B': 200,
+      });
     });
 
     it('detects stale version after an upsert', () => {

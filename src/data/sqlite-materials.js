@@ -168,34 +168,3 @@ export function batchUpsert(db, entries) {
   return entries.map((e) => ({ material_name: e.material_name }));
 }
 
-/**
- * Atomically replace all materials with a new inventory object.
- *
- * Phase 1 bulk compat — no individual version checks. All rows are deleted
- * and the new set inserted in a single transaction. Each inserted row gets
- * version=1 and current timestamps.
- *
- * On failure, the transaction rolls back and old rows are preserved.
- *
- * @param {import('better-sqlite3').Database} db
- * @param {object} inventoryObj — key-value map like `{ "Polymer Bundle": 500, ... }`
- */
-export function replaceAllMaterials(db, inventoryObj) {
-  const now = new Date().toISOString();
-  const entries = Object.entries(inventoryObj);
-
-  const operation = db.transaction((items) => {
-    db.prepare('DELETE FROM materials_inventory').run();
-
-    const stmt = db.prepare(
-      `INSERT INTO materials_inventory (material_name, quantity, version, updated_at)
-       VALUES (?, ?, 1, ?)`
-    );
-
-    for (const [materialName, quantity] of items) {
-      stmt.run(materialName, quantity, now);
-    }
-  });
-
-  operation(entries);
-}

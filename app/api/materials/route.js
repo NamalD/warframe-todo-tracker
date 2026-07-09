@@ -1,5 +1,5 @@
 import { getDb } from '../../../src/data/database.js';
-import { getAllMaterials, replaceAllMaterials, upsertMaterialWithVersion } from '../../../src/data/sqlite-materials.js';
+import { getAllMaterials, batchUpsert, upsertMaterialWithVersion } from '../../../src/data/sqlite-materials.js';
 
 export async function GET() {
   try {
@@ -62,7 +62,10 @@ export async function PUT(request) {
       return Response.json({ error: 'Expected data to be an object (inventory map)' }, { status: 400 });
     }
     const db = getDb();
-    replaceAllMaterials(db, data);
+    // Merge (upsert per key), never a destructive replace — see #14: a
+    // device's bulk push must not erase materials only set on other devices.
+    const entries = Object.entries(data).map(([material_name, quantity]) => ({ material_name, quantity }));
+    batchUpsert(db, entries);
     return Response.json({ ok: true });
   } catch (err) {
     console.error(`[api/materials PUT] ${err.message}`);

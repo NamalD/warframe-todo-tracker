@@ -255,34 +255,36 @@ export function deleteTodo(db, id, clientVersion) {
 }
 
 /**
- * Atomically replace all todos with a new set.
+ * Merge a client's local todo list into the server, additively.
  *
- * Phase 1 bulk compat — no individual version checks. All rows are deleted
- * and the new set inserted in a single transaction. Each inserted row gets
- * version=1 and current timestamps.
- *
- * On failure, the transaction rolls back and old rows are preserved.
+ * This used to be a destructive `DELETE FROM todos` + reinsert (see #14):
+ * any device pushing its own local list would wipe out every todo created
+ * on other devices that this device hadn't seen yet. Instead, this only
+ * inserts todos the server doesn't already have (`INSERT OR IGNORE`) —
+ * existing rows are left untouched. Real edits to an existing todo must go
+ * through `updateTodo()`'s version-checked path (see `PATCH
+ * /api/todos/[id]`), and deletes through `deleteTodo()` (see `DELETE
+ * /api/todos/[id]`) — this bulk path cannot safely infer either from a
+ * client's local list alone.
  *
  * @param {import('better-sqlite3').Database} db
  * @param {Array<{ id: string, craftable_item_id?: string, linked_material_name?: string,
  *   user_notes?: string, status?: string, priority?: string, due_at?: string }>} todos
  */
-export function replaceAllTodos(db, todos) {
+export function mergeNewTodos(db, todos) {
   // Validate that every item has an id — SQLite allows NULL in TEXT PK,
-  // which would silently break the atomic-replace contract
+  // which would silently break the insert contract
   for (const item of todos) {
     if (!item.id) {
-      throw new Error(`replaceAllTodos: every item must have an id (missing in: ${JSON.stringify(item)})`);
+      throw new Error(`mergeNewTodos: every item must have an id (missing in: ${JSON.stringify(item)})`);
     }
   }
 
   const now = new Date().toISOString();
 
   const operation = db.transaction((items) => {
-    db.prepare('DELETE FROM todos').run();
-
     const stmt = db.prepare(
-      `INSERT INTO todos (id, craftable_item_id, linked_material_name, user_notes,
+      `INSERT OR IGNORE INTO todos (id, craftable_item_id, linked_material_name, user_notes,
                           status, priority, due_at, version, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
     );

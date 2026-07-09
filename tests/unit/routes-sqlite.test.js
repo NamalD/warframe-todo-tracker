@@ -1,11 +1,14 @@
 /**
- * Tests for SQLite-backed API routes (Phase 1 — bulk replace).
+ * Tests for SQLite-backed bulk-sync API routes.
  *
- * These tests verify that GET returns the full dataset and PUT replaces
- * it atomically. Version conflict resolution (409) was removed in Phase 1
- * — the routes now use SQLite CRUD modules directly with `replaceAll*`
- * functions. Validation of the { data, version } contract is preserved
- * for backward compatibility.
+ * These verify that GET returns the full dataset and PUT merges a client's
+ * local list additively (see #14 — this used to destructively replace the
+ * whole table, so any one device's push would erase records only known to
+ * other devices). PUT never deletes existing rows and never overwrites an
+ * existing row's data; real edits/deletes go through the per-record
+ * `/api/<domain>/[id]` routes instead. Validation of the { data, version }
+ * request contract is preserved for backward compatibility, though the
+ * bulk routes don't yet do per-item version conflict checking.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import fs from 'node:fs';
@@ -105,7 +108,7 @@ describe('PUT /api/loadouts', () => {
 
   it('accepts valid data and returns { ok: true }', async () => {
     const res = await PUT_loadouts(makeRequest({
-      data: [{ id: 'l1', name: 'First Loadout', slots: [] }],
+      data: [{ id: 'l1', name: 'First Loadout', slots: [{ id: 'l1-warframe', slot_type: 'warframe', item_id: null }] }],
       version: 0,
     }));
     const body = await res.json();
@@ -113,23 +116,28 @@ describe('PUT /api/loadouts', () => {
     expect(body).toEqual({ ok: true });
   });
 
-  it('persists written data on subsequent GET', async () => {
+  it('persists written data on subsequent GET, including slots (regression: previously always empty)', async () => {
     const getRes = await GET_loadouts();
     const getBody = await getRes.json();
     expect(getBody.data).toHaveLength(1);
     expect(getBody.data[0].id).toBe('l1');
     expect(getBody.data[0].name).toBe('First Loadout');
+    // loadout-repository.js reads `loadout.slots` directly (flat shape) —
+    // this used to always come back empty because the server stored the
+    // client's payload under a `data` key nobody read (see the loadout
+    // slots bug spotted mid-session).
+    expect(getBody.data[0].slots).toEqual([{ id: 'l1-warframe', slot_type: 'warframe', item_id: null }]);
   });
 
-  it('replaces all data on second write', async () => {
+  it('merges (adds) new data on second write, without deleting the first', async () => {
     await PUT_loadouts(makeRequest({
-      data: [{ id: 'l2', name: 'Replacement', slots: [] }],
+      data: [{ id: 'l2', name: 'Second Loadout', slots: [] }],
       version: 0,
     }));
     const getRes = await GET_loadouts();
     const getBody = await getRes.json();
-    expect(getBody.data).toHaveLength(1);
-    expect(getBody.data[0].id).toBe('l2');
+    expect(getBody.data).toHaveLength(2);
+    expect(getBody.data.map((l) => l.id).sort()).toEqual(['l1', 'l2']);
   });
 
   it('rejects request missing data field', async () => {
@@ -207,14 +215,14 @@ describe('PUT /api/materials', () => {
     expect(getBody.data).toEqual({ 'Polymer Bundle': 500, 'Nano Spores': 200 });
   });
 
-  it('replaces all materials on second write', async () => {
+  it('merges materials on second write, without deleting the first', async () => {
     await PUT_materials(makeRequest({
       data: { 'Ferrite': 999 },
       version: 0,
     }));
     const getRes = await GET_materials();
     const getBody = await getRes.json();
-    expect(getBody.data).toEqual({ Ferrite: 999 });
+    expect(getBody.data).toEqual({ 'Polymer Bundle': 500, 'Nano Spores': 200, Ferrite: 999 });
   });
 
   it('rejects non-object data', async () => {

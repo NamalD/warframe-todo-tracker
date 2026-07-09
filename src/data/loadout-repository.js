@@ -1,5 +1,5 @@
 'use client';
-import { pullFromServer, pushToServer } from './sync-helper.js';
+import { pullFromServer, pushToServer, deleteFromServer } from './sync-helper.js';
 
 const STORAGE_KEY = 'warframe-loadouts';
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
@@ -124,9 +124,16 @@ export default class LoadoutRepository {
   }
 
   deleteLoadout(id) {
+    const target = this.#data.loadouts.find((l) => l.id === id);
     const before = this.#data.loadouts.length;
     this.#data.loadouts = this.#data.loadouts.filter((l) => l.id !== id);
-    if (this.#data.loadouts.length !== before) { this.#persist(); return true; }
+    if (this.#data.loadouts.length !== before) {
+      this.#persistLocal();
+      // The bulk push (#persist) is an additive merge and can't propagate a
+      // delete (see #14) — tell the server directly instead.
+      this.#pendingSync = deleteFromServer('/api/loadouts', id, target?.version ?? 0, this.#onSyncEvent).catch(() => {});
+      return true;
+    }
     return false;
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { pullFromServer, pushToServer } from './sync-helper.js';
+import { pullFromServer, pushToServer, deleteFromServer } from './sync-helper.js';
 
 const STORAGE_KEY = 'warframe-todos';
 const ITEMS_CACHE_KEY = 'warframe-items-cache';
@@ -316,11 +316,14 @@ export default class Repository {
   }
 
   deleteTodo(id) {
+    const target = this.todos.find((t) => t.id === id);
     const before = this.todos.length;
     this.todos = this.todos.filter((t) => t.id !== id);
     if (this.todos.length !== before) {
       this.#persistTodos();
-      this.#syncTodosToServer();
+      // The bulk push (#syncTodosToServer) is an additive merge and can't
+      // propagate a delete (see #14) — tell the server directly instead.
+      this.#pendingSync = deleteFromServer('/api/todos', id, target?.version ?? 0, this.#onSyncEvent).catch(() => {});
       return true;
     }
     return false;

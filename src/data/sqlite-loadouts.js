@@ -209,38 +209,47 @@ export function deleteLoadout(db, id, clientVersion) {
 }
 
 /**
- * Atomically replace all loadouts with a new set.
+ * Merge a client's local loadout list into the server, additively.
  *
- * Phase 1 bulk compat — no individual version checks. All rows are deleted
- * and the new set inserted in a single transaction. Each inserted row gets
- * version=1 and current timestamps.
+ * This used to be a destructive `DELETE FROM loadouts` + reinsert (see #14):
+ * any device pushing its own local list would wipe out every loadout
+ * created on other devices that this device hadn't seen yet. Instead, this
+ * only inserts loadouts the server doesn't already have (`INSERT OR
+ * IGNORE`) — existing rows are left untouched. Real edits to an existing
+ * loadout must go through `updateLoadout()`'s version-checked path (see
+ * `PATCH /api/loadouts/[id]`), and deletes through `deleteLoadout()` (see
+ * `DELETE /api/loadouts/[id]`) — this bulk path cannot safely infer either
+ * from a client's local list alone.
  *
- * On failure, the transaction rolls back and old rows are preserved.
+ * Accepts either shape: an explicit `{ id, name, data }` (data nested
+ * already), or a flat client-model object (`{ id, name, slots, ... }`,
+ * matching loadout-repository.js's local model) — everything besides
+ * `id`/`name`/`created_at`/`updated_at` is stored as `data` in that case.
  *
  * @param {import('better-sqlite3').Database} db
- * @param {Array<{ id: string, name: string, data: object }>} loadouts
+ * @param {Array<{ id: string, name: string, data?: object }>} loadouts
  */
-export function replaceAllLoadouts(db, loadouts) {
+export function mergeNewLoadouts(db, loadouts) {
   // Validate that every item has an id — SQLite allows NULL in TEXT PK,
-  // which would silently break the atomic-replace contract
+  // which would silently break the insert contract
   for (const item of loadouts) {
     if (!item.id) {
-      throw new Error(`replaceAllLoadouts: every item must have an id (missing in: ${JSON.stringify(item)})`);
+      throw new Error(`mergeNewLoadouts: every item must have an id (missing in: ${JSON.stringify(item)})`);
     }
   }
 
   const now = new Date().toISOString();
 
   const operation = db.transaction((items) => {
-    db.prepare('DELETE FROM loadouts').run();
-
     const stmt = db.prepare(
-      `INSERT INTO loadouts (id, name, data, version, created_at, updated_at)
+      `INSERT OR IGNORE INTO loadouts (id, name, data, version, created_at, updated_at)
        VALUES (?, ?, ?, 1, ?, ?)`
     );
 
     for (const item of items) {
-      stmt.run(item.id, item.name || '', serializeData(item.data || {}), now, now);
+      const { id, name, created_at, updated_at, data, ...rest } = item;
+      const itemData = 'data' in item ? (data || {}) : rest;
+      stmt.run(id, name || '', serializeData(itemData), now, now);
     }
   });
 

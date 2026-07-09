@@ -259,10 +259,10 @@ describe('sqlite-loadouts module', () => {
   });
 
   // -----------------------------------------------------------------------
-  // replaceAllLoadouts
+  // mergeNewLoadouts
   // -----------------------------------------------------------------------
 
-  describe('replaceAllLoadouts()', () => {
+  describe('mergeNewLoadouts()', () => {
     beforeEach(() => {
       // Insert some existing loadouts
       db.prepare(
@@ -273,61 +273,91 @@ describe('sqlite-loadouts module', () => {
       ).run('old2', 'Another Old', JSON.stringify({ slots: [{ name: 'Vintage' }] }));
     });
 
-    it('replaces all rows with the new loadouts', () => {
+    it('inserts new loadouts without touching existing rows (see #14)', () => {
       const newLoadouts = [
         { id: 'new1', name: 'New Build', data: { slots: [{ name: 'Primary' }] } },
         { id: 'new2', name: 'Another New', data: { slots: [{ name: 'Secondary' }] } },
       ];
 
-      loadouts.replaceAllLoadouts(db, newLoadouts);
+      loadouts.mergeNewLoadouts(db, newLoadouts);
 
       const rows = db.prepare('SELECT * FROM loadouts ORDER BY id').all();
-      expect(rows).toHaveLength(2);
-      expect(rows[0].id).toBe('new1');
-      expect(rows[0].name).toBe('New Build');
-      expect(rows[0].version).toBe(1);
-      expect(rows[1].id).toBe('new2');
-      expect(rows[1].name).toBe('Another New');
+      expect(rows).toHaveLength(4);
+      expect(rows.map((r) => r.id)).toEqual(['new1', 'new2', 'old1', 'old2']);
+      const inserted = rows.find((r) => r.id === 'new1');
+      expect(inserted.name).toBe('New Build');
+      expect(inserted.version).toBe(1);
     });
 
-    it('replaces with an empty array (clears the table)', () => {
-      loadouts.replaceAllLoadouts(db, []);
+    it('does not delete existing rows when given an empty array', () => {
+      loadouts.mergeNewLoadouts(db, []);
 
       const count = db.prepare('SELECT COUNT(*) as c FROM loadouts').get().c;
-      expect(count).toBe(0);
+      expect(count).toBe(2);
+    });
+
+    it('accepts the client\'s flat local-model shape (no explicit .data key)', () => {
+      // loadout-repository.js's actual local model has no `.data` wrapper —
+      // slots live at the top level. Everything but id/name/timestamps
+      // should be captured into the stored `data` blob.
+      loadouts.mergeNewLoadouts(db, [
+        {
+          id: 'flat1',
+          name: 'Flat Shape Loadout',
+          created_at: '2026-02-01T00:00:00Z',
+          updated_at: '2026-02-02T00:00:00Z',
+          slots: [{ id: 'flat1-warframe', slot_type: 'warframe', item_id: null }],
+        },
+      ]);
+
+      const row = db.prepare('SELECT * FROM loadouts WHERE id = ?').get('flat1');
+      expect(JSON.parse(row.data)).toEqual({
+        slots: [{ id: 'flat1-warframe', slot_type: 'warframe', item_id: null }],
+      });
+    });
+
+    it('ignores an incoming loadout whose id already exists (never overwrites)', () => {
+      loadouts.mergeNewLoadouts(db, [
+        { id: 'old1', name: 'Clobbered?', data: { slots: [{ name: 'New Data' }] } },
+      ]);
+
+      const row = db.prepare('SELECT * FROM loadouts WHERE id = ?').get('old1');
+      expect(row.name).toBe('Old Build');
+      expect(JSON.parse(row.data)).toEqual({ slots: [{ name: 'Old' }] });
     });
 
     it('is atomic — on failure, old rows remain', () => {
       // Provide a loadout without an id to cause a NOT NULL violation
       expect(() => {
-        loadouts.replaceAllLoadouts(db, [
+        loadouts.mergeNewLoadouts(db, [
           { id: 'good1', name: 'Good', data: {} },
           { name: 'Bad', data: {} }, // missing id
         ]);
       }).toThrow();
 
-      // Old rows should still be there
+      // Old rows should still be there, and the valid new row shouldn't have
+      // been partially committed either (whole transaction rolls back)
       const rows = db.prepare('SELECT * FROM loadouts ORDER BY id').all();
       expect(rows).toHaveLength(2);
       expect(rows[0].id).toBe('old1');
       expect(rows[1].id).toBe('old2');
     });
 
-    it('stores data as parseable JSON after replace', () => {
-      loadouts.replaceAllLoadouts(db, [
-        { id: 'r1', name: 'Replace Test', data: { nested: { value: 42 } } },
+    it('stores data as parseable JSON for newly-inserted rows', () => {
+      loadouts.mergeNewLoadouts(db, [
+        { id: 'r1', name: 'Merge Test', data: { nested: { value: 42 } } },
       ]);
 
-      const row = db.prepare('SELECT data FROM loadouts').get();
+      const row = db.prepare('SELECT data FROM loadouts WHERE id = ?').get('r1');
       expect(JSON.parse(row.data)).toEqual({ nested: { value: 42 } });
     });
 
-    it('sets version=1 and timestamps for bulk-replaced rows', () => {
-      loadouts.replaceAllLoadouts(db, [
+    it('sets version=1 and timestamps for newly-inserted rows', () => {
+      loadouts.mergeNewLoadouts(db, [
         { id: 'r1', name: 'Fresh', data: {} },
       ]);
 
-      const row = db.prepare('SELECT * FROM loadouts').get();
+      const row = db.prepare('SELECT * FROM loadouts WHERE id = ?').get('r1');
       expect(row.version).toBe(1);
       expect(row.created_at).toBeTruthy();
       expect(row.updated_at).toBeTruthy();
