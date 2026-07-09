@@ -41,3 +41,7 @@ If an issue is missing any of this, fill in what can be confidently inferred fro
 - `Todo`: automatic when an issue is added to the board.
 - `In Progress`: set manually when development starts (no assignee needed).
 - `Done`: automatic — closing the issue (via a `Closes #N` commit, see above) triggers the board's built-in workflow to move the card and close the issue. No manual card move needed.
+
+## Auto-deploy on issue close
+
+This repo's local checkout has `core.hooksPath` set to `scripts/git-hooks/` (tracked in git, so it survives re-clones). The `post-commit` and `post-merge` hooks there scan new commit message(s) on `main` for GitHub issue-closing keywords (`Closes #N`, `Fixes #N`, `Resolves #N`); if found, they run `docker compose build app && docker compose up -d app` and health-check `https://warframe.namal.dev`, logging to `~/warframe-deploy.log`. Commits that don't close an issue are a no-op — this isn't continuous deployment on every push, only on issue completion. Re-run `git config core.hooksPath scripts/git-hooks` after a fresh clone if hooks aren't firing.
