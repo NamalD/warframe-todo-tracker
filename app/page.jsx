@@ -35,7 +35,10 @@ function Home() {
             matMap[key] = { name: m.material_name, quantity: 0, items: [] };
           }
           matMap[key].quantity += m.quantity_required;
-          matMap[key].items.push(m.is_incarnon_install ? `${item.name} (Incarnon Install)` : item.name);
+          matMap[key].items.push({
+            id: item.id,
+            label: m.is_incarnon_install ? `${item.name} (Incarnon Install)` : item.name,
+          });
         }
       }
       setMaterialsList(
@@ -206,9 +209,9 @@ function Home() {
                     <span className="badge">{mat.items.length} item{mat.items.length > 1 ? 's' : ''}</span>
                   </div>
                   <div style={{ marginTop: 8 }}>
-                    {mat.items.map((itemName) => (
-                      <div key={itemName} style={{ fontSize: 13, color: '#b6bcc7' }}>
-                        {itemName}
+                    {mat.items.map((it) => (
+                      <div key={`${it.id}::${it.label}`} style={{ fontSize: 13 }}>
+                        <Link href={`/items/${it.id}`}>{it.label}</Link>
                       </div>
                     ))}
                   </div>

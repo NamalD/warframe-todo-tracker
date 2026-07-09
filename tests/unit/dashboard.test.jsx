@@ -228,6 +228,23 @@ describe('Dashboard', () => {
     expect(circuitsCard.textContent).toContain('Mesa');
   });
 
+  it('links each item name in Materials Needed to its item page', async () => {
+    render(React.createElement(Home));
+
+    await waitFor(() => {
+      expect(screen.getByText('Circuits')).toBeInTheDocument();
+    });
+
+    const circuitsCard = screen.getByText('Circuits').closest('.card');
+    const excaliburLink = within(circuitsCard).getByText('Excalibur');
+    expect(excaliburLink.tagName).toBe('A');
+    expect(excaliburLink.getAttribute('href')).toBe('/items/item-1');
+
+    const mesaLink = within(circuitsCard).getByText('Mesa');
+    expect(mesaLink.tagName).toBe('A');
+    expect(mesaLink.getAttribute('href')).toBe('/items/item-2');
+  });
+
   // ── Conditional rendering tests ────────────────────────────────
 
   it('hides todos card when there are no todos', async () => {
