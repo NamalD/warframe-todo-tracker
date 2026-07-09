@@ -51,9 +51,8 @@ export default class Repository {
         if (Array.isArray(serverData) && serverData.length > 0) {
           this.todos = serverData;
         } else {
-          // Server empty — use seed data and push it
+          // Server empty — use seed data locally without pushing
           this.todos = [...SEED_TODOS];
-          this.#pushTodos().catch(() => {});
         }
       } else {
         this.todos = [...SEED_TODOS];

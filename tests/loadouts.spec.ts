@@ -7,17 +7,39 @@ async function selectSearchableOption(page, placeholder, optionLabel) {
   const input = page.getByPlaceholder(placeholder);
   await input.click();
   await input.fill(optionLabel);
-  // Wait for dropdown to appear with filtered options
   await page.waitForTimeout(300);
-  // Click the option by text inside the dropdown only (exact match to
-  // avoid partial matches like "Acceltra" vs "Acceltra Prime")
   const dropdown = page.locator('[style*="position: absolute"][style*="z-index: 10"]');
   await dropdown.getByText(optionLabel, { exact: true }).click();
   await page.waitForTimeout(200);
 }
 
+/**
+ * Intercept all /api/loadouts calls so test data never hits the real server DB.
+ * GET returns localStorage content (or empty), mutations are swallowed.
+ */
+async function interceptLoadoutsApi(page) {
+  await page.route(/\/api\/loadouts/, async (route) => {
+    const method = route.request().method();
+    if (method === 'GET') {
+      const raw = await page.evaluate(() => localStorage.getItem('warframe-loadouts'));
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          const loadouts = parsed.loadouts || parsed || [];
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: loadouts }) });
+          return;
+        } catch {}
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+    } else {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+    }
+  });
+}
+
 test.describe('Loadouts list page', () => {
   test.beforeEach(async ({ page }) => {
+    await interceptLoadoutsApi(page);
     await page.goto('/loadouts');
     await page.waitForTimeout(300);
   });
@@ -28,15 +50,8 @@ test.describe('Loadouts list page', () => {
     });
 
     test('shows empty state when no loadouts exist', async ({ page }) => {
-      // Clear localStorage to ensure no loadouts
-      await page.evaluate(() => localStorage.removeItem('warframe-loadouts'));
-      await page.reload();
-      await page.waitForTimeout(300);
-
       const emptyState = page.locator('.empty-state');
-      if (await emptyState.count() > 0) {
-        await expect(emptyState).toContainText('No loadouts yet');
-      }
+      await expect(emptyState).toContainText('No loadouts yet');
     });
 
     test('shows filter buttons', async ({ page }) => {
@@ -48,41 +63,27 @@ test.describe('Loadouts list page', () => {
 
   test.describe('create loadout', () => {
     test('can create a new loadout', async ({ page }) => {
-      // Clear existing
-      await page.evaluate(() => localStorage.removeItem('warframe-loadouts'));
-      await page.reload();
-      await page.waitForTimeout(300);
-
       await page.getByRole('button', { name: '+ New Loadout' }).click();
       await page.getByPlaceholder('Loadout name').fill('Test Loadout');
       await page.getByRole('button', { name: 'Create' }).click();
       await page.waitForTimeout(300);
-
-      // Should see the new loadout card
       await expect(page.locator('text=Test Loadout').first()).toBeVisible();
     });
 
     test('empty name does not create loadout', async ({ page }) => {
       await page.getByRole('button', { name: '+ New Loadout' }).click();
       await page.getByRole('button', { name: 'Create' }).click();
-      // Form should stay open
       await expect(page.getByPlaceholder('Loadout name')).toBeVisible();
     });
   });
 
   test.describe('delete loadout', () => {
     test('deleting loadout shows confirm dialog', async ({ page }) => {
-      // First create a loadout
-      await page.evaluate(() => localStorage.removeItem('warframe-loadouts'));
-      await page.reload();
-      await page.waitForTimeout(300);
-
       await page.getByRole('button', { name: '+ New Loadout' }).click();
       await page.getByPlaceholder('Loadout name').fill('To Delete');
       await page.getByRole('button', { name: 'Create' }).click();
       await page.waitForTimeout(300);
 
-      // Dialog should appear on delete
       page.on('dialog', async (dialog) => {
         expect(dialog.message()).toContain('Delete');
         await dialog.accept();
@@ -95,17 +96,11 @@ test.describe('Loadouts list page', () => {
 
   test.describe('navigation', () => {
     test('clicking Open navigates to loadout detail', async ({ page }) => {
-      await page.evaluate(() => localStorage.removeItem('warframe-loadouts'));
-      await page.reload();
-      await page.waitForTimeout(300);
-
       await page.getByRole('button', { name: '+ New Loadout' }).click();
       await page.getByPlaceholder('Loadout name').fill('Nav Test');
       await page.getByRole('button', { name: 'Create' }).click();
       await page.waitForTimeout(300);
 
-      // Use .first() because the shared dev DB may have leftover loadouts
-      // from prior test runs with the same name
       await page.getByRole('link', { name: 'Nav Test' }).first().click();
       await expect(page).toHaveURL(/\/loadouts\/loadout-/);
     });
@@ -144,14 +139,9 @@ const TEST_LOADOUT = {
 
 test.describe('Loadout detail page', () => {
   test.beforeEach(async ({ page }) => {
-    // The page's mount effect calls loadoutRepo.syncFromServer() first,
-    // which is authoritative and would otherwise overwrite whatever's
-    // seeded into localStorage with whatever's actually in the
-    // (persistent, shared) dev server's SQLite DB — see #13. Intercept the
-    // sync pull to echo back localStorage's current content instead of
-    // hitting the real API, so any test-specific seed (set via
-    // page.evaluate before/after this point) round-trips unchanged.
-    await page.route('**/api/loadouts', async (route) => {
+    // Intercept all loadout API calls so test data doesn't hit the DB.
+    // GET echoes back localStorage content; mutations are swallowed.
+    await page.route(/\/api\/loadouts/, async (route) => {
       if (route.request().method() === 'GET') {
         const loadouts = await page.evaluate(() => {
           try {
@@ -220,8 +210,6 @@ test.describe('Loadout detail page', () => {
     });
 
     test('clicking expand reveals requirements', async ({ page }) => {
-      // Populated slots' requirements start expanded by default — no click
-      // needed (clicking would collapse it instead).
       await expect(page.locator('text=Test Requirement')).toBeVisible();
     });
 
@@ -263,11 +251,7 @@ test.describe('Loadout detail page', () => {
       page.on('dialog', async (dialog) => await dialog.accept());
       await page.locator('button:has-text("Delete Slot")').click();
       await page.waitForTimeout(300);
-      // Delete Slot clears the slot's content in place (the loadout
-      // always has a fixed set of 7 slots, one per type — see
-      // createLoadout in loadout-repository.js). Assert the slot card
-      // shows its empty-state placeholder.
-      await expect(page.locator('text=Empty slot — click to populate')).toBeVisible();
+      await expect(page.locator("text=Empty slot \u2014 click to populate")).toBeVisible();
     });
 
     test('delete loadout navigates back to list', async ({ page }) => {
@@ -280,13 +264,6 @@ test.describe('Loadout detail page', () => {
 
   test.describe('duplicate handling', () => {
     test('adding duplicate item shows alert', async ({ page }) => {
-      // There's no standalone "+ Add Slot" button — loadouts have a fixed
-      // set of slot types, each populated in place by clicking it. The
-      // item dropdown is also filtered by slot type (see
-      // SLOT_TYPE_TO_ITEM_TYPE), except for slot types with no mapping
-      // (companion/archwing/other), which show every item unfiltered —
-      // that's the only way to reach the cross-slot duplicate check, so
-      // seed a second, empty "other" slot to populate with the already-used item.
       await page.evaluate((loadout) => {
         const withExtraSlot = {
           ...loadout,
@@ -310,10 +287,8 @@ test.describe('Loadout detail page', () => {
       await page.reload();
       await page.waitForTimeout(300);
 
-      await page.getByText('Empty slot — click to populate').click();
+      await page.getByText("Empty slot \u2014 click to populate").click();
       await page.waitForTimeout(200);
-      // SearchableSelect: type the item name and pick from autocomplete
-      // item-1 in the wfcd cache is Acceltra — use name for the autocomplete search
       await selectSearchableOption(page, 'Select item...', 'Acceltra');
 
       let dialogMessage = '';
@@ -341,9 +316,6 @@ test.describe('Loadout detail page', () => {
     });
 
     test('checkboxes have 44px touch targets', async ({ page }) => {
-      // The 44px touch-target sizing only applies within the mobile media
-      // query (@media max-width: 640px) — this must run at a mobile
-      // viewport, same as the sibling test above.
       await page.setViewportSize({ width: 375, height: 812 });
       await page.waitForTimeout(300);
 
