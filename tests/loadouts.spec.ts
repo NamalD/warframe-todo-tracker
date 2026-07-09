@@ -1,5 +1,21 @@
 import { test, expect } from '@playwright/test';
 
+/**
+ * Select an option in a SearchableSelect by typing to filter then clicking.
+ */
+async function selectSearchableOption(page, placeholder, optionLabel) {
+  const input = page.getByPlaceholder(placeholder);
+  await input.click();
+  await input.fill(optionLabel);
+  // Wait for dropdown to appear with filtered options
+  await page.waitForTimeout(300);
+  // Click the option by text inside the dropdown only (exact match to
+  // avoid partial matches like "Acceltra" vs "Acceltra Prime")
+  const dropdown = page.locator('[style*="position: absolute"][style*="z-index: 10"]');
+  await dropdown.getByText(optionLabel, { exact: true }).click();
+  await page.waitForTimeout(200);
+}
+
 test.describe('Loadouts list page', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/loadouts');
@@ -295,8 +311,10 @@ test.describe('Loadout detail page', () => {
       await page.waitForTimeout(300);
 
       await page.getByText('Empty slot — click to populate').click();
-      // Try to add the same item already used in the warframe slot (item-1 = Excalibur)
-      await page.locator('select').selectOption('item-1');
+      await page.waitForTimeout(200);
+      // SearchableSelect: type the item name and pick from autocomplete
+      // item-1 in the wfcd cache is Acceltra — use name for the autocomplete search
+      await selectSearchableOption(page, 'Select item...', 'Acceltra');
 
       let dialogMessage = '';
       page.on('dialog', async (dialog) => {

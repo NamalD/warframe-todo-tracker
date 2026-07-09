@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import loadoutStore from '../../../src/data/loadout-store.js';
 import repo from '../../../src/data/store.js';
-import RequirementCombobox from './requirement-combobox.jsx';
+import RequirementCombobox from './requirement-combobox';
+import SearchableSelect from '../../components/searchable-select';
 import { getOptionsForSlot } from '../../../src/data/requirement-options.js';
 
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
@@ -277,7 +278,7 @@ function LoadoutDetailInner() {
 
         // ── Populated or populating slot card ──
         return (
-          <div className={`card slot-card${slot.acquired ? ' slot-acquired' : ''}`} key={slot.id}>
+          <div className={`card slot-card${slot.acquired && reqs.every(r => r.acquired) ? ' slot-acquired' : ''}`} key={slot.id}>
             {/* Slot header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 8 }}>
               <div style={{ flex: 1, minWidth: 200 }}>
@@ -299,19 +300,17 @@ function LoadoutDetailInner() {
                 <div style={{ marginTop: 6, fontWeight: 600, fontSize: 15 }}>
                   {isPopulating ? (
                     <div className="populate-form" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <select
+                      <SearchableSelect
                         value={populateForm.item_id}
-                        onChange={(e) => setPopulateForm({ ...populateForm, item_id: e.target.value, custom_item_name: '' })}
-                        style={{ minWidth: 160 }}
-                      >
-                        <option value="">Select item...</option>
-                        {(SLOT_TYPE_TO_ITEM_TYPE[slot.slot_type]
+                        onChange={(val) => setPopulateForm({ ...populateForm, item_id: val, custom_item_name: '' })}
+                        options={(SLOT_TYPE_TO_ITEM_TYPE[slot.slot_type]
                           ? items.filter(it => it.item_type === SLOT_TYPE_TO_ITEM_TYPE[slot.slot_type])
                           : items
-                        ).map((it) => (
-                          <option key={it.id} value={it.id}>{it.name}</option>
-                        ))}
-                      </select>
+                        ).map(it => ({ value: it.id, label: it.name }))}
+                        placeholder="Select item..."
+                        allowCustom={false}
+                        style={{ minWidth: 160 }}
+                      />
                       <input
                         type="text"
                         placeholder="Or type custom name..."
