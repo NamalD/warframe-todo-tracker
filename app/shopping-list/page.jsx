@@ -216,18 +216,27 @@ function ShoppingList() {
                     {m.needed.toLocaleString()}
                   </td>
                   <td>
-                    <input
-                      className="owned-input"
-                      type="number"
-                      min="0"
-                      value={m.owned}
-                      onChange={(e) => handleOwnedChange(m.name, e.target.value)}
-                      aria-label={`Owned quantity for ${m.name}`}
-                      style={{
-                        color: m.done ? '#6fcf97' : '#e7e9ee',
-                        borderColor: m.done ? '#2a4a2a' : undefined
-                      }}
-                    />
+                    {m.needed === 1 ? (
+                      <input
+                        type="checkbox"
+                        checked={m.owned >= 1}
+                        onChange={(e) => handleOwnedChange(m.name, e.target.checked ? 1 : 0)}
+                        aria-label={`Owned quantity for ${m.name}`}
+                      />
+                    ) : (
+                      <input
+                        className="owned-input"
+                        type="number"
+                        min="0"
+                        value={m.owned}
+                        onChange={(e) => handleOwnedChange(m.name, e.target.value)}
+                        aria-label={`Owned quantity for ${m.name}`}
+                        style={{
+                          color: m.done ? '#6fcf97' : '#e7e9ee',
+                          borderColor: m.done ? '#2a4a2a' : undefined
+                        }}
+                      />
+                    )}
                   </td>
                   <td
                     style={{
