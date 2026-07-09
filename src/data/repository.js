@@ -63,7 +63,8 @@ export default class Repository {
       } else {
         this.todos = [...SEED_TODOS];
       }
-    } catch {
+    } catch (err) {
+      console.warn('Repository initTodos failed:', err);
       this.todos = [...SEED_TODOS];
     }
   }
