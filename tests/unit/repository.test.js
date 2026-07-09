@@ -445,6 +445,45 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       expect(cached.items.length).toBe(5);
     });
 
+    it('re-fetches on schemaVersion mismatch even when the package version matches (#18)', async () => {
+      const fetchMock1 = mockFetchOk(FIXTURE_CACHE);
+      const repo1 = await newRepo(fetchMock1);
+      await repo1.getAllItems();
+
+      // Simulate an existing cache from before a prebuild.mjs shape change —
+      // same @wfcd/items version, no schemaVersion field (or an older one).
+      const staleCache = {
+        version: MOCK_CACHE_VERSION,
+        cachedAt: '2025-01-01T00:00:00Z',
+        items: [...FIXTURE_CACHE.items],
+        materials: [...FIXTURE_CACHE.materials],
+        treeRelationships: [...FIXTURE_CACHE.treeRelationships],
+      };
+      localStorage.setItem('warframe-items-cache', JSON.stringify(staleCache));
+
+      const NEW_FIELD_ITEM = {
+        ...FIXTURE_CACHE.items[0],
+        has_incarnon_genesis: true,
+      };
+      const newCache = {
+        ...FIXTURE_CACHE,
+        schemaVersion: 2,
+        items: [NEW_FIELD_ITEM, ...FIXTURE_CACHE.items.slice(1)],
+      };
+
+      const fetchMock2 = mockFetchOk(newCache);
+      const repo2 = await newRepo(fetchMock2);
+      const items = await repo2.getAllItems();
+
+      // Same package version as the stale cache, but schemaVersion differs —
+      // must re-fetch rather than silently reuse the shape-stale cache.
+      expect(fetchMock2).toHaveBeenCalledTimes(1);
+      expect(items[0].has_incarnon_genesis).toBe(true);
+
+      const cached = JSON.parse(localStorage.getItem('warframe-items-cache'));
+      expect(cached.schemaVersion).toBe(2);
+    });
+
     it('uses localStorage cache when no fetch is available (offline fallback)', async () => {
       const fetchMock = mockFetchFail(500);
       vi.stubGlobal('fetch', fetchMock);

@@ -47,7 +47,10 @@ export default class ModRepository {
       if (cachedRaw) {
         try {
           const cached = JSON.parse(cachedRaw);
-          if (cached.version === fetched.version && Array.isArray(cached.mods)) {
+          // Also gate on schemaVersion (see #18) — the @wfcd/items package
+          // version alone doesn't change when prebuild.mjs's output shape
+          // does, which previously left existing caches silently stale.
+          if (cached.version === fetched.version && cached.schemaVersion === fetched.schemaVersion && Array.isArray(cached.mods)) {
             this.#mods = cached.mods;
             return;
           }
@@ -60,6 +63,7 @@ export default class ModRepository {
       this.#mods = Array.isArray(fetched.mods) ? fetched.mods : [];
       localStorage.setItem(MODS_CACHE_KEY, JSON.stringify({
         version: fetched.version,
+        schemaVersion: fetched.schemaVersion,
         cachedAt: fetched.cachedAt,
         mods: this.#mods,
       }));

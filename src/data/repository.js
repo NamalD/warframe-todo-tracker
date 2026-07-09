@@ -94,7 +94,10 @@ export default class Repository {
         if (cachedRaw) {
           try {
             const cached = JSON.parse(cachedRaw);
-            if (cached.version === fetched.version && cached.items) {
+            // Also gate on schemaVersion (see #18) — the @wfcd/items package
+            // version alone doesn't change when prebuild.mjs's output shape
+            // does, which previously left existing caches silently stale.
+            if (cached.version === fetched.version && cached.schemaVersion === fetched.schemaVersion && cached.items) {
               this.items = cached.items;
               this.materials = cached.materials || [];
               this.treeRelationships = cached.treeRelationships || [];
@@ -113,6 +116,7 @@ export default class Repository {
       if (typeof window !== 'undefined') {
         localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify({
           version: fetched.version,
+          schemaVersion: fetched.schemaVersion,
           cachedAt: fetched.cachedAt,
           items: fetched.items,
           materials: fetched.materials,

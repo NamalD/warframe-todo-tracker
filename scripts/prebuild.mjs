@@ -19,6 +19,16 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
+/**
+ * Bump whenever this script's *output shape* changes (new fields on items/
+ * materials, new top-level keys, etc.) — independent of the @wfcd/items
+ * package version. The client (repository.js) only trusts its localStorage
+ * cache when both this and the package version match (see #18: a shape
+ * change with no package bump previously went unnoticed by any existing
+ * cache, silently hiding new fields from returning users).
+ */
+const SCHEMA_VERSION = 2;
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 /** Derive blueprint_source from item heuristics (see spec §4.2) */
@@ -524,6 +534,7 @@ async function main() {
   // ── Write output ────────────────────────────────────────────────
   const output = {
     version,
+    schemaVersion: SCHEMA_VERSION,
     cachedAt: new Date().toISOString(),
     items,
     materials,
@@ -583,6 +594,7 @@ async function main() {
 
   const modsOutput = {
     version,
+    schemaVersion: SCHEMA_VERSION,
     cachedAt: new Date().toISOString(),
     mods,
   };

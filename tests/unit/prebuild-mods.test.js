@@ -24,8 +24,9 @@ describe('mods-cache.json (prebuild output)', () => {
     return;
   }
 
-  it('has version, cachedAt, and mods keys', () => {
+  it('has version, schemaVersion, cachedAt, and mods keys', () => {
     expect(data).toHaveProperty('version');
+    expect(data).toHaveProperty('schemaVersion');
     expect(data).toHaveProperty('cachedAt');
     expect(data).toHaveProperty('mods');
   });

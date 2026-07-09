@@ -124,6 +124,29 @@ describe('ModRepository', () => {
       expect(fetch).toHaveBeenCalledTimes(1);
     });
 
+    it('re-fetches on schemaVersion mismatch even when the package version matches (#18)', async () => {
+      // Same @wfcd/items version as the fresh fetch, but no schemaVersion —
+      // simulates a cache written before a prebuild.mjs shape change.
+      localStorage.setItem('warframe-mods-cache', JSON.stringify({
+        version: CACHE_VERSION,
+        cachedAt: '2026-01-01T00:00:00Z',
+        mods: [],
+      }));
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ...createMockCache(), schemaVersion: 2 }),
+      });
+
+      const repo = new ModRepository();
+      const mods = await repo.getMods();
+      expect(mods.length).toBe(3);
+      expect(fetch).toHaveBeenCalledTimes(1);
+
+      const cached = JSON.parse(localStorage.getItem('warframe-mods-cache'));
+      expect(cached.schemaVersion).toBe(2);
+    });
+
     it('uses cached data on network error', async () => {
       // Pre-populate cache
       localStorage.setItem('warframe-mods-cache', JSON.stringify({
