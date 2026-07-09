@@ -57,6 +57,15 @@ function SourcesInner() {
             <Link href={`/sources?material=${encodeURIComponent(mat)}`} style={{ color: 'inherit' }}>
               {mat}
             </Link>
+            {' '}
+            <a
+              href={`https://wiki.warframe.com/w/${encodeURIComponent(mat.replace(/ /g, '_'))}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ fontSize: 12 }}
+            >
+              wiki &rarr;
+            </a>
           </h2>
           <table>
             <thead>

@@ -8,6 +8,7 @@ function ShoppingList() {
   const [materials, setMaterials] = useState([]);
   const [owned, setOwned] = useState({});
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('deficit');
 
   useEffect(() => {
     async function load() {
@@ -90,6 +91,14 @@ function ShoppingList() {
             Aggregated materials needed across all tracked items
           </span>
         </div>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          style={{ padding: '4px 8px', borderRadius: 4, background: '#1a1f2e', color: '#e7e9ee', border: '1px solid #2e3440' }}
+        >
+          <option value="deficit">Most needed</option>
+          <option value="name">A-Z</option>
+        </select>
       </div>
 
       {/* Summary cards */}
