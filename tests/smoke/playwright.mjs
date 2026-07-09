@@ -90,8 +90,8 @@ async function testItemsList() {
 async function testItemDetail() {
   console.log('═══ Item Detail ═══');
 
-  // BUG: This page crashes due to Link import from wrong package.
-  // We test that the critical error is present, then skip dependent checks.
+  // Item detail page — verifies the page renders without crashing
+  // (previously had a Link import bug, now fixed).
   await page.goto(`${BASE}/items/item-1`, { waitUntil: 'networkidle' });
 
   // Wait and check if the page rendered the detail view or crashed

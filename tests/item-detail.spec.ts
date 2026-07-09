@@ -108,9 +108,9 @@ test.describe('Item detail page', () => {
     await expect(link).toBeVisible();
   });
 
-  test.fixme('item detail page does not crash with React error #130', async ({ page }) => {
-    // Known fixme: this page may crash depending on Link import path
-    // Remove fixme once the regression in playwright.mjs is resolved
+  test('item detail page does not crash with React error #130', async ({ page }) => {
+    // This was a known crash caused by Link imported from next/navigation instead
+    // of next/link — fixed, the page renders correctly now.
     await expect(page.locator('main')).toBeVisible();
   });
 });
