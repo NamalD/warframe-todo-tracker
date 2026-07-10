@@ -1,0 +1,27 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          corepack enable
+          yarn install --immutable
+
+      - name: Run unit tests
+        run: yarn vitest run
+
+      - name: Run prebuild schema test
+        run: node scripts/prebuild.mjs && yarn vitest run tests/unit/prebuild-schema.test.js tests/unit/prebuild-incarnon.test.js tests/unit/prebuild-mods.test.js
