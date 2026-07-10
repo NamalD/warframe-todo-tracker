@@ -155,4 +155,138 @@ describe('ItemsList', () => {
     expect(screen.getByText('Rubico Prime')).toBeInTheDocument();
     expect(screen.queryByText('Excalibur')).not.toBeInTheDocument();
   });
+
+  // Category filter tests
+  it('renders category pill buttons for all distinct item types', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('category-btn-warframe')).toBeInTheDocument();
+    expect(screen.getByTestId('category-btn-melee')).toBeInTheDocument();
+    expect(screen.getByTestId('category-btn-primary')).toBeInTheDocument();
+    expect(screen.getByTestId('category-btn-companion')).toBeInTheDocument();
+  });
+
+  it('filters items by a single category', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+
+    // Uncheck tracked-only so we see all items first
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(screen.getByText('Mesa')).toBeInTheDocument();
+    expect(screen.getByText('Kronen Prime')).toBeInTheDocument();
+
+    // Click the Warframe pill
+    fireEvent.click(screen.getByTestId('category-btn-warframe'));
+
+    // Only warframes should be visible
+    expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    expect(screen.getByText('Mesa')).toBeInTheDocument();
+    expect(screen.queryByText('Kronen Prime')).not.toBeInTheDocument();
+    expect(screen.queryByText('Rubico Prime')).not.toBeInTheDocument();
+  });
+
+  it('supports multi-select: selecting two categories', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('checkbox')); // show all
+
+    fireEvent.click(screen.getByTestId('category-btn-warframe'));
+    fireEvent.click(screen.getByTestId('category-btn-primary'));
+
+    expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    expect(screen.getByText('Mesa')).toBeInTheDocument();
+    expect(screen.getByText('Rubico Prime')).toBeInTheDocument();
+    expect(screen.queryByText('Kronen Prime')).not.toBeInTheDocument();
+  });
+
+  it('deselects a category on second click', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    // Select warframe, then deselect
+    fireEvent.click(screen.getByTestId('category-btn-warframe'));
+    expect(screen.queryByText('Kronen Prime')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('category-btn-warframe'));
+    // All items should be back
+    expect(screen.getByText('Kronen Prime')).toBeInTheDocument();
+  });
+
+  it('combines category filter with search text', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    // Select warframe category
+    fireEvent.click(screen.getByTestId('category-btn-warframe'));
+    // Then search for "mesa"
+    const input = screen.getByPlaceholderText('Search items by name...');
+    fireEvent.change(input, { target: { value: 'mesa' } });
+
+    expect(screen.getByText('Mesa')).toBeInTheDocument();
+    expect(screen.queryByText('Excalibur')).not.toBeInTheDocument();
+  });
+
+  it('combines category filter with tracked-only toggle', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+    // Default is tracked-only, now filter to warframe
+    fireEvent.click(screen.getByTestId('category-btn-warframe'));
+
+    // Excalibur is warframe + tracked → visible
+    expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    // Mesa is warframe but NOT tracked → hidden
+    expect(screen.queryByText('Mesa')).not.toBeInTheDocument();
+    // Rubico Prime is tracked but primary → hidden (category filter)
+    expect(screen.queryByText('Rubico Prime')).not.toBeInTheDocument();
+  });
+
+  it('Select All button selects all categories', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    fireEvent.click(screen.getByTestId('category-select-all'));
+
+    // All items should be visible
+    expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    expect(screen.getByText('Mesa')).toBeInTheDocument();
+    expect(screen.getByText('Kronen Prime')).toBeInTheDocument();
+    expect(screen.getByText('Rubico Prime')).toBeInTheDocument();
+    expect(screen.getByText('Akks Prime')).toBeInTheDocument();
+  });
+
+  it('Clear All button deselects all categories', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    // Select a category first
+    fireEvent.click(screen.getByTestId('category-btn-warframe'));
+    expect(screen.queryByText('Kronen Prime')).not.toBeInTheDocument();
+
+    // Clear all
+    fireEvent.click(screen.getByTestId('category-clear-all'));
+
+    // All items should be back
+    expect(screen.getByText('Kronen Prime')).toBeInTheDocument();
+  });
 });

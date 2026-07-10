@@ -1,11 +1,21 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import repo from '../../src/data/store.js';
+
+const CATEGORY_LABELS = {
+  warframe: 'Warframe',
+  primary: 'Primary',
+  secondary: 'Secondary',
+  melee: 'Melee',
+  sentinels: 'Sentinels',
+  tektolyst_artifact: 'Tektolyst Artifact',
+};
 
 function ItemsList() {
   const [showTrackedOnly, setShowTrackedOnly] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
@@ -22,6 +32,19 @@ function ItemsList() {
     });
   }, []);
 
+  const distinctCategories = useMemo(
+    () => [...new Set(items.map((it) => it.item_type))].sort(),
+    [items]
+  );
+
+  const toggleCategory = (cat) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat)
+        ? prev.filter((c) => c !== cat)
+        : [...prev, cat]
+    );
+  };
+
   let filtered = showTrackedOnly
     ? items.filter((it) => it.is_user_tracked)
     : items;
@@ -30,6 +53,12 @@ function ItemsList() {
     const query = searchText.toLowerCase();
     filtered = filtered.filter((it) =>
       it.name.toLowerCase().includes(query)
+    );
+  }
+
+  if (selectedCategories.length > 0) {
+    filtered = filtered.filter((it) =>
+      selectedCategories.includes(it.item_type)
     );
   }
 
@@ -61,6 +90,65 @@ function ItemsList() {
         />
       </div>
       <div className="filters">
+        <div data-testid="category-filter">
+          {distinctCategories.map((cat) => (
+            <button
+              key={cat}
+              data-testid={`category-btn-${cat}`}
+              onClick={() => toggleCategory(cat)}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 6,
+                border: selectedCategories.includes(cat)
+                  ? '1px solid #7cc4ff'
+                  : '1px solid #2a2f3f',
+                background: selectedCategories.includes(cat)
+                  ? '#1a2540'
+                  : '#181c26',
+                color: selectedCategories.includes(cat)
+                  ? '#7cc4ff'
+                  : '#b6bcc7',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 500,
+                marginRight: 6,
+              }}
+            >
+              {CATEGORY_LABELS[cat] || cat}
+            </button>
+          ))}
+          <button
+            data-testid="category-select-all"
+            onClick={() => setSelectedCategories([...distinctCategories])}
+            style={{
+              fontSize: 12,
+              color: '#7a8194',
+              cursor: 'pointer',
+              background: 'none',
+              border: 'none',
+              marginLeft: 4,
+              padding: '4px 6px',
+            }}
+          >
+            All
+          </button>
+          <button
+            data-testid="category-clear-all"
+            onClick={() => setSelectedCategories([])}
+            style={{
+              fontSize: 12,
+              color: '#7a8194',
+              cursor: 'pointer',
+              background: 'none',
+              border: 'none',
+              padding: '4px 6px',
+            }}
+          >
+            None
+          </button>
+        </div>
+      </div>
+      <div className="filters">
         <label>
           <input
             type="checkbox"
@@ -70,12 +158,12 @@ function ItemsList() {
           &nbsp;Show tracked items only
         </label>
       </div>
-      {filtered.length === 0 && showTrackedOnly && !searchText.trim() && (
+      {filtered.length === 0 && showTrackedOnly && !searchText.trim() && selectedCategories.length === 0 && (
         <p className="muted">
           No tracked items yet — showing 0 of {items.length} items. Uncheck &quot;Show tracked items only&quot; to browse everything.
         </p>
       )}
-      {filtered.length === 0 && (!showTrackedOnly || searchText.trim()) && (
+      {filtered.length === 0 && (selectedCategories.length > 0 || searchText.trim()) && (
         <p className="muted">No items match this filter.</p>
       )}
       <div className="list">

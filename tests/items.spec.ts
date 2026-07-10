@@ -117,4 +117,69 @@ test.describe('Items list page', () => {
     await page.locator('.link-title').first().click();
     await expect(page.locator('h1')).toContainText(firstTitle);
   });
+
+  test.describe('category filter', () => {
+    test.beforeEach(async ({ page }) => {
+      await page.getByLabel('Show tracked items only').uncheck();
+      await page.waitForTimeout(200);
+    });
+
+    test('renders category pill buttons', async ({ page }) => {
+      await expect(page.getByTestId('category-filter')).toBeVisible();
+      // Verify at least some of the known categories render
+      await expect(page.getByTestId('category-btn-warframe')).toBeVisible();
+      await expect(page.getByTestId('category-btn-primary')).toBeVisible();
+    });
+
+    test('filters to a single category', async ({ page }) => {
+      const allCount = await page.locator('.card').count();
+
+      await page.getByTestId('category-btn-warframe').click();
+      await page.waitForTimeout(200);
+
+      const filteredCount = await page.locator('.card').count();
+      expect(filteredCount).toBeLessThan(allCount);
+      expect(filteredCount).toBeGreaterThan(0);
+    });
+
+    test('supports multi-select with two categories', async ({ page }) => {
+      await page.getByTestId('category-btn-warframe').click();
+      await page.getByTestId('category-btn-primary').click();
+      await page.waitForTimeout(200);
+
+      const count = await page.locator('.card').count();
+      expect(count).toBeGreaterThan(0);
+    });
+
+    test('deselects on second click', async ({ page }) => {
+      const allCount = await page.locator('.card').count();
+
+      await page.getByTestId('category-btn-warframe').click();
+      await page.waitForTimeout(100);
+      await page.getByTestId('category-btn-warframe').click();
+      await page.waitForTimeout(200);
+
+      const afterCount = await page.locator('.card').count();
+      expect(afterCount).toBe(allCount);
+    });
+
+    test('Select All and Clear All buttons work', async ({ page }) => {
+      // Clear All should have no effect when nothing selected
+      await page.getByTestId('category-clear-all').click();
+      await page.waitForTimeout(100);
+
+      // Select All
+      await page.getByTestId('category-select-all').click();
+      await page.waitForTimeout(200);
+      const allSelected = await page.locator('.card').count();
+      expect(allSelected).toBeGreaterThan(0);
+
+      // Clear All
+      await page.getByTestId('category-clear-all').click();
+      await page.waitForTimeout(200);
+      const cleared = await page.locator('.card').count();
+      // After clearing, all items should be visible again
+      expect(cleared).toBeGreaterThan(0);
+    });
+  });
 });
