@@ -17,20 +17,20 @@ Warframe TODO Tracker — a Next.js 14 App Router app for tracking Warframe craf
 ## Commands
 
 ```bash
-npm run dev                  # start Next.js dev server (localhost:3000)
-npm run build                # production build
-npm run start                # run production build
+yarn dev                      # start Next.js dev server (localhost:3000)
+yarn build                    # production build
+yarn start                    # run production build
 
-npm run test:unit            # vitest unit/component tests (jsdom)
-npm run test:unit:watch      # vitest watch mode
-npm run test:unit:coverage   # vitest with coverage
-npx vitest run tests/unit/repository.test.js   # run a single unit test file
+yarn test:unit                # vitest unit/component tests (jsdom)
+yarn test:unit:watch          # vitest watch mode
+yarn test:unit:coverage       # vitest with coverage
+yarn vitest run tests/unit/repository.test.js   # run a single unit test file
 
-npm run test:e2e             # Playwright e2e tests (auto-starts `next dev -p 3001`)
-npm run test:e2e:ui          # Playwright UI mode
-npx playwright test tests/todos.spec.ts        # run a single e2e spec
+yarn test:e2e                 # Playwright e2e tests (auto-starts `next dev -p 3001`)
+yarn test:e2e:ui              # Playwright UI mode
+yarn playwright test tests/todos.spec.ts        # run a single e2e spec
 
-npm test                     # tests/test-pack.mjs — runs everything in sequence
+yarn test                     # tests/test-pack.mjs — runs everything in sequence
 ```
 
 Playwright e2e tests boot their own dev server on port 3001 (`BASE_URL` overrides) and reuse an already-running server outside CI.
@@ -117,6 +117,8 @@ When writing tests:
 - `app/loadouts/[id]/requirement-combobox.jsx` uses a `justSelectedRef` guard to stop the dropdown from reopening immediately after a selection (blur/focus race) — preserve this guard if touching combobox focus handling.
 - `next.config.js` marks `@wfcd/items` as a webpack external and loads it via dynamic `import()` at runtime — don't let it get bundled into client JS (it's tens of MB of JSON).
 - Docker builds may miss `public/data/*.json` if the Dockerfile doesn't explicitly copy `public/` — the test-pack's asset-check phase catches this.
+- **Docker builds can corrupt host node_modules** if `.dockerignore` doesn't exclude `node_modules/`, `.yarn/cache/`, and `.yarn/unplugged/`. Docker `COPY . .` copies the build context which may include root-owned files from past broken builds. Fix: harden `.dockerignore` with standard Next.js entries, then clean existing corruption with `docker run --rm -v "$(pwd)":/app -w /app alpine:latest sh -c "chown -R $(id -u):$(id -g) node_modules"` (no sudo needed).
+- **Always use `yarn vitest run`, not `npm run test:unit`** — Hermes' own Vite installation can shadow vitest dependencies when run through npm/npx. Yarn PnP resolution is the project's canonical module resolution path and avoids this entirely.
 - The `DATA_DIR` env var controls where SQLite lives. Docker mounts `./data:/app/data` so the DB survives container recreation.
 - **Multi-filter boolean logic is fragile.** When a component has 3+ filter conditions (tracked-only, search, categories) and two separate empty-state messages, the compound boolean checks are easy to break. Always write a test for every empty-state combination — the reviewer will catch regressions.
 - **Filter chain order is intentionally consistent across pages**: Search → multi-select filters (pills/dropdowns) → boolean toggle. The visual grouping may differ (mods places the boolean toggle inline with pills to save vertical space on a denser filter bar) but the logical chain is the same on every page.
