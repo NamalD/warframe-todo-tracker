@@ -165,6 +165,16 @@ const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_todos_updated_at ON todos(updated_at);
       COMMIT;`,
   },
+  {
+    version: 3,
+    description: 'Add sessions table for per-device auth',
+    sql: `CREATE TABLE IF NOT EXISTS sessions (
+      id          TEXT PRIMARY KEY,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);`,
+  },
 ];
 
 // ---------------------------------------------------------------------------
