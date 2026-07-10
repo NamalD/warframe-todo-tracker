@@ -124,7 +124,8 @@ When writing tests:
 
 ## Known gotchas
 
-- `app/loadouts/[id]/requirement-combobox.jsx` uses a `justSelectedRef` guard to stop the dropdown from reopening immediately after a selection (blur/focus race) — preserve this guard if touching combobox focus handling.
+- `app/loadouts/[id]/requirement-combobox.jsx` uses a `justSelectedRef` guard to stop the dropdown from reopening immediately after a selection (blur/focus race) — preserve this guard if touching combobox
+- When converting client `.js` modules to `.ts` in `src/data/`, the Oxc parser used by Vite 6 / Vitest 4 currently fails on `import type` and typed instance fields. Use `// @ts-nocheck` plus JSDoc `@typedef` / `@type` typing instead. See `docs/solutions/nextjs/ts-migration-oxc-workaround.md`.
 - `next.config.js` marks `@wfcd/items` as a webpack external and loads it via dynamic `import()` at runtime — don't let it get bundled into client JS (it's tens of MB of JSON).
 - Docker builds may miss `public/data/*.json` if the Dockerfile doesn't explicitly copy `public/` — the test-pack's asset-check phase catches this.
 - **Docker builds can corrupt host node_modules** if `.dockerignore` doesn't exclude `node_modules/`, `.yarn/cache/`, and `.yarn/unplugged/`. Docker `COPY . .` copies the build context which may include root-owned files from past broken builds. Fix: harden `.dockerignore` with standard Next.js entries, then clean existing corruption with `docker run --rm -v "$(pwd)":/app -w /app alpine:latest sh -c "chown -R $(id -u):$(id -g) node_modules"` (no sudo needed).
