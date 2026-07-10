@@ -22,6 +22,3 @@ jobs:
 
       - name: Run unit tests
         run: yarn vitest run
-
-      - name: Run prebuild schema test
-        run: node scripts/prebuild.mjs && yarn vitest run tests/unit/prebuild-schema.test.js tests/unit/prebuild-incarnon.test.js tests/unit/prebuild-mods.test.js

@@ -68,3 +68,11 @@ When a component test fails with a timeout (not an assertion error), the compone
 3. `loadoutRepo.getAllRequirements()` — dashboard aggregation
 4. `modRepo.getTrackedMods()` — dashboard mods card
 5. Any `globalThis.*` variables used in server modules (e.g. `device`, `device_id` for conflict logging) must be set in `tests/unit/setup.ts`
+
+## Related: data-driven test expectations
+
+When a test asserts against generated/cached data (e.g. "has exactly 45 Incarnon weapons", "all mod_types are normalized"), and the data is stale:
+
+1. **Read the actual data first** — use `python3 -c "import json; ..."` to extract unique values from the cache JSON
+2. **Batch-update all expectations at once** — don't add types one at a time ("Companion Mod" → "Secondary Mod" → "Primary Mod" → ...). Read the full list, write the full list.
+3. **Pattern**: `prebuild-incarnon.test.js` (weapon count 45→63), `prebuild-mods.test.js` (mod_type list 12→21 entries), `repository.test.js` (fetch call count 1→2)

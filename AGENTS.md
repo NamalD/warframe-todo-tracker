@@ -57,13 +57,23 @@ If the work doesn't have an existing issue, create one first with `gh issue crea
 The GitHub Project board is the source of truth for what's being worked on. Every issue on the board must have its status column match reality.
 
 - When picking up an issue, move it from **Todo → In Progress** before writing any code
-- When committing code that closes an issue, use `Closes #N` — the git hook auto-moves the card to **Done** on push
+- When committing code that closes an issue, use `Closes #N` — the git hook auto-moves the card to **Done** on merge to main
 - After every commit or push, verify the board state matches reality
 - If an open issue exists but isn't on the project board, add it (Todo or In Progress as appropriate)
 
 ## Git workflow
 
-Commit and push to `origin` as you complete work. Do not ask before pushing — this is standing authorization. Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.
+All changes go through **pull requests** — never push directly to `main`. `main` is protected: the `Test Suite` CI check must pass before merging.
+
+1. Create a feature branch: `git checkout -b feat/short-description`
+2. Commit and push changes to the branch
+3. Create a PR: `gh pr create --fill`
+4. Wait for the CI check to go green (or verify locally with `yarn vitest run`)
+5. Merge when ready: `gh pr merge --squash --delete-branch`
+
+The Docker auto-deploy hook fires on push to `main` (after merge). Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.
+
+**CI gating**: Every PR runs `yarn vitest run` via `.github/workflows/test.yml`. The "Test Suite" status check is required — GitHub blocks the merge button until it passes. This is the deterministic gate ensuring no broken tests land on `main`.
 
 ## Architecture
 
@@ -120,6 +130,7 @@ When writing tests:
 - **Docker builds can corrupt host node_modules** if `.dockerignore` doesn't exclude `node_modules/`, `.yarn/cache/`, and `.yarn/unplugged/`. Docker `COPY . .` copies the build context which may include root-owned files from past broken builds. Fix: harden `.dockerignore` with standard Next.js entries, then clean existing corruption with `docker run --rm -v "$(pwd)":/app -w /app alpine:latest sh -c "chown -R $(id -u):$(id -g) node_modules"` (no sudo needed).
 - **Always use `yarn vitest run`, not `npm run test:unit`** — Hermes' own Vite installation can shadow vitest dependencies when run through npm/npx. Yarn PnP resolution is the project's canonical module resolution path and avoids this entirely.
 - **PNP peer dependencies must be explicit** — Yarn PnP is strict about peer deps. If `@testing-library/react` warns about `@testing-library/dom`, add it to `devDependencies`. The test will fail at import (0 tests run) rather than with an assertion error, making this easy to spot.
+- **NEVER change repo visibility or do destructive GitHub ops without explicit sign-off** — making a repo public, force-pushing, deleting branches, etc. requires the user's explicit written approval in the active conversation. The `clarify` tool timing out or the user going AFK is NOT consent.
 - **LoadoutRepository requires `await repo.init()` before `getLoadouts()`** — the constructor creates an empty state; data loads asynchronously via `init()` which fetches from the server (with localStorage migration as fallback). Unit tests that bypass `init()` will see empty arrays.
 - **Component tests need all `useEffect` init methods mocked** — if a component test hangs (timeout >1s), the component is calling an async method that's not mocked. Check the component's `useEffect` for `initTodos()`, `initMaterials()`, `init()`, etc. and add them to the mock. The `waitFor` will hang forever on unresolved promises.
 - **Server-side globals in jsdom tests** — if server modules reference `device` or `device_id` (for conflict logging), add `(globalThis as any).device = 'test-device'` and `(globalThis as any).device_id = 'test-device-id'` to `tests/unit/setup.ts`. These variables exist in browser/server context but not in jsdom.
