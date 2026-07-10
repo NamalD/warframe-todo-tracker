@@ -60,6 +60,20 @@ function Home() {
   // Materials still outstanding (hide fully-owned materials from the dashboard)
   const outstandingMaterials = materialsList.filter((m) => !m.done);
 
+  // Count tracked items where ALL required materials are owned
+  const countReadyToCraft = () => {
+    let ready = 0;
+    for (const item of trackedItems) {
+      const itemMats = materialsList.filter((m) =>
+        m.items.some((i) => i.id === item.id)
+      );
+      if (itemMats.length > 0 && itemMats.every((m) => m.done)) {
+        ready++;
+      }
+    }
+    return ready;
+  };
+
   // Todo counts
   const pendingTodos = todos.filter((t) => t.status === 'pending');
   const inProgressTodos = todos.filter((t) => t.status === 'in_progress');
@@ -109,6 +123,11 @@ function Home() {
           <div style={{ fontSize: 32, fontWeight: 700, color: '#ffcf6a', margin: '8px 0' }}>
             {trackedItems.length}
           </div>
+          {trackedItems.length > 0 && (
+            <p>
+              {countReadyToCraft()} ready to craft
+            </p>
+          )}
           <p>
             {trackedItems.length > 0 ? (
               <Link href="/items" className="btn">View all items &rarr;</Link>
