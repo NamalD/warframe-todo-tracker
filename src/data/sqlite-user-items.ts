@@ -1,11 +1,29 @@
-// ---------------------------------------------------------------------------
-// sqlite-user-items.js — SQLite CRUD for per-item user flags
-// (is_user_tracked, track_incarnon_install, incarnon_installed)
-// ---------------------------------------------------------------------------
+/**
+ * SQLite CRUD for per-item user flags
+ * (is_user_tracked, track_incarnon_install, incarnon_installed).
+ */
+import type { Database } from 'better-sqlite3';
 
-/** @param {import('better-sqlite3').Database} db */
-export function getUserItemData(db, itemId) {
-  const row = db.prepare('SELECT * FROM user_item_data WHERE item_id = ?').get(itemId);
+interface UserItemRow {
+  item_id: string;
+  is_user_tracked: number;
+  track_incarnon_install: number;
+  incarnon_installed: number;
+  version: number;
+  updated_at: string;
+}
+
+interface UserItemData {
+  item_id: string;
+  is_user_tracked: boolean;
+  track_incarnon_install: boolean;
+  incarnon_installed: boolean;
+  version: number;
+  updated_at: string;
+}
+
+export function getUserItemData(db: Database, itemId: string): UserItemData | null {
+  const row = db.prepare('SELECT * FROM user_item_data WHERE item_id = ?').get(itemId) as UserItemRow | undefined;
   if (!row) return null;
   return {
     item_id: row.item_id,
@@ -17,10 +35,9 @@ export function getUserItemData(db, itemId) {
   };
 }
 
-/** @param {import('better-sqlite3').Database} db */
-export function getAllUserItemData(db) {
-  const rows = db.prepare('SELECT * FROM user_item_data').all();
-  const result = {};
+export function getAllUserItemData(db: Database): Record<string, Omit<UserItemData, 'item_id' | 'updated_at'>> {
+  const rows = db.prepare('SELECT * FROM user_item_data').all() as UserItemRow[];
+  const result: Record<string, Omit<UserItemData, 'item_id' | 'updated_at'>> = {};
   for (const row of rows) {
     result[row.item_id] = {
       is_user_tracked: !!row.is_user_tracked,
@@ -32,8 +49,13 @@ export function getAllUserItemData(db) {
   return result;
 }
 
-/** @param {import('better-sqlite3').Database} db */
-export function upsertUserItemData(db, itemId, fields, clientVersion = 0) {
+interface UserItemFields {
+  is_user_tracked?: boolean;
+  track_incarnon_install?: boolean;
+  incarnon_installed?: boolean;
+}
+
+export function upsertUserItemData(db: Database, itemId: string, fields: UserItemFields, clientVersion = 0): UserItemData | { conflict: boolean; server: UserItemData } {
   const existing = getUserItemData(db, itemId);
   if (existing) {
     if (clientVersion > 0 && existing.version > clientVersion) {
@@ -68,10 +90,9 @@ export function upsertUserItemData(db, itemId, fields, clientVersion = 0) {
       version,
     );
   }
-  return getUserItemData(db, itemId);
+  return getUserItemData(db, itemId) as UserItemData;
 }
 
-/** @param {import('better-sqlite3').Database} db */
-export function deleteUserItemData(db, itemId) {
+export function deleteUserItemData(db: Database, itemId: string): void {
   db.prepare('DELETE FROM user_item_data WHERE item_id = ?').run(itemId);
 }

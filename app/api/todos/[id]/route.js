@@ -1,5 +1,5 @@
-import { getDb } from '../../../../src/data/database.js';
-import { getTodoById, updateTodo, deleteTodo } from '../../../../src/data/sqlite-todos.js';
+import { getDb } from '../../../../src/data/database';
+import { getTodoById, updateTodo, deleteTodo } from '../../../../src/data/sqlite-todos';
 
 /**
  * GET /api/todos/[id]

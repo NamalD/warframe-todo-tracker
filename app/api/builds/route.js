@@ -1,5 +1,5 @@
-import { getDb } from '../../../src/data/database.js';
-import { getAllBuilds, createBuild, updateBuild, deleteBuild } from '../../../src/data/sqlite-builds.js';
+import { getDb } from '../../../src/data/database';
+import { getAllBuilds, createBuild, updateBuild, deleteBuild } from '../../../src/data/sqlite-builds';
 
 export async function GET() {
   try {

@@ -1,5 +1,5 @@
-import { getDb } from '../../../src/data/database.js';
-import { getAllTodos, mergeNewTodos, createTodo } from '../../../src/data/sqlite-todos.js';
+import { getDb } from '../../../src/data/database';
+import { getAllTodos, mergeNewTodos, createTodo } from '../../../src/data/sqlite-todos';
 
 export async function GET() {
   try {

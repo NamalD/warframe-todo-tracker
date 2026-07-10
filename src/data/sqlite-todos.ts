@@ -2,77 +2,77 @@
  * SQLite CRUD module for the todos table.
  *
  * Todos are flat objects with normalized columns — no JSON blob needed.
- * All functions accept a better-sqlite3 Database instance as their first argument.
  *
  * This module is server-only — never import in client components.
  */
 import 'server-only';
+import type { Database } from 'better-sqlite3';
 import crypto from 'node:crypto';
 
 // ---------------------------------------------------------------------------
 // Allowed statuses and priorities — enforced on create
 // ---------------------------------------------------------------------------
 
-const VALID_STATUSES = ['pending', 'in_progress', 'completed', 'abandoned', 'blocked'];
-const VALID_PRIORITIES = ['low', 'medium', 'high'];
+const VALID_STATUSES = ['pending', 'in_progress', 'completed', 'abandoned', 'blocked'] as const;
+const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
+
+type TodoStatus = typeof VALID_STATUSES[number];
+type TodoPriority = typeof VALID_PRIORITIES[number];
+
+interface TodoRow {
+  id: string;
+  craftable_item_id: string | null;
+  linked_material_name: string | null;
+  user_notes: string;
+  status: string;
+  priority: string;
+  due_at: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface TodoInput {
+  id?: string;
+  craftable_item_id?: string | null;
+  linked_material_name?: string | null;
+  user_notes?: string;
+  status?: string;
+  priority?: string;
+  due_at?: string | null;
+}
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-/**
- * Get all todos from the database.
- * @param {import('better-sqlite3').Database} db
- * @returns {Array<object>} Array of todo objects
- */
-export function getAllTodos(db) {
+export function getAllTodos(db: Database): TodoRow[] {
   return db.prepare(
     `SELECT id, craftable_item_id, linked_material_name, user_notes,
             status, priority, due_at, version, created_at, updated_at
      FROM todos ORDER BY created_at`
-  ).all();
+  ).all() as TodoRow[];
 }
 
-/**
- * Get a single todo by its ID.
- * @param {import('better-sqlite3').Database} db
- * @param {string} id
- * @returns {object|null} Todo object, or null
- */
-export function getTodoById(db, id) {
+export function getTodoById(db: Database, id: string): TodoRow | null {
   return db.prepare(
     `SELECT id, craftable_item_id, linked_material_name, user_notes,
             status, priority, due_at, version, created_at, updated_at
      FROM todos WHERE id = ?`
-  ).get(id) || null;
+  ).get(id) as TodoRow | undefined || null;
 }
 
-/**
- * Create a new todo.
- *
- * @param {import('better-sqlite3').Database} db
- * @param {object} todo
- * @param {string} [todo.id] - Optional explicit ID; auto-generated if omitted
- * @param {string} [todo.craftable_item_id] - Craftable item being tracked
- * @param {string} [todo.linked_material_name] - Material name this todo relates to
- * @param {string} [todo.user_notes] - Free-form notes (default '')
- * @param {string} [todo.status] - Status enum (default 'pending')
- * @param {string} [todo.priority] - Priority enum (default 'medium')
- * @param {string} [todo.due_at] - ISO 8601 due date string, or null
- * @returns {object} The created todo with version=1 and timestamps
- * @throws {Error} If status or priority is not a valid enum value
- */
-export function createTodo(db, todo) {
+export function createTodo(db: Database, todo: TodoInput): TodoRow {
   const todoId = todo.id || crypto.randomUUID();
   const now = new Date().toISOString();
 
   const status = todo.status || 'pending';
   const priority = todo.priority || 'medium';
 
-  if (!VALID_STATUSES.includes(status)) {
+  if (!VALID_STATUSES.includes(status as TodoStatus)) {
     throw new Error(`Invalid status "${status}". Must be one of: ${VALID_STATUSES.join(', ')}`);
   }
-  if (!VALID_PRIORITIES.includes(priority)) {
+  if (!VALID_PRIORITIES.includes(priority as TodoPriority)) {
     throw new Error(`Invalid priority "${priority}". Must be one of: ${VALID_PRIORITIES.join(', ')}`);
   }
 
@@ -106,30 +106,17 @@ export function createTodo(db, todo) {
   };
 }
 
-/**
- * Update a todo with optimistic concurrency control.
- *
- * If `clientVersion >= serverVersion` the update succeeds, the row's version
- * is incremented by 1, and the full updated record is returned.
- *
- * If the todo has been modified by another client (`clientVersion <
- * serverVersion`), returns a conflict object with the current server state.
- *
- * @param {import('better-sqlite3').Database} db
- * @param {string} id
- * @param {object} updates - Fields to update. At least one of: user_notes,
- *   status, priority, due_at, craftable_item_id, linked_material_name.
- * @param {number} clientVersion - The version the client last saw
- * @returns {object} Updated todo, or `{ conflict, serverVersion, serverData, serverId }`
- * @throws {Error} If the ID does not exist
- */
-export function updateTodo(db, id, updates, clientVersion) {
-  // First, fetch the current row
+export function updateTodo(
+  db: Database,
+  id: string,
+  updates: Record<string, unknown>,
+  clientVersion: number
+): TodoRow | { conflict: true; serverVersion: number; serverData: TodoRow; serverId: string } {
   const row = db.prepare(
     `SELECT id, craftable_item_id, linked_material_name, user_notes,
             status, priority, due_at, version, created_at, updated_at
      FROM todos WHERE id = ?`
-  ).get(id);
+  ).get(id) as TodoRow | undefined;
 
   if (!row) {
     throw new Error(`Todo not found: ${id}`);
@@ -137,10 +124,9 @@ export function updateTodo(db, id, updates, clientVersion) {
 
   const serverVersion = row.version;
 
-  // Conflict: client is working from a stale base
   if (clientVersion < serverVersion) {
     db.prepare('INSERT INTO conflict_log (table_name, record_id, client_version, server_version, device_id) VALUES (?, ?, ?, ?, ?)').run(
-      'todos', id, clientVersion, serverVersion, device || 'unknown'
+      'todos', id, clientVersion, serverVersion, 'unknown'
     );
     return {
       conflict: true,
@@ -161,20 +147,18 @@ export function updateTodo(db, id, updates, clientVersion) {
     };
   }
 
-  // Build the UPDATE SET clause dynamically from provided fields
   const now = new Date().toISOString();
-  const setters = ['updated_at = ?'];
-  const params = [now];
+  const setters: string[] = ['updated_at = ?'];
+  const params: unknown[] = [now];
 
   const allowedFields = ['user_notes', 'status', 'priority', 'due_at', 'craftable_item_id', 'linked_material_name'];
-  const validEnumFields = { status: VALID_STATUSES, priority: VALID_PRIORITIES };
+  const validEnumFields: Record<string, readonly string[]> = { status: VALID_STATUSES, priority: VALID_PRIORITIES };
 
   for (const field of allowedFields) {
     if (Object.prototype.hasOwnProperty.call(updates, field)) {
       const value = updates[field];
 
-      // Validate enums if this field is an enum
-      if (validEnumFields[field] && value !== null) {
+      if (validEnumFields[field] && value !== null && typeof value === 'string') {
         if (!validEnumFields[field].includes(value)) {
           throw new Error(`Invalid ${field} "${value}". Must be one of: ${validEnumFields[field].join(', ')}`);
         }
@@ -185,7 +169,7 @@ export function updateTodo(db, id, updates, clientVersion) {
     }
   }
 
-  const setId = `${id}`; // ensure string
+  const setId = `${id}`;
   params.push(setId);
 
   db.prepare(
@@ -194,35 +178,25 @@ export function updateTodo(db, id, updates, clientVersion) {
      WHERE id = ?`
   ).run(...params);
 
-  // Return the updated record
   const updatedRow = db.prepare(
     `SELECT id, craftable_item_id, linked_material_name, user_notes,
             status, priority, due_at, version, created_at, updated_at
      FROM todos WHERE id = ?`
-  ).get(id);
+  ).get(id) as TodoRow;
 
   return updatedRow;
 }
 
-/**
- * Delete a todo with optimistic concurrency control.
- *
- * If `clientVersion >= serverVersion` the delete succeeds.
- * If the todo has been modified by another client, returns a conflict.
- * If the ID does not exist, returns `{ notFound: true }`.
- *
- * @param {import('better-sqlite3').Database} db
- * @param {string} id
- * @param {number} clientVersion - The version the client last saw
- * @returns {object} `{ success: true }`, or `{ conflict, serverVersion, serverData, serverId }`,
- *   or `{ notFound: true }`
- */
-export function deleteTodo(db, id, clientVersion) {
+export function deleteTodo(
+  db: Database,
+  id: string,
+  clientVersion: number
+): { success: true } | { conflict: true; serverVersion: number; serverData: TodoRow; serverId: string } | { notFound: true } {
   const row = db.prepare(
     `SELECT id, craftable_item_id, linked_material_name, user_notes,
             status, priority, due_at, version, created_at, updated_at
      FROM todos WHERE id = ?`
-  ).get(id);
+  ).get(id) as TodoRow | undefined;
 
   if (!row) {
     return { notFound: true };
@@ -230,10 +204,9 @@ export function deleteTodo(db, id, clientVersion) {
 
   const serverVersion = row.version;
 
-  // Conflict: client is working from a stale base
   if (clientVersion < serverVersion) {
     db.prepare('INSERT INTO conflict_log (table_name, record_id, client_version, server_version, device_id) VALUES (?, ?, ?, ?, ?)').run(
-      'todos', id, clientVersion, serverVersion, device || 'unknown'
+      'todos', id, clientVersion, serverVersion, 'unknown'
     );
     return {
       conflict: true,
@@ -254,32 +227,12 @@ export function deleteTodo(db, id, clientVersion) {
     };
   }
 
-  // Delete: clientVersion >= serverVersion
   db.prepare('DELETE FROM todos WHERE id = ?').run(id);
 
   return { success: true };
 }
 
-/**
- * Merge a client's local todo list into the server, additively.
- *
- * This used to be a destructive `DELETE FROM todos` + reinsert (see #14):
- * any device pushing its own local list would wipe out every todo created
- * on other devices that this device hadn't seen yet. Instead, this only
- * inserts todos the server doesn't already have (`INSERT OR IGNORE`) —
- * existing rows are left untouched. Real edits to an existing todo must go
- * through `updateTodo()`'s version-checked path (see `PATCH
- * /api/todos/[id]`), and deletes through `deleteTodo()` (see `DELETE
- * /api/todos/[id]`) — this bulk path cannot safely infer either from a
- * client's local list alone.
- *
- * @param {import('better-sqlite3').Database} db
- * @param {Array<{ id: string, craftable_item_id?: string, linked_material_name?: string,
- *   user_notes?: string, status?: string, priority?: string, due_at?: string }>} todos
- */
-export function mergeNewTodos(db, todos) {
-  // Validate that every item has an id — SQLite allows NULL in TEXT PK,
-  // which would silently break the insert contract
+export function mergeNewTodos(db: Database, todos: TodoInput[]): void {
   for (const item of todos) {
     if (!item.id) {
       throw new Error(`mergeNewTodos: every item must have an id (missing in: ${JSON.stringify(item)})`);
@@ -288,7 +241,7 @@ export function mergeNewTodos(db, todos) {
 
   const now = new Date().toISOString();
 
-  const operation = db.transaction((items) => {
+  const operation = db.transaction((items: TodoInput[]) => {
     const stmt = db.prepare(
       `INSERT OR IGNORE INTO todos (id, craftable_item_id, linked_material_name, user_notes,
                           status, priority, due_at, version, created_at, updated_at)

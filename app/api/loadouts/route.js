@@ -1,5 +1,5 @@
-import { getDb } from '../../../src/data/database.js';
-import { getAllLoadouts, mergeNewLoadouts, createLoadout } from '../../../src/data/sqlite-loadouts.js';
+import { getDb } from '../../../src/data/database';
+import { getAllLoadouts, mergeNewLoadouts, createLoadout } from '../../../src/data/sqlite-loadouts';
 
 /**
  * The client's local loadout model is flat (`{ id, name, slots, ... }`);

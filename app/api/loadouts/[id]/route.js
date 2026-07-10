@@ -1,5 +1,5 @@
-import { getDb } from '../../../../src/data/database.js';
-import { getLoadoutById, updateLoadout, deleteLoadout } from '../../../../src/data/sqlite-loadouts.js';
+import { getDb } from '../../../../src/data/database';
+import { getLoadoutById, updateLoadout, deleteLoadout } from '../../../../src/data/sqlite-loadouts';
 
 /**
  * GET /api/loadouts/[id]
