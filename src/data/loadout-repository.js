@@ -100,6 +100,15 @@ export default class LoadoutRepository {
     }));
   }
 
+  async updateLoadoutData(id, data) {
+    const loadout = this.#data.loadouts.find((l) => l.id === id);
+    if (!loadout) return null;
+    loadout.data = data;
+    loadout.updated_at = this.#now();
+    await this.#patch(loadout);
+    return loadout;
+  }
+
   getAllRequirements() {
     const reqs = [];
     for (const loadout of this.#data.loadouts) {

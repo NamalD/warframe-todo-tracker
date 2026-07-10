@@ -24,6 +24,7 @@ function LoadoutDetailInner() {
 
   const [loadoutRepo, setLoadoutRepo] = useState(null);
   const [loadout, setLoadout] = useState(null);
+  const [notes, setNotes] = useState('');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +52,7 @@ function LoadoutDetailInner() {
       setLoadoutRepo(lr);
       const l = lr.getLoadoutById(id);
       setLoadout(l);
+      setNotes(l?.data?.notes || l?.notes || '');
       const allItems = await repo.getAllItems();
       setItems(allItems);
       setLoading(false);
@@ -61,6 +63,14 @@ function LoadoutDetailInner() {
     if (!loadoutRepo) return;
     const l = loadoutRepo.getLoadoutById(id);
     setLoadout(l);
+  };
+
+  const saveNotes = async () => {
+    if (!loadoutRepo || !loadout) return;
+    // Merge notes into the loadout's data blob
+    const currentData = loadout.data || {};
+    currentData.notes = notes;
+    await loadoutRepo.updateLoadoutData(id, currentData);
   };
 
   const handleDeleteLoadout = () => {
@@ -236,6 +246,24 @@ function LoadoutDetailInner() {
         <div>
           <Link href="/loadouts" className="muted" style={{ fontSize: 13 }}>&larr; Back to Loadouts</Link>
           <h1 style={{ margin: '4px 0 0', fontSize: 22, color: '#ffcf6a' }}>{loadout.name}</h1>
+          <textarea
+            placeholder="Build notes..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={saveNotes}
+            rows={2}
+            style={{
+              width: '100%',
+              marginTop: 8,
+              padding: '6px 8px',
+              borderRadius: 4,
+              background: '#161b22',
+              color: '#e7e9ee',
+              border: '1px solid #2e3440',
+              fontSize: 13,
+              resize: 'vertical',
+            }}
+          />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn" onClick={handleDeleteLoadout}>Delete Loadout</button>
