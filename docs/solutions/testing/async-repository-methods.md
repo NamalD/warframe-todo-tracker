@@ -1,0 +1,59 @@
+---
+problem_type: pattern
+category: testing
+tags: [async, await, repository, test-maintenance, signature-changes, loadout-repository]
+date: 2026-07-10
+issue: "#90"
+---
+
+# Async repository method signatures break tests silently
+
+## Problem
+
+Repository tests fail with `expected [Promise] to have property 'id'` or `Cannot read properties of null`. Tests that worked before now fail because repository method signatures changed:
+
+1. `createLoadout()` changed from sync to `async` — tests call it without `await`, getting a Promise instead of the loadout object
+2. `deleteLoadout()` changed from sync to `async` — same
+3. `updateLoadout()` changed from sync to `async` — same
+4. `updateRequirement()` signature changed to `(slotId, requirementId, updates)` — old tests pass only `(requirementId, updates)`
+5. `deleteRequirement()` signature changed to `(slotId, requirementId)` — old tests pass only `(requirementId)`
+6. `deleteSlot()` return type changed from slot object to boolean — old tests check `.item_id` on the return value
+
+## Root Cause
+
+Repository methods were refactored (async server sync, slot-scoped requirement operations) but the corresponding unit tests were never updated. Vitest doesn't flag unawaited Promises as failures by default — they silently pass assertions against the Promise object.
+
+## Solution
+
+For any async method call in tests: add `await` before the call and make the test function `async`.
+
+```js
+// Before (broken — returns Promise)
+it('creates a loadout', () => {
+  const loadout = repo.createLoadout({ name: 'Test' });
+  expect(loadout.name).toBe('Test'); // fails — loadout is a Promise
+});
+
+// After (fixed)
+it('creates a loadout', async () => {
+  const loadout = await repo.createLoadout({ name: 'Test' });
+  expect(loadout.name).toBe('Test');
+});
+```
+
+For changed method signatures, match the current implementation:
+```js
+// Before (broken — old signature)
+repo.updateRequirement(req.id, { name: 'New' });
+repo.deleteRequirement(req.id);
+
+// After (fixed — new signature with slotId)
+repo.updateRequirement(slot.id, req.id, { name: 'New' });
+repo.deleteRequirement(slot.id, req.id);
+```
+
+## Prevention
+
+- **Vitest config**: enable `--fail-on-unhandled-errors` in CI to catch unawaited Promises
+- **Code review checklist**: when changing a method to `async`, grep for call sites in `tests/` and update them
+- **TypeScript**: if/when the project adopts TS, the compiler catches unawaited Promises at build time
