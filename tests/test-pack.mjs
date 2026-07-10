@@ -69,8 +69,9 @@ async function main() {
   });
 
   // ── Phase 2: Unit tests ───────────────────────────
-  const vitest = resolve(ROOT, 'node_modules/.bin/vitest');
-  phase('Unit tests (Vitest)', () => run(vitest, ['run']));
+  const yarnBin = resolve(ROOT, '.yarn/releases/yarn-4.17.1.cjs');
+  const vitest = process.execPath;  // run via `node yarn vitest run`
+  phase('Unit tests (Vitest)', () => run(vitest, [yarnBin, 'vitest', 'run']));
 
   // ── Phase 3: Browser smoke tests ───────────────────
   const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';

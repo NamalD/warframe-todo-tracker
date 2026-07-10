@@ -1,8 +1,12 @@
 # Dependencies
 node_modules/
+.yarn/unplugged/
+.yarn/cache/
+.yarn/install-state.gz
 
 # Build output
 dist/
+.next/
 
 # Vite cache
 .vite/

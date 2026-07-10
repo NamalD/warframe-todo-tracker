@@ -13,6 +13,7 @@ export default defineConfig({
     setupFiles: [resolve(__dirname, 'tests/unit/setup.ts')],
     include: ['tests/unit/**/*.test.{js,jsx,ts,tsx}'],
     globals: true,
+    pool: 'threads',
   },
   resolve: {
     alias: {
