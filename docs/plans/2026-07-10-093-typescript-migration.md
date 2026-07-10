@@ -2,11 +2,30 @@
 date: 2026-07-10
 issue: "#93"
 artifact_contract: ce-plan/v1
-artifact_readiness: implementation-ready
+artifact_readiness: in-progress
 execution: code
+last_update: 2026-07-10
 ---
 
 # Migrate Codebase from JavaScript to TypeScript (Strict Mode)
+
+## Progress
+
+| Unit | Status | Description |
+|------|--------|-------------|
+| U1   | ✅ Done | Infrastructure: tsconfig, ESLint, @types packages |
+| U2   | ✅ Done | Type definitions: types/wfcd.d.ts, types/data.ts |
+| U3   | ✅ Done | Server data layer: 7 files fully typed |
+| U4   | ⬜     | Client repositories: 11 files |
+| U5   | ⬜     | Utilities: utils.ts |
+| U6   | ⬜     | Dashboard components: 2 TSX files |
+| U7   | ⬜     | App pages + components: 18 files |
+| U8   | ⬜     | API routes: 10 route files |
+| U9   | ⬜     | Scripts: prebuild.ts, test-pack.ts |
+| U10  | ⬜     | Unit tests: ~30 test files → .test.ts/.test.tsx |
+| U11  | ⬜     | Verification: build, tests, Docker, AGENTS.md |
+
+**Foundation merged**: PR #95 — 33 files changed, `yarn build` passes, all 637 tests pass.
 
 ## Goal Capsule
 
