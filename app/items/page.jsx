@@ -142,6 +142,7 @@ function ItemsList() {
               cursor: 'pointer',
               background: 'none',
               border: 'none',
+              marginLeft: 4,
               padding: '4px 6px',
             }}
           >
