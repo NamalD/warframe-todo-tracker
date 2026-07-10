@@ -100,6 +100,24 @@ export default class LoadoutRepository {
     }));
   }
 
+  getAllRequirements() {
+    const reqs = [];
+    for (const loadout of this.#data.loadouts) {
+      for (const slot of (loadout.slots || [])) {
+        for (const req of (slot.requirements || [])) {
+          if (!req.acquired && req.name) {
+            reqs.push({
+              name: req.name,
+              loadout: loadout.name,
+              slot: slot.slot_type,
+            });
+          }
+        }
+      }
+    }
+    return reqs;
+  }
+
   getLoadoutById(id) {
     const loadout = this.#data.loadouts.find((l) => l.id === id);
     if (!loadout) return null;

@@ -5,6 +5,7 @@ import repo from '../src/data/store.js';
 import modRepo from '../src/data/mod-store.js';
 import LoadoutDashboardSection from '../src/components/loadout-dashboard-section.jsx';
 import { aggregateTrackedMaterials } from '../src/data/material-aggregator.js';
+import loadoutRepo from '../src/data/loadout-store.js';
 import BuildDashboardSection from '../src/components/build-dashboard-section.jsx';
 
 function Home() {
@@ -24,7 +25,9 @@ function Home() {
       setTodos(repo.getTodos());
 
       const inv = repo.getMaterialInventory();
-      setMaterialsList(await aggregateTrackedMaterials(allItems, inv, (id) => repo.getMaterialsForItem(id)));
+      await loadoutRepo.init();
+      const lrReqs = loadoutRepo.getAllRequirements();
+      setMaterialsList(await aggregateTrackedMaterials(allItems, inv, (id) => repo.getMaterialsForItem(id), lrReqs));
       setLoading(false);
     }
     load();

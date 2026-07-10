@@ -1,13 +1,14 @@
 /**
- * Aggregate materials needed across tracked items.
+ * Aggregate materials needed across tracked items and loadout requirements.
  * Used by both the home page dashboard and the shopping list.
  *
- * @param {Array} items - Full items list with is_user_tracked / track_incarnon_install / incarnon_installed flags
+ * @param {Array} items - Full items list with tracking flags
  * @param {Object} inventory - Owned quantities { materialName: quantity }
- * @param {Function} getMaterialsForItem - async (itemId) => [{ material_name, quantity_required, is_incarnon_install }]
+ * @param {Function} getMaterialsForItem - async (itemId) => materials array
+ * @param {Array} loadoutReqs - Array of { name, loadout, slot } from loadout repository
  * @returns {Promise<Array>} Sorted array of { name, quantity, owned, deficit, done, items }
  */
-export async function aggregateTrackedMaterials(items, inventory, getMaterialsForItem) {
+export async function aggregateTrackedMaterials(items, inventory, getMaterialsForItem, loadoutReqs = []) {
   const relevantItems = items.filter(
     (it) => it.is_user_tracked || (it.track_incarnon_install && !it.incarnon_installed)
   );
@@ -16,7 +17,6 @@ export async function aggregateTrackedMaterials(items, inventory, getMaterialsFo
   for (const item of relevantItems) {
     const materials = await getMaterialsForItem(item.id);
     for (const m of materials) {
-      // Only include materials relevant to the tracking type
       if (m.is_incarnon_install ? !item.track_incarnon_install : !item.is_user_tracked) continue;
       const key = m.material_name;
       if (!matMap[key]) {
@@ -28,6 +28,18 @@ export async function aggregateTrackedMaterials(items, inventory, getMaterialsFo
         label: m.is_incarnon_install ? `${item.name} (Incarnon Install)` : item.name,
       });
     }
+  }
+
+  // Add loadout slot requirements (each counts as 1)
+  for (const req of loadoutReqs) {
+    const key = req.name;
+    if (!matMap[key]) {
+      matMap[key] = { name: req.name, quantity: 0, items: [] };
+    }
+    matMap[key].quantity += 1;
+    matMap[key].items.push({
+      label: `${req.loadout} (${req.slot})`,
+    });
   }
 
   return Object.values(matMap)

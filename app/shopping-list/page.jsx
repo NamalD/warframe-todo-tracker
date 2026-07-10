@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import repo from '../../src/data/store.js';
 import { aggregateTrackedMaterials } from '../../src/data/material-aggregator.js';
+import loadoutRepo from '../../src/data/loadout-store.js';
 
 function ShoppingList() {
   const [materials, setMaterials] = useState([]);
@@ -20,7 +21,9 @@ function ShoppingList() {
       setOwned(inv);
 
       // Use shared material aggregation utility
-      const combined = await aggregateTrackedMaterials(allItems, inv, (id) => repo.getMaterialsForItem(id));
+      await loadoutRepo.init();
+      const lrReqs = loadoutRepo.getAllRequirements();
+      const combined = await aggregateTrackedMaterials(allItems, inv, (id) => repo.getMaterialsForItem(id), lrReqs);
       const materialsList = combined.map((m) => ({
         ...m,
         needed: m.quantity,
