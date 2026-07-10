@@ -57,13 +57,23 @@ If the work doesn't have an existing issue, create one first with `gh issue crea
 The GitHub Project board is the source of truth for what's being worked on. Every issue on the board must have its status column match reality.
 
 - When picking up an issue, move it from **Todo → In Progress** before writing any code
-- When committing code that closes an issue, use `Closes #N` — the git hook auto-moves the card to **Done** on push
+- When committing code that closes an issue, use `Closes #N` — the git hook auto-moves the card to **Done** on merge to main
 - After every commit or push, verify the board state matches reality
 - If an open issue exists but isn't on the project board, add it (Todo or In Progress as appropriate)
 
 ## Git workflow
 
-Commit and push to `origin` as you complete work. Do not ask before pushing — this is standing authorization. Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.
+All changes go through **pull requests** — never push directly to `main`. `main` is protected: the `Test Suite` CI check must pass before merging.
+
+1. Create a feature branch: `git checkout -b feat/short-description`
+2. Commit and push changes to the branch
+3. Create a PR: `gh pr create --fill`
+4. Wait for the CI check to go green (or verify locally with `yarn vitest run`)
+5. Merge when ready: `gh pr merge --squash --delete-branch`
+
+The Docker auto-deploy hook fires on push to `main` (after merge). Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.
+
+**CI gating**: Every PR runs `yarn vitest run` via `.github/workflows/test.yml`. The "Test Suite" status check is required — GitHub blocks the merge button until it passes. This is the deterministic gate ensuring no broken tests land on `main`.
 
 ## Architecture
 
