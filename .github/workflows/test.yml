@@ -7,24 +7,36 @@ on:
       - 'docs/**'
       - '*.md'
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
+      - name: Check if only docs changed
+        id: docsonly
+        run: |
+          CHANGED=$(git diff --name-only origin/main HEAD -- . ':!docs/**' ':!*.md' | head -c1)
+          if [ -z "$CHANGED" ]; then
+            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            echo "Only docs/markdown files changed — skipping tests"
+          else
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
+        if: steps.docsonly.outputs.only_docs != 'true'
         run: |
           corepack enable
           yarn install --immutable
 
       - name: Run unit tests
+        if: steps.docsonly.outputs.only_docs != 'true'
         run: yarn vitest run
