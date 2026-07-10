@@ -10,6 +10,7 @@ const CATEGORY_LABELS = {
   melee: 'Melee',
   sentinels: 'Sentinels',
   tektolyst_artifact: 'Tektolyst Artifact',
+  companion: 'Companion',
 };
 
 function ItemsList() {
@@ -163,7 +164,7 @@ function ItemsList() {
           No tracked items yet — showing 0 of {items.length} items. Uncheck &quot;Show tracked items only&quot; to browse everything.
         </p>
       )}
-      {filtered.length === 0 && (selectedCategories.length > 0 || searchText.trim()) && (
+      {filtered.length === 0 && (!showTrackedOnly || selectedCategories.length > 0 || searchText.trim()) && (
         <p className="muted">No items match this filter.</p>
       )}
       <div className="list">

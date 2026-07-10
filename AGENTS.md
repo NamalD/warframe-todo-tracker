@@ -52,6 +52,15 @@ Closes #N
 
 If the work doesn't have an existing issue, create one first with `gh issue create` before committing.
 
+## Project board discipline
+
+The GitHub Project board is the source of truth for what's being worked on. Every issue on the board must have its status column match reality.
+
+- When picking up an issue, move it from **Todo → In Progress** before writing any code
+- When committing code that closes an issue, use `Closes #N` — the git hook auto-moves the card to **Done** on push
+- After every commit or push, verify the board state matches reality
+- If an open issue exists but isn't on the project board, add it (Todo or In Progress as appropriate)
+
 ## Git workflow
 
 Commit and push to `origin` as you complete work. Do not ask before pushing — this is standing authorization. Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.

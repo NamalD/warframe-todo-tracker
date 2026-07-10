@@ -126,7 +126,6 @@ test.describe('Items list page', () => {
 
     test('renders category pill buttons', async ({ page }) => {
       await expect(page.getByTestId('category-filter')).toBeVisible();
-      // Verify at least some of the known categories render
       await expect(page.getByTestId('category-btn-warframe')).toBeVisible();
       await expect(page.getByTestId('category-btn-primary')).toBeVisible();
     });
@@ -140,6 +139,9 @@ test.describe('Items list page', () => {
       const filteredCount = await page.locator('.card').count();
       expect(filteredCount).toBeLessThan(allCount);
       expect(filteredCount).toBeGreaterThan(0);
+      // Verify only warframe cards are visible
+      const warframeBadges = await page.locator('.card .badge.warframe').count();
+      expect(warframeBadges).toBe(filteredCount);
     });
 
     test('supports multi-select with two categories', async ({ page }) => {
@@ -149,6 +151,11 @@ test.describe('Items list page', () => {
 
       const count = await page.locator('.card').count();
       expect(count).toBeGreaterThan(0);
+      // Both selected categories should have visible items
+      expect(await page.locator('.badge.warframe').count()).toBeGreaterThan(0);
+      expect(await page.locator('.badge.primary').count()).toBeGreaterThan(0);
+      // An unselected category should be excluded
+      expect(await page.locator('.badge.melee').count()).toBe(0);
     });
 
     test('deselects on second click', async ({ page }) => {
@@ -156,6 +163,10 @@ test.describe('Items list page', () => {
 
       await page.getByTestId('category-btn-warframe').click();
       await page.waitForTimeout(100);
+      // Verify filter actually applied
+      const filtered = await page.locator('.card').count();
+      expect(filtered).toBeLessThan(allCount);
+
       await page.getByTestId('category-btn-warframe').click();
       await page.waitForTimeout(200);
 
@@ -164,22 +175,30 @@ test.describe('Items list page', () => {
     });
 
     test('Select All and Clear All buttons work', async ({ page }) => {
-      // Clear All should have no effect when nothing selected
-      await page.getByTestId('category-clear-all').click();
-      await page.waitForTimeout(100);
+      const allCount = await page.locator('.card').count();
 
-      // Select All
+      // Select All — should show all items
       await page.getByTestId('category-select-all').click();
       await page.waitForTimeout(200);
-      const allSelected = await page.locator('.card').count();
-      expect(allSelected).toBeGreaterThan(0);
+      expect(await page.locator('.card').count()).toBe(allCount);
 
-      // Clear All
+      // Clear All — should also show all items
       await page.getByTestId('category-clear-all').click();
       await page.waitForTimeout(200);
-      const cleared = await page.locator('.card').count();
-      // After clearing, all items should be visible again
-      expect(cleared).toBeGreaterThan(0);
+      expect(await page.locator('.card').count()).toBe(allCount);
+    });
+
+    test('combines category filter with search text', async ({ page }) => {
+      await page.getByTestId('category-btn-warframe').click();
+      await page.waitForTimeout(100);
+
+      const input = page.getByPlaceholder('Search items by name...');
+      await input.fill('excalibur');
+      await page.waitForTimeout(200);
+
+      // Only Excalibur (warframe) visible
+      expect(await page.locator('.card').count()).toBe(1);
+      await expect(page.getByText('Excalibur')).toBeVisible();
     });
   });
 });

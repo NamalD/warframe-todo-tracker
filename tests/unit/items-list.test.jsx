@@ -289,4 +289,34 @@ describe('ItemsList', () => {
     // All items should be back
     expect(screen.getByText('Kronen Prime')).toBeInTheDocument();
   });
+
+  // Edge-case tests
+
+  it('handles single item list with one pill button', async () => {
+    const singleRepo = {
+      getAllItems: () => Promise.resolve([
+        { id: 'item-1', name: 'Excalibur', item_type: 'warframe', mastery_rank_required: 0, is_user_tracked: false, blueprint_source: 'quest' },
+      ]),
+    };
+    vi.doMock('../../src/data/store.js', () => ({ default: singleRepo }));
+    const { default: ItemsListSingle } = await import('../../app/items/page.jsx');
+    render(React.createElement(ItemsListSingle));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+    // Only one pill renders and select/deselect is a no-op
+    expect(screen.getByTestId('category-btn-warframe')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('category-btn-warframe'));
+    expect(screen.getByText('Excalibur')).toBeInTheDocument();
+  });
+
+  it('renders companion label correctly', async () => {
+    render(React.createElement(ItemsList));
+    await waitFor(() => {
+      expect(screen.getByText('Excalibur')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('checkbox')); // show all
+    const companionBtn = screen.getByTestId('category-btn-companion');
+    expect(companionBtn).toHaveTextContent('Companion');
+  });
 });
