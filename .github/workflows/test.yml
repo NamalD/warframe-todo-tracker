@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  Test Suite:
+  test:
+    name: Test Suite
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
