@@ -3,8 +3,8 @@
 // GET /api/user-items — fetch all per-item flags
 // ---------------------------------------------------------------------------
 import { NextResponse } from 'next/server';
-import { getDb } from '../../../src/data/database.js';
-import { getAllUserItemData, upsertUserItemData } from '../../../src/data/sqlite-user-items.js';
+import { getDb } from '../../../src/data/database';
+import { getAllUserItemData, upsertUserItemData } from '../../../src/data/sqlite-user-items';
 
 export async function GET() {
   try {

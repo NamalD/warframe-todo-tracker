@@ -7,6 +7,7 @@
  * This module is server-only — never import in client components.
  */
 import Database from 'better-sqlite3';
+import type { Database as DatabaseType } from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
 import 'server-only';
@@ -15,7 +16,7 @@ import 'server-only';
 // Paths
 // ---------------------------------------------------------------------------
 
-function resolveDataDir() {
+function resolveDataDir(): string {
   return process.env.DATA_DIR || path.join(process.cwd(), 'data');
 }
 
@@ -131,7 +132,13 @@ CREATE TABLE IF NOT EXISTS user_item_data (
 // Migration definitions — ordered list for future migrations
 // ---------------------------------------------------------------------------
 
-const MIGRATIONS = [
+interface Migration {
+  version: number;
+  description: string;
+  sql: string;
+}
+
+const MIGRATIONS: Migration[] = [
   { version: 1, description: 'Initial SQLite schema — migrated from JSON files', sql: INITIAL_SCHEMA_SQL },
   {
     version: 2,
@@ -164,13 +171,9 @@ const MIGRATIONS = [
 // Singleton database handle
 // ---------------------------------------------------------------------------
 
-let db = null;
+let db: DatabaseType | null = null;
 
-/**
- * Apply any pending schema migrations to the database.
- * Runs each migration in sequence, recording the version on success.
- */
-function applyMigrations(database) {
+function applyMigrations(database: DatabaseType): void {
   // Bootstrap schema_version table first
   database.exec(`
     CREATE TABLE IF NOT EXISTS schema_version (
@@ -182,10 +185,10 @@ function applyMigrations(database) {
 
   const currentVersion = database.prepare(
     'SELECT COALESCE(MAX(version), 0) AS version FROM schema_version'
-  ).get().version;
+  ).get() as { version: number };
 
   for (const migration of MIGRATIONS) {
-    if (migration.version > currentVersion) {
+    if (migration.version > currentVersion.version) {
       database.exec(migration.sql);
       database.prepare(
         'INSERT INTO schema_version (version, description) VALUES (?, ?)'
@@ -198,14 +201,7 @@ function applyMigrations(database) {
 // Public API
 // ---------------------------------------------------------------------------
 
-/**
- * Get (or create) the singleton SQLite database connection.
- * On first call, ensures the DATA_DIR exists, opens the database,
- * enables WAL mode, and runs any pending schema migrations.
- *
- * @returns {Database} better-sqlite3 Database instance
- */
-export function getDb() {
+export function getDb(): DatabaseType {
   if (db) return db;
 
   const dataDir = resolveDataDir();
@@ -221,11 +217,7 @@ export function getDb() {
   return db;
 }
 
-/**
- * Close the database connection.
- * Safe to call multiple times or before getDb() has been called.
- */
-export function closeDb() {
+export function closeDb(): void {
   if (db) {
     try { db.close(); } catch { /* already closed */ }
     db = null;
@@ -241,16 +233,14 @@ export function closeDb() {
  * changes are rolled back and JSON files remain untouched.
  *
  * On success, each JSON file is renamed to .migrated as a backup.
- *
- * @returns {boolean} true if data was migrated, false otherwise
  */
-export function migrateFromJson() {
+export function migrateFromJson(): boolean {
   const database = getDb();
 
   // Only migrate if DB is empty
-  const loadoutCount = database.prepare('SELECT COUNT(*) AS count FROM loadouts').get().count;
-  const todoCount = database.prepare('SELECT COUNT(*) AS count FROM todos').get().count;
-  const materialCount = database.prepare('SELECT COUNT(*) AS count FROM materials_inventory').get().count;
+  const loadoutCount = (database.prepare('SELECT COUNT(*) AS count FROM loadouts').get() as { count: number }).count;
+  const todoCount = (database.prepare('SELECT COUNT(*) AS count FROM todos').get() as { count: number }).count;
+  const materialCount = (database.prepare('SELECT COUNT(*) AS count FROM materials_inventory').get() as { count: number }).count;
 
   if (loadoutCount > 0 || todoCount > 0 || materialCount > 0) {
     return false;
@@ -258,9 +248,9 @@ export function migrateFromJson() {
 
   // Detect which JSON files exist
   const jsonFiles = [
-    { key: 'loadouts', table: 'loadouts', isMap: false },
-    { key: 'todos', table: 'todos', isMap: false },
-    { key: 'materials-inventory', table: 'materials_inventory', isMap: true },
+    { key: 'loadouts', table: 'loadouts', isMap: false as boolean },
+    { key: 'todos', table: 'todos', isMap: false as boolean },
+    { key: 'materials-inventory', table: 'materials_inventory', isMap: true as boolean },
   ];
 
   const dataDir = resolveDataDir();
@@ -318,7 +308,7 @@ export function migrateFromJson() {
           VALUES (?, ?, 1, ?)
         `);
         for (const [materialName, quantity] of Object.entries(data)) {
-          stmt.run(materialName, quantity, new Date().toISOString());
+          stmt.run(materialName, quantity as number, new Date().toISOString());
         }
       }
     }
@@ -328,18 +318,19 @@ export function migrateFromJson() {
   migrate();
 
   // All DB operations succeeded — now rename the JSON files
-  const renamed = [];
+  const renamed: string[] = [];
   try {
     for (const { key } of existing) {
       const filePath = path.join(dataDir, `${key}.json`);
       fs.renameSync(filePath, filePath + '.migrated');
       renamed.push(key);
     }
-  } catch (renameErr) {
+  } catch (renameErr: unknown) {
     // Rename failure is non-fatal — data is already in SQLite
+    const err = renameErr as Error;
     console.error('Database migration: JSON files migrated to SQLite, ' +
       `but rename failed for some files: ${renamed.length}/${existing.length} renamed. ` +
-      `Error: ${renameErr.message}`);
+      `Error: ${err.message}`);
   }
   return true;
 }

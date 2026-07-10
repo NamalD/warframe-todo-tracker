@@ -19,7 +19,7 @@ import { getDb } from './database.js';
 // Key-to-table mapping
 // ---------------------------------------------------------------------------
 
-const KEY_TABLE_MAP = {
+const KEY_TABLE_MAP: Record<string, string> = {
   loadouts: 'loadouts',
   todos: 'todos',
   'materials-inventory': 'materials_inventory',
@@ -29,20 +29,13 @@ const KEY_TABLE_MAP = {
 // Domain-specific table helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Read all loadouts from the loadouts table.
- * Each row's `data` column is a JSON blob of the full loadout object.
- */
 function readLoadouts() {
   const db = getDb();
-  const rows = db.prepare('SELECT data FROM loadouts ORDER BY id').all();
+  const rows = db.prepare('SELECT data FROM loadouts ORDER BY id').all() as Array<{ data: string }>;
   return rows.map(r => JSON.parse(r.data));
 }
 
-/**
- * Write all loadouts, replacing existing data in a single transaction.
- */
-function writeLoadouts(items) {
+function writeLoadouts(items: Record<string, unknown>[]) {
   const db = getDb();
   const write = db.transaction(() => {
     db.prepare('DELETE FROM loadouts').run();
@@ -55,29 +48,31 @@ function writeLoadouts(items) {
     for (const item of items) {
       stmt.run(
         item.id,
-        item.name || '',
+        (item as Record<string, unknown>).name || '',
         JSON.stringify(item),
-        item.created_at || new Date().toISOString(),
-        item.updated_at || new Date().toISOString(),
+        (item as Record<string, unknown>).created_at || new Date().toISOString(),
+        (item as Record<string, unknown>).updated_at || new Date().toISOString(),
       );
     }
   });
   write();
 }
 
-/**
- * Read all todos, reconstructing objects from normalized columns.
- * Metadata fields (version, created_at, updated_at) are internal to
- * the SQLite schema and omitted from the returned objects for backward
- * compatibility with the legacy JSON API shape.
- */
 function readTodos() {
   const db = getDb();
   const rows = db.prepare(`
     SELECT id, craftable_item_id, linked_material_name, user_notes,
            status, priority, due_at
     FROM todos ORDER BY id
-  `).all();
+  `).all() as Array<{
+    id: string;
+    craftable_item_id: string | null;
+    linked_material_name: string | null;
+    user_notes: string;
+    status: string;
+    priority: string;
+    due_at: string | null;
+  }>;
   return rows.map(r => ({
     id: r.id,
     craftable_item_id: r.craftable_item_id,
@@ -89,10 +84,7 @@ function readTodos() {
   }));
 }
 
-/**
- * Write all todos, replacing existing data in a single transaction.
- */
-function writeTodos(items) {
+function writeTodos(items: Record<string, unknown>[]) {
   const db = getDb();
   const write = db.transaction(() => {
     db.prepare('DELETE FROM todos').run();
@@ -107,39 +99,33 @@ function writeTodos(items) {
     for (const item of items) {
       stmt.run(
         item.id,
-        item.craftable_item_id || null,
-        item.linked_material_name || null,
-        item.user_notes || '',
-        item.status || 'pending',
-        item.priority || 'medium',
-        item.due_at || null,
-        item.created_at || new Date().toISOString(),
-        item.updated_at || new Date().toISOString(),
+        (item as Record<string, unknown>).craftable_item_id || null,
+        (item as Record<string, unknown>).linked_material_name || null,
+        (item as Record<string, unknown>).user_notes || '',
+        (item as Record<string, unknown>).status || 'pending',
+        (item as Record<string, unknown>).priority || 'medium',
+        (item as Record<string, unknown>).due_at || null,
+        (item as Record<string, unknown>).created_at || new Date().toISOString(),
+        (item as Record<string, unknown>).updated_at || new Date().toISOString(),
       );
     }
   });
   write();
 }
 
-/**
- * Read materials inventory as a flat object { material_name: quantity }.
- */
-function readMaterialsInventory() {
+function readMaterialsInventory(): Record<string, number> {
   const db = getDb();
   const rows = db.prepare(
     'SELECT material_name, quantity FROM materials_inventory'
-  ).all();
-  const result = {};
+  ).all() as Array<{ material_name: string; quantity: number }>;
+  const result: Record<string, number> = {};
   for (const r of rows) {
     result[r.material_name] = r.quantity;
   }
   return result;
 }
 
-/**
- * Write materials inventory, replacing existing data in a single transaction.
- */
-function writeMaterialsInventory(data) {
+function writeMaterialsInventory(data: Record<string, number>) {
   const db = getDb();
   const write = db.transaction(() => {
     db.prepare('DELETE FROM materials_inventory').run();
@@ -158,27 +144,14 @@ function writeMaterialsInventory(data) {
 }
 
 // ---------------------------------------------------------------------------
-// Public API (same signature as legacy JSON store)
-// ---------------------------------------------------------------------------
-
-/**
- * Read data for a given domain key.
- * Returns the parsed value or defaultValue if the table is empty
- * or the key is not recognised.
- */
-// ---------------------------------------------------------------------------
 // Version management via sync_meta table
 // ---------------------------------------------------------------------------
 
-/**
- * Custom error thrown when a write is rejected due to a version conflict.
- */
 export class ConflictError extends Error {
-  /**
-   * @param {string} key - The store key that conflicted
-   * @param {number} serverVersion - The current version on the server
-   */
-  constructor(key, serverVersion) {
+  key: string;
+  serverVersion: number;
+
+  constructor(key: string, serverVersion: number) {
     super(`Version conflict for "${key}": server version is ${serverVersion}`);
     this.name = 'ConflictError';
     this.key = key;
@@ -186,20 +159,13 @@ export class ConflictError extends Error {
   }
 }
 
-/**
- * Read the current version counter for a store key from sync_meta.
- * Returns 0 if no prior write has been recorded for this key.
- */
-export function readStoreVersion(key) {
+export function readStoreVersion(key: string): number {
   const db = getDb();
-  const row = db.prepare('SELECT value FROM sync_meta WHERE key = ?').get(`version:${key}`);
+  const row = db.prepare('SELECT value FROM sync_meta WHERE key = ?').get(`version:${key}`) as { value: string } | undefined;
   return row ? parseInt(row.value, 10) : 0;
 }
 
-/**
- * Increment the version counter for a store key and return the new value.
- */
-export function incrementStoreVersion(key) {
+export function incrementStoreVersion(key: string): number {
   const db = getDb();
   const versionKey = `version:${key}`;
   const current = readStoreVersion(key);
@@ -214,40 +180,18 @@ export function incrementStoreVersion(key) {
 // Version-aware public API
 // ---------------------------------------------------------------------------
 
-/**
- * Read data and its current version for a given domain key.
- * Returns `{ data, version }` where `version` is the domain-level
- * version counter used for conflict resolution.
- */
-export function readStoreWithVersion(key, defaultValue = null) {
+export function readStoreWithVersion(key: string, defaultValue: unknown = null): { data: unknown; version: number } {
   const data = readStore(key, defaultValue);
   const version = readStoreVersion(key);
   return { data, version };
 }
 
-/**
- * Write data for a given domain key with version validation.
- *
- * Compares the client-supplied version against the server's current version.
- * Uses last-writer-wins (LWW) with strict ordering:
- *   - If clientVersion >= storedVersion: accept the write, increment counter
- *   - If clientVersion < storedVersion:  throw ConflictError with current version
- *
- * @param {string} key - Store key (loadouts, todos, materials-inventory)
- * @param {*} data - Data to write
- * @param {number} clientVersion - Version the client believes it has
- * @returns {number} The new version after the write
- * @throws {ConflictError} If client version is behind the server
- */
-export function writeStoreWithVersion(key, data, clientVersion) {
+export function writeStoreWithVersion(key: string, data: unknown, clientVersion: number): number {
   const currentVersion = readStoreVersion(key);
   if (clientVersion < currentVersion) {
     throw new ConflictError(key, currentVersion);
   }
   writeStore(key, data);
-  // New version is clientVersion + 1, so the version counter always
-  // advances relative to the client's known state (even if the client's
-  // version was ahead of the server's).
   const newVersion = clientVersion + 1;
   const db = getDb();
   db.prepare(
@@ -256,12 +200,12 @@ export function writeStoreWithVersion(key, data, clientVersion) {
   return newVersion;
 }
 
-export function readStore(key, defaultValue = null) {
+export function readStore(key: string, defaultValue: unknown = null): unknown {
   const table = KEY_TABLE_MAP[key];
   if (!table) return defaultValue;
 
   try {
-    let data;
+    let data: unknown;
     if (table === 'loadouts') {
       data = readLoadouts();
     } else if (table === 'todos') {
@@ -271,29 +215,23 @@ export function readStore(key, defaultValue = null) {
     }
 
     return data;
-  } catch (err) {
-    console.error(`[server-store readStore] ${err.message}`);
+  } catch (err: unknown) {
+    console.error(`[server-store readStore] ${(err as Error).message}`);
     return defaultValue;
   }
 }
 
-/**
- * Write data for a given domain key.
- * Uses SQLite transactions for atomicity and concurrency safety.
- *
- * @throws {Error} If the key is not a recognised domain key.
- */
-export function writeStore(key, data) {
+export function writeStore(key: string, data: unknown): void {
   const table = KEY_TABLE_MAP[key];
   if (!table) {
     throw new Error(`Unknown store key: ${key}`);
   }
 
   if (table === 'loadouts') {
-    writeLoadouts(data);
+    writeLoadouts(data as Record<string, unknown>[]);
   } else if (table === 'todos') {
-    writeTodos(data);
+    writeTodos(data as Record<string, unknown>[]);
   } else if (table === 'materials_inventory') {
-    writeMaterialsInventory(data);
+    writeMaterialsInventory(data as Record<string, number>);
   }
 }

@@ -11,23 +11,23 @@
  *   and processes batch upserts with per-record version checking.
  *   Returns { accepted, conflicts, server_timestamp }.
  */
-import { getDb } from '../../../src/data/database.js';
+import { getDb } from '../../../src/data/database';
 import {
   getAllLoadouts,
   getLoadoutById,
   updateLoadout,
   createLoadout,
-} from '../../../src/data/sqlite-loadouts.js';
+} from '../../../src/data/sqlite-loadouts';
 import {
   getAllTodos,
   getTodoById,
   updateTodo,
   createTodo,
-} from '../../../src/data/sqlite-todos.js';
+} from '../../../src/data/sqlite-todos';
 import {
   upsertMaterial,
   upsertMaterialWithVersion,
-} from '../../../src/data/sqlite-materials.js';
+} from '../../../src/data/sqlite-materials';
 
 // ---------------------------------------------------------------------------
 // Helpers

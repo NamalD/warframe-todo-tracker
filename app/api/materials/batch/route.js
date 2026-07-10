@@ -1,5 +1,5 @@
-import { getDb } from '../../../../src/data/database.js';
-import { batchUpsert } from '../../../../src/data/sqlite-materials.js';
+import { getDb } from '../../../../src/data/database';
+import { batchUpsert } from '../../../../src/data/sqlite-materials';
 
 /**
  * PATCH /api/materials/batch

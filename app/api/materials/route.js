@@ -1,5 +1,5 @@
-import { getDb } from '../../../src/data/database.js';
-import { getAllMaterials, batchUpsert, upsertMaterialWithVersion } from '../../../src/data/sqlite-materials.js';
+import { getDb } from '../../../src/data/database';
+import { getAllMaterials, batchUpsert, upsertMaterialWithVersion } from '../../../src/data/sqlite-materials';
 
 export async function GET() {
   try {
