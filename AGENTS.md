@@ -118,6 +118,8 @@ When writing tests:
 - `next.config.js` marks `@wfcd/items` as a webpack external and loads it via dynamic `import()` at runtime — don't let it get bundled into client JS (it's tens of MB of JSON).
 - Docker builds may miss `public/data/*.json` if the Dockerfile doesn't explicitly copy `public/` — the test-pack's asset-check phase catches this.
 - The `DATA_DIR` env var controls where SQLite lives. Docker mounts `./data:/app/data` so the DB survives container recreation.
+- **Multi-filter boolean logic is fragile.** When a component has 3+ filter conditions (tracked-only, search, categories) and two separate empty-state messages, the compound boolean checks are easy to break. Always write a test for every empty-state combination — the reviewer will catch regressions.
+- **E2e assertions must verify content, not just count.** A `count > 0` or `count < allCount` assertion passes even when the filter is completely broken (showing wrong items). Verify specific content: badge classes, item names, or exclude specific unselected categories.
 
 ## Legacy/historical docs
 
