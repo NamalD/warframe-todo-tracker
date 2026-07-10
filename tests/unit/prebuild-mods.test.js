@@ -77,9 +77,13 @@ describe('mods-cache.json (prebuild output)', () => {
 
   it('mod_type is normalized (not a raw WFCD type)', () => {
     const allowedTypes = [
-      'Warframe Mod', 'Rifle Mod', 'Shotgun Mod', 'Melee Mod',
-      'Pistol Mod', 'Archwing Mod', 'Sentinel Mod', 'Stance Mod',
-      'Aura', 'Parazon Mod', 'Railjack Mod', 'Other',
+      'Warframe Mod', 'Primary Mod', 'Secondary Mod', 'Shotgun Mod',
+      'Melee Mod', 'Archwing Mod', 'Arch-Gun Mod', 'Arch-Melee Mod',
+      'Companion Mod', 'K-Drive Mod', 'Necramech Mod', 'Parazon Mod',
+      'Peculiar Mod', 'Plexus Mod', 'Posture Mod', 'Railjack Mod',
+      'Sentinel Mod', 'Stance Mod', 'Tektolyst Artifact Mod',
+      'Transmutation Mod', 'Mod Set Mod',
+      'Aura', 'Other',
     ];
     for (const mod of data.mods) {
       expect(allowedTypes).toContain(mod.mod_type);

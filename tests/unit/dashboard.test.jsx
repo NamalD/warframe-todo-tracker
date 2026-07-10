@@ -59,6 +59,8 @@ vi.mock('../../src/data/mod-store.js', () => ({
 
 vi.mock('../../src/data/store.js', () => ({
   default: {
+    initTodos: () => Promise.resolve(),
+    initMaterials: () => Promise.resolve(),
     getAllItems: () => Promise.resolve(mockState.items()),
     getTodos: () => mockState.todos(),
     getMaterialInventory: () => mockState.inventory(),
@@ -68,6 +70,13 @@ vi.mock('../../src/data/store.js', () => ({
       const newQty = isNaN(parsed) || parsed < 0 ? 0 : parsed;
       return newQty;
     },
+  },
+}));
+
+vi.mock('../../src/data/loadout-store.js', () => ({
+  default: {
+    init: () => Promise.resolve(),
+    getAllRequirements: () => [],
   },
 }));
 

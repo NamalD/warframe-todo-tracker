@@ -11,3 +11,5 @@ const localStorageMock = (() => {
 })();
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 (window as any).confirm = () => true;
+(globalThis as any).device = 'test-device';
+(globalThis as any).device_id = 'test-device-id';

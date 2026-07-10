@@ -34,9 +34,9 @@ describe('Incarnon Genesis install costs (prebuild output)', () => {
     }
   });
 
-  it('has all 45 Incarnon Genesis weapons flagged', () => {
+  it('has all 63 Incarnon Genesis weapons flagged', () => {
     const flagged = data.items.filter((i) => i.has_incarnon_genesis);
-    expect(flagged.length).toBe(45);
+    expect(flagged.length).toBe(63);
   });
 
   it('every has_incarnon_genesis item has exactly 3 install materials, each quantity > 0', () => {

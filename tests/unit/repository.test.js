@@ -73,7 +73,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
 
       const items = await repo.getAllItems();
 
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(fetchMock).toHaveBeenCalledWith('/data/wfcd-cache.json');
       expect(items.length).toBe(4);
       expect(items[0].name).toBe('Excalibur');
@@ -88,7 +88,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       await repo.getItemById('item-1');
       await repo.getMaterialsForItem('item-1');
 
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
     it('returns copies, not references', async () => {
@@ -394,13 +394,13 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       const fetchMock1 = mockFetchOk(FIXTURE_CACHE);
       const repo1 = await newRepo(fetchMock1);
       await repo1.getAllItems();
-      expect(fetchMock1).toHaveBeenCalledTimes(1);
+      expect(fetchMock1).toHaveBeenCalledTimes(2);
 
       const fetchMock2 = mockFetchOk(FIXTURE_CACHE);
       const repo2 = await newRepo(fetchMock2);
       const items = await repo2.getAllItems();
 
-      expect(fetchMock2).toHaveBeenCalledTimes(1);
+      expect(fetchMock2).toHaveBeenCalledTimes(2);
       expect(items.length).toBe(4);
       expect(items[0].name).toBe('Excalibur');
     });
@@ -436,7 +436,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       const repo2 = await newRepo(fetchMock2);
       const items = await repo2.getAllItems();
 
-      expect(fetchMock2).toHaveBeenCalledTimes(1);
+      expect(fetchMock2).toHaveBeenCalledTimes(2);
       expect(items.length).toBe(5);
       expect(items[4].name).toBe('NewItem');
 
@@ -477,7 +477,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
 
       // Same package version as the stale cache, but schemaVersion differs —
       // must re-fetch rather than silently reuse the shape-stale cache.
-      expect(fetchMock2).toHaveBeenCalledTimes(1);
+      expect(fetchMock2).toHaveBeenCalledTimes(2);
       expect(items[0].has_incarnon_genesis).toBe(true);
 
       const cached = JSON.parse(localStorage.getItem('warframe-items-cache'));
@@ -598,7 +598,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       const repo = await newRepo(fetchMock);
       const items = await repo.getAllItems();
 
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(items.length).toBe(4);
       expect(items[0].name).toBe('Excalibur');
     });

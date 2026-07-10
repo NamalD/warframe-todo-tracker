@@ -25,6 +25,8 @@ const mockMaterials = [
 // Define mock inline to avoid hoisting variable reference issues
 vi.mock('../../src/data/store.js', () => ({
   default: {
+    initTodos: () => Promise.resolve(),
+    initMaterials: () => Promise.resolve(),
     getAllItems: () => mockItems.map((i) => ({ ...i })),
     getTodos: () => state.todos.map((t) => ({ ...t })),
     getItemById: (id) => {

@@ -11,6 +11,7 @@ let mockLoadouts;
 
 function MockLR() {
   return {
+    init: vi.fn().mockResolvedValue(undefined),
     syncFromServer: vi.fn().mockResolvedValue(undefined),
     getLoadouts: vi.fn(() => mockLoadouts.map((l) => ({
       ...l,

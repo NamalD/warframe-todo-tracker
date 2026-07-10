@@ -10,6 +10,9 @@ const { mockLoadouts, mockItems, mockLoadoutRepo } = vi.hoisted(() => {
   const repo = {
     _syncCallback: null,
     lastSyncError: null,
+    init() {
+      return Promise.resolve();
+    },
     setSyncEventCallback(cb) {
       repo._syncCallback = cb;
     },
@@ -69,6 +72,7 @@ vi.mock('next/link', () => ({
 
 vi.mock('../../src/data/loadout-repository.js', () => ({
   default: class {
+    init() { return mockLoadoutRepo.init(); }
     syncFromServer() { return mockLoadoutRepo.syncFromServer(); }
     forceSyncToServer() { return mockLoadoutRepo.forceSyncToServer(); }
     getLoadoutById(id) { return mockLoadoutRepo.getLoadoutById(id); }
@@ -86,6 +90,8 @@ vi.mock('../../src/data/loadout-repository.js', () => ({
 
 vi.mock('../../src/data/store.js', () => ({
   default: {
+    initTodos: () => Promise.resolve(),
+    initMaterials: () => Promise.resolve(),
     getAllItems: () => mockItems,
     getItemById: (id) => mockItems.find((it) => it.id === id),
   },
