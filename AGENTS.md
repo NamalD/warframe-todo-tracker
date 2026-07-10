@@ -74,6 +74,16 @@ The GitHub Project board is the source of truth for what's being worked on. Ever
 - **Board snapshot (2026-07-10):** In Progress = **#90** (Fix 57 failing tests). Todo backlog includes #29 (Void Relic tracking), #30 (Companion/Pet tracking), #31 (Parazon mod filter), #32 (modular weapons), #33 (expand item categories), #35-#58, #64-#68, #73, #74, #78, #89, #92. Most older issues (#1-#28, #34, #37-#51, #59-#63, #69-#71, #75-#80, #85-#88, #91, #93-#94) are Done.
 - Note: board items generally have **no assignee** (single-developer project) — that's expected, not a gap to fix.
 
+## Agent behavior
+
+When the user asks you to make a code change, **always complete the full git workflow** unless they explicitly say otherwise:
+1. Create or use an existing feature branch
+2. Commit the change (with an issue reference, creating an issue if needed)
+3. Push and open a PR via `gh pr create --fill`
+4. Enable auto-merge via `gh pr merge --auto --squash --delete-branch`
+
+Do not stop after making the file edit — the workflow is not complete until the PR is open and auto-merge is enabled.
+
 ## Git workflow
 
 All changes go through **pull requests** — never push directly to `main`. `main` is protected: the `Test Suite` CI check must pass before merging.
