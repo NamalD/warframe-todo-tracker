@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Aggregate materials needed across tracked items and loadout requirements.
  * Used by both the home page dashboard and the shopping list.

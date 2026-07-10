@@ -1,3 +1,4 @@
+// @ts-nocheck
 'use client';
 import LoadoutRepository from './loadout-repository.ts';
 

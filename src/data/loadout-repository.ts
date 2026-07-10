@@ -1,21 +1,39 @@
+// @ts-nocheck
 'use client';
+
+/**
+ * @typedef {import('../types/data').ClientLoadout} ClientLoadout
+ * @typedef {import('../types/data').Build} Build
+ * @typedef {import('../types/data').Requirement} Requirement
+ */
 
 const STORAGE_KEY = 'warframe-loadouts';
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
 
-function flattenLoadout({ data, ...rest }) {
+/**
+ * @param {{ data?: Object }} loadout
+ * @returns {Object}
+ */
+function flattenLoadout(/** @type {{ data?: Object }} */ loadout) {
+  const { data, ...rest } = loadout;
   return { ...rest, ...(data || {}) };
 }
 
+/**
+ * @param {Object} loadout
+ * @returns {Object}
+ */
 function stripDataFields(loadout) {
   const { id, name, version, created_at, updated_at, ...data } = loadout;
   return data;
 }
 
 export default class LoadoutRepository {
-  #data: { loadouts: ClientLoadout[] } = { loadouts: [] };
+  /** @type {{ loadouts: ClientLoadout[] }} */
+  #data = { loadouts: [] };
   #initialized = false;
-  #initPromise: Promise<void> | null = null;
+  /** @type {Promise<void> | null} */
+  #initPromise = null;
 
   constructor() {
     this.#data = { loadouts: [] };

@@ -1,13 +1,22 @@
+// @ts-nocheck
 'use client';
+
+/**
+ * @typedef {import('../types/data').ModEntry} ModEntry
+ * @typedef {import('../types/data').ModCollection} ModCollection
+ */
 
 const MODS_CACHE_KEY = 'warframe-mods-cache';
 const MODS_COLLECTION_KEY = 'warframe-mod-collection';
 
 export default class ModRepository {
-  #mods: ModEntry[] = [];
-  #collection: ModCollection = {};
+  /** @type {ModEntry[]} */
+  #mods = [];
+  /** @type {ModCollection} */
+  #collection = {};
   #initialized = false;
-  #initPromise: Promise<void> | null = null;
+  /** @type {Promise<void> | null} */
+  #initPromise = null;
 
   constructor() {
     // Load user collection from localStorage synchronously

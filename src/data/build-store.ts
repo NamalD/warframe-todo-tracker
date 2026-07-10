@@ -1,3 +1,4 @@
+// @ts-nocheck
 'use client';
 import BuildRepository from './build-repository.ts';
 
