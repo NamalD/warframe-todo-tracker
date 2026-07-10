@@ -68,8 +68,8 @@ All changes go through **pull requests** — never push directly to `main`. `mai
 1. Create a feature branch: `git checkout -b feat/short-description`
 2. Commit and push changes to the branch
 3. Create a PR: `gh pr create --fill`
-4. Wait for the CI check to go green (or verify locally with `yarn vitest run`)
-5. Merge when ready: `gh pr merge --squash --delete-branch`
+4. Enable auto-merge: `gh pr merge --auto --squash --delete-branch`
+5. CI runs; when "Test Suite" passes, GitHub auto-merges and deploys
 
 The Docker auto-deploy hook fires on push to `main` (after merge). Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.
 
