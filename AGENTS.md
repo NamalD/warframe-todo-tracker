@@ -119,6 +119,7 @@ When writing tests:
 - Docker builds may miss `public/data/*.json` if the Dockerfile doesn't explicitly copy `public/` — the test-pack's asset-check phase catches this.
 - The `DATA_DIR` env var controls where SQLite lives. Docker mounts `./data:/app/data` so the DB survives container recreation.
 - **Multi-filter boolean logic is fragile.** When a component has 3+ filter conditions (tracked-only, search, categories) and two separate empty-state messages, the compound boolean checks are easy to break. Always write a test for every empty-state combination — the reviewer will catch regressions.
+- **Filter chain order is intentionally consistent across pages**: Search → multi-select filters (pills/dropdowns) → boolean toggle. The visual grouping may differ (mods places the boolean toggle inline with pills to save vertical space on a denser filter bar) but the logical chain is the same on every page.
 - **E2e assertions must verify content, not just count.** A `count > 0` or `count < allCount` assertion passes even when the filter is completely broken (showing wrong items). Verify specific content: badge classes, item names, or exclude specific unselected categories.
 
 ## Legacy/historical docs
