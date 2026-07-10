@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import repo from '../../src/data/store.js';
+import MultiSelectPillFilter from '../components/MultiSelectPillFilter.jsx';
 
 const CATEGORY_LABELS = {
   warframe: 'Warframe',
@@ -92,62 +93,13 @@ function ItemsList() {
       </div>
       <div className="filters">
         <div data-testid="category-filter">
-          {distinctCategories.map((cat) => (
-            <button
-              key={cat}
-              data-testid={`category-btn-${cat}`}
-              onClick={() => toggleCategory(cat)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: 6,
-                border: selectedCategories.includes(cat)
-                  ? '1px solid #7cc4ff'
-                  : '1px solid #2a2f3f',
-                background: selectedCategories.includes(cat)
-                  ? '#1a2540'
-                  : '#181c26',
-                color: selectedCategories.includes(cat)
-                  ? '#7cc4ff'
-                  : '#b6bcc7',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 500,
-                marginRight: 6,
-              }}
-            >
-              {CATEGORY_LABELS[cat] || cat}
-            </button>
-          ))}
-          <button
-            data-testid="category-select-all"
-            onClick={() => setSelectedCategories([...distinctCategories])}
-            style={{
-              fontSize: 12,
-              color: '#7a8194',
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-              marginLeft: 4,
-              padding: '4px 6px',
-            }}
-          >
-            All
-          </button>
-          <button
-            data-testid="category-clear-all"
-            onClick={() => setSelectedCategories([])}
-            style={{
-              fontSize: 12,
-              color: '#7a8194',
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-              marginLeft: 4,
-              padding: '4px 6px',
-            }}
-          >
-            None
-          </button>
+          <MultiSelectPillFilter
+            items={distinctCategories}
+            selected={selectedCategories}
+            onToggle={toggleCategory}
+            getLabel={(cat) => CATEGORY_LABELS[cat] || cat}
+            testIdPrefix="category"
+          />
         </div>
       </div>
       <div className="filters">

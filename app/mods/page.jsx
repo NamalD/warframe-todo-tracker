@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import modRepo from '../../src/data/mod-store.js';
+import MultiSelectPillFilter from '../components/MultiSelectPillFilter.jsx';
 
 const RARITIES = ['Common', 'Uncommon', 'Rare', 'Legendary'];
 const RARITY_COLORS = {
@@ -127,10 +128,13 @@ function ModsPage() {
         </div>
         <div className="filters">
           <div data-testid="mod-polarity-filter">
-            {distinctPolarities.map(pol => (
-              <button key={pol} data-testid={`polarity-btn-${pol}`} onClick={() => togglePolarity(pol)}
-                style={{ padding:'4px 10px', borderRadius:6, border: selectedPolarities.includes(pol) ? '1px solid #7cc4ff' : '1px solid #2a2f3f', background: selectedPolarities.includes(pol) ? '#1a2540' : '#181c26', color: selectedPolarities.includes(pol) ? '#7cc4ff' : '#b6bcc7', cursor:'pointer', fontSize:13, fontWeight:500, marginRight:6 }}>{pol}</button>
-            ))}
+            <MultiSelectPillFilter
+              items={distinctPolarities}
+              selected={selectedPolarities}
+              onToggle={togglePolarity}
+              showUtilityButtons={false}
+              testIdPrefix="polarity"
+            />
           </div>
           <label style={{ fontSize:13, color:'#b6bcc7', display:'inline-flex', alignItems:'center', gap:6 }}>
             <input type="checkbox" checked={showOwnedOnly} onChange={e => setShowOwnedOnly(e.target.checked)} data-testid="mod-owned-filter" /> Show owned only
@@ -163,10 +167,13 @@ function ModsPage() {
       </div>
       <div className="filters">
         <div data-testid="mod-polarity-filter">
-          {distinctPolarities.map(pol => (
-            <button key={pol} data-testid={`polarity-btn-${pol}`} onClick={() => togglePolarity(pol)}
-              style={{ padding:'4px 10px', borderRadius:6, border: selectedPolarities.includes(pol) ? '1px solid #7cc4ff' : '1px solid #2a2f3f', background: selectedPolarities.includes(pol) ? '#1a2540' : '#181c26', color: selectedPolarities.includes(pol) ? '#7cc4ff' : '#b6bcc7', cursor:'pointer', fontSize:13, fontWeight:500, marginRight:6 }}>{pol}</button>
-          ))}
+          <MultiSelectPillFilter
+            items={distinctPolarities}
+            selected={selectedPolarities}
+            onToggle={togglePolarity}
+            showUtilityButtons={false}
+            testIdPrefix="polarity"
+          />
         </div>
         <label style={{ fontSize:13, color:'#b6bcc7', display:'inline-flex', alignItems:'center', gap:6 }}>
           <input type="checkbox" checked={showOwnedOnly} onChange={e => setShowOwnedOnly(e.target.checked)} data-testid="mod-owned-filter" /> Show owned only
