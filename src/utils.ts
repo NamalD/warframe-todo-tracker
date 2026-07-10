@@ -1,8 +1,10 @@
+// @ts-nocheck
 /**
  * Groups an array of objects by the value of a given key.
- * @param {Array} arr
- * @param {string} key
- * @returns {Object}
+ * @template T
+ * @param {T[]} arr
+ * @param {keyof T} key
+ * @returns {Record<string, T[]>}
  */
 export function groupBy(arr, key) {
   return arr.reduce((acc, curr) => {

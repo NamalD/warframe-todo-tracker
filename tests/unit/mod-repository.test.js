@@ -60,7 +60,7 @@ function createMockCache() {
 beforeEach(async () => {
   localStorage.clear();
   vi.restoreAllMocks();
-  const mod = await import('../../src/data/mod-repository.js');
+  const mod = await import('../../src/data/mod-repository.ts');
   ModRepository = mod.default;
 });
 

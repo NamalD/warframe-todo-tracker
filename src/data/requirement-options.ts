@@ -1,7 +1,10 @@
+// @ts-nocheck
+
 /**
  * Predefined upgrade options for loadout equipment slots, organized by slot_type.
  * Wiki URLs are derived from names via constructWikiUrl-style transformation
  * in the component that renders them.
+ * @typedef {import('../types/data').RequirementOption} RequirementOption
  */
 
 const REQUIREMENT_OPTIONS = {

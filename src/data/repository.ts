@@ -1,4 +1,14 @@
+// @ts-nocheck
 'use client';
+
+/**
+ * @typedef {import('../types/data').Item} Item
+ * @typedef {import('../types/data').Material} Material
+ * @typedef {import('../types/data').Source} Source
+ * @typedef {import('../types/data').TreeRelationship} TreeRelationship
+ * @typedef {import('../types/data').Todo} Todo
+ * @typedef {import('../types/data').MaterialInventory} MaterialInventory
+ */
 
 const ITEMS_CACHE_KEY = 'warframe-items-cache';
 const OLD_TODOS_KEY = 'warframe-todos';
@@ -31,17 +41,23 @@ const SEED_TODOS = [
 ];
 
 export default class Repository {
-  // Public fields
+  /** @type {Item[]} */
   items = [];
+  /** @type {Material[]} */
   materials = [];
+  /** @type {Source[]} */
   sources = [];
+  /** @type {TreeRelationship[]} */
   treeRelationships = [];
+  /** @type {Todo[]} */
   todos = [...SEED_TODOS.map(t => ({ ...t }))];
+  /** @type {MaterialInventory} */
   materialInventory = {};
 
   // Private fields
   #initialized = false;
   #refDataInitialized = false;
+  /** @type {Promise<void> | null} */
   #refDataInitPromise = null;
 
   async initTodos() {

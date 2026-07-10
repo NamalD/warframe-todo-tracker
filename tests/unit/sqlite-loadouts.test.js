@@ -28,8 +28,8 @@ describe('sqlite-loadouts module', () => {
 
   async function loadModules() {
     vi.resetModules();
-    database = await import('../../src/data/database.js?t=' + Date.now());
-    loadouts = await import('../../src/data/sqlite-loadouts.js?t=' + Date.now());
+    database = await import('../../src/data/database.ts?t=' + Date.now());
+    loadouts = await import('../../src/data/sqlite-loadouts.ts?t=' + Date.now());
     db = database.getDb();
   }
 
@@ -297,7 +297,7 @@ describe('sqlite-loadouts module', () => {
     });
 
     it('accepts the client\'s flat local-model shape (no explicit .data key)', () => {
-      // loadout-repository.js's actual local model has no `.data` wrapper —
+      // loadout-repository.ts's actual local model has no `.data` wrapper —
       // slots live at the top level. Everything but id/name/timestamps
       // should be captured into the stored `data` blob.
       loadouts.mergeNewLoadouts(db, [

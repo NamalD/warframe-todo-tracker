@@ -1,11 +1,11 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import repo from '../src/data/store.js';
-import modRepo from '../src/data/mod-store.js';
+import repo from '../src/data/store.ts';
+import modRepo from '../src/data/mod-store.ts';
 import LoadoutDashboardSection from '../src/components/loadout-dashboard-section.jsx';
-import { aggregateTrackedMaterials } from '../src/data/material-aggregator.js';
-import loadoutRepo from '../src/data/loadout-store.js';
+import { aggregateTrackedMaterials } from '../src/data/material-aggregator.ts';
+import loadoutRepo from '../src/data/loadout-store.ts';
 import BuildDashboardSection from '../src/components/build-dashboard-section.jsx';
 
 function Home() {

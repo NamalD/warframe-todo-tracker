@@ -1,5 +1,6 @@
+// @ts-nocheck
 'use client';
-import Repository from './repository.js';
+import Repository from './repository.ts';
 
 const repo = new Repository();
 

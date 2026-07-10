@@ -51,13 +51,13 @@ const mockState = vi.hoisted(() => ({
   trackedMods: () => [],
 }));
 
-vi.mock('../../src/data/mod-store.js', () => ({
+vi.mock('../../src/data/mod-store.ts', () => ({
   default: {
     getTrackedMods: () => Promise.resolve(mockState.trackedMods()),
   },
 }));
 
-vi.mock('../../src/data/store.js', () => ({
+vi.mock('../../src/data/store.ts', () => ({
   default: {
     initTodos: () => Promise.resolve(),
     initMaterials: () => Promise.resolve(),
@@ -73,7 +73,7 @@ vi.mock('../../src/data/store.js', () => ({
   },
 }));
 
-vi.mock('../../src/data/loadout-store.js', () => ({
+vi.mock('../../src/data/loadout-store.ts', () => ({
   default: {
     init: () => Promise.resolve(),
     getAllRequirements: () => [],

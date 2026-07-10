@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import repo from '../../src/data/store.js';
+import repo from '../../src/data/store.ts';
 
 function groupBy(arr, key) {
   return arr.reduce((acc, curr) => {

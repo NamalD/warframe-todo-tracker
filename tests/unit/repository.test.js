@@ -55,7 +55,7 @@ async function newRepo(fetchImpl) {
     vi.stubGlobal('fetch', fetchImpl);
   }
   localStorage.clear();
-  const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
+  const mod = await import('../../src/data/repository.ts?t=' + Date.now() + Math.random());
   return new mod.default();
 }
 
@@ -498,7 +498,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
         treeRelationships: FIXTURE_CACHE.treeRelationships,
       }));
 
-      const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
+      const mod = await import('../../src/data/repository.ts?t=' + Date.now() + Math.random());
       const repo = new mod.default();
       const items = await repo.getAllItems();
 
@@ -552,7 +552,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
 
     it('can be constructed without awaiting anything', async () => {
       const fetchMock = mockFetchOk(FIXTURE_CACHE);
-      const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
+      const mod = await import('../../src/data/repository.ts?t=' + Date.now() + Math.random());
       const repo = new mod.default();
 
       expect(repo).toBeDefined();
@@ -577,7 +577,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       delete globalThis.window;
 
       try {
-        const mod = await import('../../src/data/repository.js?t=' + Date.now() + Math.random());
+        const mod = await import('../../src/data/repository.ts?t=' + Date.now() + Math.random());
         const repo = new mod.default();
 
         // getAllItems triggers lazy init, which calls #loadData internally

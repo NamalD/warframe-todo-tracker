@@ -2,8 +2,8 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import buildStore from '../../../src/data/build-store.js';
-import repo from '../../../src/data/store.js';
+import buildStore from '../../../src/data/build-store.ts';
+import repo from '../../../src/data/store.ts';
 import SearchableSelect from '../../components/searchable-select';
 
 function BuildDetailInner() {

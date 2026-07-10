@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getOptionsForSlot, getAllSlotTypes } from '../../src/data/requirement-options.js';
+import { getOptionsForSlot, getAllSlotTypes } from '../../src/data/requirement-options.ts';
 
 describe('requirement-options', () => {
   describe('getOptionsForSlot', () => {

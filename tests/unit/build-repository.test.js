@@ -7,7 +7,7 @@ beforeEach(async () => {
   localStorage.clear();
   // Mock fetch for syncToServer
   globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
-  const mod = await import('../../src/data/build-repository.js');
+  const mod = await import('../../src/data/build-repository.ts');
   BuildRepository = mod.default;
   repo = new BuildRepository();
 });

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import loadoutStore from '../../src/data/loadout-store.js';
+import loadoutStore from '../../src/data/loadout-store.ts';
 
 function isLoadoutComplete(loadout) {
   const slots = (loadout.slots || []).filter((s) => s.item_id || s.custom_item_name);

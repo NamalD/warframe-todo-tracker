@@ -13,7 +13,7 @@
  * This module is Node.js-only — never imported from client components.
  */
 
-import { getDb } from './database.js';
+import { getDb } from './database.ts';
 
 // ---------------------------------------------------------------------------
 // Key-to-table mapping

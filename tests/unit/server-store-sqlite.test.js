@@ -31,7 +31,7 @@ function cleanDataDir() {
 async function loadModule() {
   const { vi: innerVi } = await import('vitest');
   innerVi.resetModules();
-  return await import('../../src/data/server-store.js?t=' + Date.now());
+  return await import('../../src/data/server-store.ts?t=' + Date.now());
 }
 
 // ---------------------------------------------------------------------------
@@ -347,7 +347,7 @@ describe('DB lifecycle interactions', () => {
     serverStore.writeStore('loadouts', [{ id: 'persist-1', name: 'Persist Test' }]);
 
     // Import the database module and close to force reconnection
-    const dbModule = await import('../../src/data/database.js?t=' + Date.now());
+    const dbModule = await import('../../src/data/database.ts?t=' + Date.now());
     dbModule.closeDb();
 
     // ServerStore's own getDb() is still open, so read still works

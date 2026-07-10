@@ -2,11 +2,11 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import loadoutStore from '../../../src/data/loadout-store.js';
-import repo from '../../../src/data/store.js';
+import loadoutStore from '../../../src/data/loadout-store.ts';
+import repo from '../../../src/data/store.ts';
 import RequirementCombobox from './requirement-combobox';
 import SearchableSelect from '../../components/searchable-select';
-import { getOptionsForSlot } from '../../../src/data/requirement-options.js';
+import { getOptionsForSlot } from '../../../src/data/requirement-options.ts';
 
 const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
 

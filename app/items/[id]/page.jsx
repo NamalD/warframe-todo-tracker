@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import repo from '../../../src/data/store.js';
+import repo from '../../../src/data/store.ts';
 
 function MaterialsTable({ materials, owned, onOwnedChange }) {
   return (

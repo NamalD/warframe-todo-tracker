@@ -1,5 +1,6 @@
+// @ts-nocheck
 'use client';
-import BuildRepository from './build-repository.js';
+import BuildRepository from './build-repository.ts';
 
 const buildRepo = new BuildRepository();
 

@@ -28,8 +28,8 @@ describe('sqlite-materials module', () => {
 
   async function loadModules() {
     vi.resetModules();
-    database = await import('../../src/data/database.js?t=' + Date.now());
-    materials = await import('../../src/data/sqlite-materials.js?t=' + Date.now());
+    database = await import('../../src/data/database.ts?t=' + Date.now());
+    materials = await import('../../src/data/sqlite-materials.ts?t=' + Date.now());
     db = database.getDb();
   }
 

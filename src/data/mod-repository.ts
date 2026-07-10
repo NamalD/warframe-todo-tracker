@@ -1,12 +1,21 @@
+// @ts-nocheck
 'use client';
+
+/**
+ * @typedef {import('../types/data').ModEntry} ModEntry
+ * @typedef {import('../types/data').ModCollection} ModCollection
+ */
 
 const MODS_CACHE_KEY = 'warframe-mods-cache';
 const MODS_COLLECTION_KEY = 'warframe-mod-collection';
 
 export default class ModRepository {
+  /** @type {ModEntry[]} */
   #mods = [];
+  /** @type {ModCollection} */
   #collection = {};
   #initialized = false;
+  /** @type {Promise<void> | null} */
   #initPromise = null;
 
   constructor() {
