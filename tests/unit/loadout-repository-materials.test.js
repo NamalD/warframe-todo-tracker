@@ -6,7 +6,7 @@ let repo;
 beforeEach(async () => {
   localStorage.clear();
   globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
-  const mod = await import('../../src/data/loadout-repository.js');
+  const mod = await import('../../src/data/loadout-repository.ts');
   LoadoutRepository = mod.default;
   repo = new LoadoutRepository();
 });

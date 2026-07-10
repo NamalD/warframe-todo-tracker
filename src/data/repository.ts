@@ -31,18 +31,17 @@ const SEED_TODOS = [
 ];
 
 export default class Repository {
-  // Public fields
-  items = [];
-  materials = [];
-  sources = [];
-  treeRelationships = [];
-  todos = [...SEED_TODOS.map(t => ({ ...t }))];
-  materialInventory = {};
+    items: Item[] = [];
+  materials: Material[] = [];
+  sources: Source[] = [];
+  treeRelationships: TreeRelationship[] = [];
+  todos: Todo[] = [...SEED_TODOS.map(t => ({ ...t }))];
+  materialInventory: MaterialInventory = {};
 
   // Private fields
   #initialized = false;
   #refDataInitialized = false;
-  #refDataInitPromise = null;
+  #refDataInitPromise: Promise<void> | null = null;
 
   async initTodos() {
     try {

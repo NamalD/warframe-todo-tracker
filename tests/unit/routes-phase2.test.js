@@ -13,7 +13,7 @@
  *   - 409 conflict detection
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { closeDb } from '../../src/data/database.js';
+import { closeDb } from '../../src/data/database.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';

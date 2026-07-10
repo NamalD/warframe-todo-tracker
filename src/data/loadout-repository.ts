@@ -13,9 +13,9 @@ function stripDataFields(loadout) {
 }
 
 export default class LoadoutRepository {
-  #data;
+  #data: { loadouts: ClientLoadout[] } = { loadouts: [] };
   #initialized = false;
-  #initPromise = null;
+  #initPromise: Promise<void> | null = null;
 
   constructor() {
     this.#data = { loadouts: [] };
@@ -42,7 +42,7 @@ export default class LoadoutRepository {
       }
     } catch (err) {
       console.error('Failed to fetch loadouts:', err);
-      this.#data.loadouts = [];
+      this.#data.loadouts = []; // ClientLoadout[]
     }
   }
 

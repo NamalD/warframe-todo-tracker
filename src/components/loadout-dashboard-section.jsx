@@ -1,8 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import LoadoutRepository from '../data/loadout-repository.js';
-import repo from '../data/store.js';
+import LoadoutRepository from '../data/loadout-repository.ts';
+import repo from '../data/store.ts';
 
 export default function LoadoutDashboardSection() {
   const [summary, setSummary] = useState(null);

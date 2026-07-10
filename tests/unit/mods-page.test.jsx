@@ -24,7 +24,7 @@ const mockGetMods = vi.hoisted(() => vi.fn(() =>
   Promise.resolve(SAMPLE_MODS.map(m => ({ ...m })))
 ));
 
-vi.mock('../../src/data/mod-store.js', () => ({
+vi.mock('../../src/data/mod-store.ts', () => ({
   default: {
     getMods: mockGetMods,
     setModOwned: mockSetModOwned,
@@ -354,7 +354,7 @@ describe('ModsPage', () => {
 
   it('shows error state when mod loading fails', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const modStore = await import('../../src/data/mod-store.js');
+    const modStore = await import('../../src/data/mod-store.ts');
     const orig = modStore.default.getMods;
     modStore.default.getMods = () => Promise.reject(new Error('Network failure'));
     const { unmount } = render(React.createElement(ModsPage));

@@ -27,7 +27,7 @@ describe('database module', () => {
   // Re-import the module for each test group to get a fresh state
   async function loadModule() {
     vi.resetModules();
-    return await import('../../src/data/database.js?t=' + Date.now());
+    return await import('../../src/data/database.ts?t=' + Date.now());
   }
 
   describe('getDb()', () => {

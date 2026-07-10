@@ -119,7 +119,7 @@ vi.mock('next/navigation', () => ({
   useParams: () => ({ ...mockParams }),
 }));
 
-vi.mock('../../src/data/mod-store.js', () => ({
+vi.mock('../../src/data/mod-store.ts', () => ({
   default: mockModRepo,
 }));
 

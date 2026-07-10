@@ -15,7 +15,7 @@ const mockItems = [
   { id: 'item-5', name: 'Akks Prime', item_type: 'companion', mastery_rank_required: 6, is_user_tracked: false, blueprint_source: 'clan' },
 ];
 
-vi.mock('../../src/data/store.js', () => ({
+vi.mock('../../src/data/store.ts', () => ({
   default: {
     getAllItems: () => Promise.resolve(mockItems.map((it) => ({ ...it }))),
   },
@@ -298,7 +298,7 @@ describe('ItemsList', () => {
         { id: 'item-1', name: 'Excalibur', item_type: 'warframe', mastery_rank_required: 0, is_user_tracked: false, blueprint_source: 'quest' },
       ]),
     };
-    vi.doMock('../../src/data/store.js', () => ({ default: singleRepo }));
+    vi.doMock('../../src/data/store.ts', () => ({ default: singleRepo }));
     const { default: ItemsListSingle } = await import('../../app/items/page.jsx');
     render(React.createElement(ItemsListSingle));
     await waitFor(() => {

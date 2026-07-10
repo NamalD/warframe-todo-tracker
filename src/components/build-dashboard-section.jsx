@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import BuildRepository from '../data/build-repository.js';
+import BuildRepository from '../data/build-repository.ts';
 
 export default function BuildDashboardSection() {
   const [summary, setSummary] = useState(null);

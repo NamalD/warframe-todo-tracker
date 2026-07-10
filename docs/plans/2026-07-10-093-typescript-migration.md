@@ -16,7 +16,7 @@ last_update: 2026-07-10
 | U1   | ✅ Done | Infrastructure: tsconfig, ESLint, @types packages |
 | U2   | ✅ Done | Type definitions: types/wfcd.d.ts, types/data.ts |
 | U3   | ✅ Done | Server data layer: 7 files fully typed |
-| U4   | ⬜     | Client repositories: 11 files |
+|| U4   | ✅ Done | Client repositories: 11 files |
 | U5   | ⬜     | Utilities: utils.ts |
 | U6   | ⬜     | Dashboard components: 2 TSX files |
 | U7   | ⬜     | App pages + components: 18 files |

@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import repo from '../../src/data/store.js';
+import repo from '../../src/data/store.ts';
 import SearchableSelect from '../components/searchable-select';
 
 const STATUS_OPTIONS = ['pending', 'in_progress', 'completed', 'blocked'];

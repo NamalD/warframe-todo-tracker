@@ -4,10 +4,10 @@ const MODS_CACHE_KEY = 'warframe-mods-cache';
 const MODS_COLLECTION_KEY = 'warframe-mod-collection';
 
 export default class ModRepository {
-  #mods = [];
-  #collection = {};
+  #mods: ModEntry[] = [];
+  #collection: ModCollection = {};
   #initialized = false;
-  #initPromise = null;
+  #initPromise: Promise<void> | null = null;
 
   constructor() {
     // Load user collection from localStorage synchronously

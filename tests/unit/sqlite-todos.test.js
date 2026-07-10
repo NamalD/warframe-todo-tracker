@@ -28,8 +28,8 @@ describe('sqlite-todos module', () => {
 
   async function loadModules() {
     vi.resetModules();
-    database = await import('../../src/data/database.js?t=' + Date.now());
-    todos = await import('../../src/data/sqlite-todos.js?t=' + Date.now());
+    database = await import('../../src/data/database.ts?t=' + Date.now());
+    todos = await import('../../src/data/sqlite-todos.ts?t=' + Date.now());
     db = database.getDb();
   }
 

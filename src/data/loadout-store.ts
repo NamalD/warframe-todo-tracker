@@ -1,5 +1,5 @@
 'use client';
-import LoadoutRepository from './loadout-repository.js';
+import LoadoutRepository from './loadout-repository.ts';
 
 const loadoutRepo = new LoadoutRepository();
 

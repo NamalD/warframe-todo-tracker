@@ -70,7 +70,7 @@ vi.mock('next/link', () => ({
     React.createElement('a', { href, ...props }, children),
 }));
 
-vi.mock('../../src/data/loadout-repository.js', () => ({
+vi.mock('../../src/data/loadout-repository.ts', () => ({
   default: class {
     init() { return mockLoadoutRepo.init(); }
     syncFromServer() { return mockLoadoutRepo.syncFromServer(); }
@@ -88,7 +88,7 @@ vi.mock('../../src/data/loadout-repository.js', () => ({
   },
 }));
 
-vi.mock('../../src/data/store.js', () => ({
+vi.mock('../../src/data/store.ts', () => ({
   default: {
     initTodos: () => Promise.resolve(),
     initMaterials: () => Promise.resolve(),
@@ -363,7 +363,7 @@ describe('LoadoutDetailPage — requirement combobox integration', () => {
     const comboboxInput = screen.getByTestId('req-name-input');
     fireEvent.focus(comboboxInput);
     await waitFor(() => {
-      // warframe options from requirement-options.js should appear
+      // warframe options from requirement-options.ts should appear
       expect(screen.getAllByText('Orokin Reactor').length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('Exilus Warframe Adapter')).toBeInTheDocument();
       expect(screen.getByText('Aura Forma')).toBeInTheDocument();

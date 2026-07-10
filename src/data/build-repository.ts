@@ -1,9 +1,16 @@
 'use client';
 
 export default class BuildRepository {
-  #data;
+  #data: { builds: Build[] } = { builds: [] };
   #initialized = false;
-  #initPromise = null;
+  #initPromise: Promise<void> | null = null;
+
+  constructor() {
+    this.#data = { builds: [] };
+  }
+  #data: { builds: Build[] } = { builds: [] };
+  #initialized = false;
+  #initPromise: Promise<void> | null = null;
 
   constructor() {
     this.#data = { builds: [] };

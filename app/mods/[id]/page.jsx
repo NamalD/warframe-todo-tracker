@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import modRepo from '../../../src/data/mod-store.js';
+import modRepo from '../../../src/data/mod-store.ts';
 
 function ModDetailPage({ params }) {
   const routeParams = useParams();

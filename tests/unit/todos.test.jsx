@@ -23,7 +23,7 @@ const mockMaterials = [
 ];
 
 // Define mock inline to avoid hoisting variable reference issues
-vi.mock('../../src/data/store.js', () => ({
+vi.mock('../../src/data/store.ts', () => ({
   default: {
     initTodos: () => Promise.resolve(),
     initMaterials: () => Promise.resolve(),

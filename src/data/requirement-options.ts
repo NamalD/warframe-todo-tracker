@@ -1,10 +1,11 @@
+
 /**
  * Predefined upgrade options for loadout equipment slots, organized by slot_type.
  * Wiki URLs are derived from names via constructWikiUrl-style transformation
  * in the component that renders them.
  */
 
-const REQUIREMENT_OPTIONS = {
+const REQUIREMENT_OPTIONS: Record<string, RequirementOption[]> = {
   warframe: [
     { name: 'Orokin Reactor' },
     { name: 'Exilus Warframe Adapter' },

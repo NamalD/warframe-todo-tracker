@@ -1,9 +1,9 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import repo from '../../src/data/store.js';
-import { aggregateTrackedMaterials } from '../../src/data/material-aggregator.js';
-import loadoutRepo from '../../src/data/loadout-store.js';
+import repo from '../../src/data/store.ts';
+import { aggregateTrackedMaterials } from '../../src/data/material-aggregator.ts';
+import loadoutRepo from '../../src/data/loadout-store.ts';
 
 function ShoppingList() {
   const [materials, setMaterials] = useState([]);

@@ -1,7 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import modRepo from '../../src/data/mod-store.js';
+import modRepo from '../../src/data/mod-store.ts';
 import MultiSelectPillFilter from '../components/MultiSelectPillFilter.jsx';
 
 const RARITIES = ['Common', 'Uncommon', 'Rare', 'Legendary'];

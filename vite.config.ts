@@ -8,12 +8,16 @@ const __dirname = dirname(__filename);
 
 export default defineConfig({
   plugins: [react()],
+  oxc: false,
   test: {
     environment: 'jsdom',
     setupFiles: [resolve(__dirname, 'tests/unit/setup.ts')],
     include: ['tests/unit/**/*.test.{js,jsx,ts,tsx}'],
     globals: true,
     pool: 'threads',
+    transformMode: {
+      web: [/.[jt]sx?$/],
+    },
   },
   resolve: {
     alias: {

@@ -24,7 +24,7 @@ function cleanDataDir() {
 async function loadModule() {
   const { vi: innerVi } = await import('vitest');
   innerVi.resetModules();
-  return await import('../../src/data/server-store.js?t=' + Date.now());
+  return await import('../../src/data/server-store.ts?t=' + Date.now());
 }
 
 describe('server-store (SQLite-backed)', () => {

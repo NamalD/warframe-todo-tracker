@@ -5,7 +5,7 @@ import { getAllLoadouts, mergeNewLoadouts, createLoadout } from '../../../src/da
  * The client's local loadout model is flat (`{ id, name, slots, ... }`);
  * the server stores the nested structure (slots/requirements) in a `data`
  * JSON blob column, so this domain route's request/response bodies flatten
- * `data`'s fields back to the top level to match what loadout-repository.js
+ * `data`'s fields back to the top level to match what loadout-repository.ts
  * actually reads/writes. (This mismatch previously meant every loadout
  * pushed here got stored with empty data — slots silently discarded on
  * every sync round-trip.)

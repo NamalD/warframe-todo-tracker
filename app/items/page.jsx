@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import repo from '../../src/data/store.js';
+import repo from '../../src/data/store.ts';
 import MultiSelectPillFilter from '../components/MultiSelectPillFilter.jsx';
 
 const CATEGORY_LABELS = {

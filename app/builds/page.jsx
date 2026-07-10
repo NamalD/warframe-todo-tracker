@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import buildStore from '../../src/data/build-store.js';
+import buildStore from '../../src/data/build-store.ts';
 import SearchableSelect from '../components/searchable-select';
 
 function isBuildComplete(build) {
@@ -32,7 +32,7 @@ function BuildsPageInner() {
       setBuildRepo(br);
       setBuilds(br.getBuilds());
       // Load items for the item picker
-      const repo = (await import('../../src/data/store.js')).default;
+      const repo = (await import('../../src/data/store.ts')).default;
       const allItems = await repo.getAllItems();
       setItems(allItems);
       setLoading(false);

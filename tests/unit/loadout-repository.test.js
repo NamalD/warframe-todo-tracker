@@ -7,7 +7,7 @@ beforeEach(async () => {
   localStorage.clear();
   // Mock fetch for syncToServer
   globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
-  const mod = await import('../../src/data/loadout-repository.js');
+  const mod = await import('../../src/data/loadout-repository.ts');
   LoadoutRepository = mod.default;
   repo = new LoadoutRepository();
 });
@@ -260,7 +260,7 @@ describe('LoadoutRepository', () => {
         ],
       }));
 
-      const mod = await import('../../src/data/loadout-repository.js');
+      const mod = await import('../../src/data/loadout-repository.ts');
       const Repo = mod.default;
       const r = new Repo();
       await r.init();
@@ -273,7 +273,7 @@ describe('LoadoutRepository', () => {
   describe('edge cases: corrupted localStorage', () => {
     it('handles corrupted localStorage JSON gracefully', async () => {
       localStorage.setItem('warframe-loadouts', 'not-valid{');
-      const mod = await import('../../src/data/loadout-repository.js?corrupt=1');
+      const mod = await import('../../src/data/loadout-repository.ts?corrupt=1');
       const Repo = mod.default;
       const r = new Repo();
       expect(r.getLoadouts()).toEqual([]);
@@ -281,7 +281,7 @@ describe('LoadoutRepository', () => {
 
     it('handles missing localStorage key', async () => {
       localStorage.removeItem('warframe-loadouts');
-      const mod = await import('../../src/data/loadout-repository.js?missing=1');
+      const mod = await import('../../src/data/loadout-repository.ts?missing=1');
       const Repo = mod.default;
       const r = new Repo();
       expect(r.getLoadouts()).toEqual([]);

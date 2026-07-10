@@ -122,7 +122,7 @@ describe('PUT /api/loadouts', () => {
     expect(getBody.data).toHaveLength(1);
     expect(getBody.data[0].id).toBe('l1');
     expect(getBody.data[0].name).toBe('First Loadout');
-    // loadout-repository.js reads `loadout.slots` directly (flat shape) —
+    // loadout-repository.ts reads `loadout.slots` directly (flat shape) —
     // this used to always come back empty because the server stored the
     // client's payload under a `data` key nobody read (see the loadout
     // slots bug spotted mid-session).
@@ -251,7 +251,7 @@ describe('error handling', () => {
   });
 
   it('GET returns 500 when database throws', async () => {
-    vi.doMock('../../src/data/database.js', () => ({
+    vi.doMock('../../src/data/database.ts', () => ({
       getDb: () => { throw new Error('Simulated DB failure'); },
       closeDb: () => {},
     }));
@@ -263,7 +263,7 @@ describe('error handling', () => {
   });
 
   it('PUT returns 500 when database throws', async () => {
-    vi.doMock('../../src/data/database.js', () => ({
+    vi.doMock('../../src/data/database.ts', () => ({
       getDb: () => { throw new Error('Simulated DB failure'); },
       closeDb: () => {},
     }));

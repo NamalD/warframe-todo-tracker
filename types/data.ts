@@ -28,6 +28,8 @@ export interface Item {
   wiki_url: string;
   created_at: string;
   updated_at: string;
+  track_incarnon_install?: boolean;
+  incarnon_installed?: boolean;
 }
 
 export interface Material {
@@ -38,6 +40,7 @@ export interface Material {
   quantity_required: number;
   wiki_url: string;
   created_at: string;
+  is_incarnon_install?: boolean;
 }
 
 export interface TreeRelationship {
@@ -246,7 +249,7 @@ export interface AggregatedMaterial {
 
 /**
  * Represents a single material requirement from a todo item.
- * Used by material-aggregator.js to sum up crafting needs.
+ * Used by material-aggregator.ts to sum up crafting needs.
  */
 export interface MaterialRequirement {
   material_name: string;

@@ -47,7 +47,7 @@ function MockLR() {
   };
 }
 
-vi.mock('../../src/data/loadout-repository.js', () => ({
+vi.mock('../../src/data/loadout-repository.ts', () => ({
   default: MockLR,
 }));
 
