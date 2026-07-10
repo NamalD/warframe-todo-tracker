@@ -76,11 +76,14 @@ The GitHub Project board is the source of truth for what's being worked on. Ever
 
 ## Agent behavior
 
-When the user asks you to make a code change, **always complete the full git workflow** unless they explicitly say otherwise:
+When the user asks you to make a code change, **always complete the full git workflow** unless they explicitly say otherwise. Use the `ce-commit-push-pr` skill as the canonical way to ship changes:
+
 1. Create or use an existing feature branch
-2. Commit the change (with an issue reference, creating an issue if needed)
-3. Push and open a PR via `gh pr create --fill`
-4. Enable auto-merge via `gh pr merge --auto --squash --delete-branch`
+2. Run `ce-commit-push-pr` — it commits (with issue reference), pushes, opens a PR, and enables auto-merge
+
+For smaller commits without a full PR, use `ce-commit` to create a well-formatted commit with issue reference.
+
+If CE skills are unavailable, fall back to the manual steps in the Git workflow section below.
 
 Do not stop after making the file edit — the workflow is not complete until the PR is open and auto-merge is enabled.
 
@@ -88,6 +91,16 @@ Do not stop after making the file edit — the workflow is not complete until th
 
 All changes go through **pull requests** — never push directly to `main`. `main` is protected: the `Test Suite` CI check must pass before merging.
 
+The canonical way to ship changes is via the `ce-commit-push-pr` skill, which handles the full flow:
+1. Creates a feature branch (or uses the current one)
+2. Commits changes with an issue reference
+3. Pushes to the branch
+4. Opens a PR via `gh pr create --fill`
+5. Enables auto-merge via `gh pr merge --auto --squash --delete-branch`
+
+For smaller commits without a full PR, use `ce-commit` to create a well-formatted commit with issue reference.
+
+Manual fallback (if CE skills are unavailable):
 1. Create a feature branch: `git checkout -b feat/short-description`
 2. Commit and push changes to the branch
 3. Create a PR: `gh pr create --fill`
@@ -174,13 +187,39 @@ These docs explain *why* the data layer is shaped this way, but the code is the 
 
 ## Compound Engineering
 
-This project follows the compound engineering loop: Plan → Work → Review → Compound → Repeat.
+This project follows the compound engineering loop: **Brainstorm → Plan → Work → Review → Compound → Repeat**. All CE skills are installed as Pi skills and can be invoked directly.
+
+### Available CE skills
+
+| Skill | Purpose |
+|-------|---------|
+| `ce-brainstorm` | Explore vague or ambitious ideas into a right-sized requirements-only unified plan |
+| `ce-plan` | Create structured plans for multi-step work from requirements |
+| `ce-work` | Execute a plan or concrete work prompt end-to-end |
+| `ce-code-review` | Structured code review for bugs, regressions, tests, and standards |
+| `ce-compound` | Document a recently solved problem or durable project vocabulary |
+| `ce-compound-refresh` | Refresh docs/solutions learnings against the current codebase |
+| `ce-commit` | Create a git commit with a clear, value-communicating message |
+| `ce-commit-push-pr` | Commit, push, and open a PR (canonical shipping workflow) |
+| `ce-debug` | Diagnosis loop for bugs and failing behavior |
+| `ce-doc-review` | Review requirements, plans, or specs with role-specific lenses |
+| `ce-explain` | Turn a concept, diff, or idea into a dense, visual explainer |
+| `ce-ideate` | Generate and evaluate grounded ideas |
+| `ce-optimize` | Run metric-driven optimization loops |
+| `ce-pov` | Give a decisive, project-grounded verdict on an external input |
+| `ce-proof` | Publish, read, comment on, or edit markdown in Proof |
+| `ce-resolve-pr-feedback` | Resolve PR review feedback |
+| `ce-riffrec-feedback-analysis` | Analyze Riffrec feedback captures |
+| `ce-simplify-code` | Simplify recently changed code for clarity and quality |
+| `ce-strategy` | Create or update STRATEGY.md |
+| `ce-test-browser` | Run browser tests for pages affected by the current branch or PR |
+| `ce-worktree` | Set up isolated git worktrees for parallel work |
 
 ### Directory structure for CE artifacts
 
 ```
 docs/
-├── brainstorms/       # /workflows:brainstorm output
+├── brainstorms/       # ce-brainstorm output
 ├── solutions/         # Captured learnings, categorized by problem type
 ├── plans/             # Implementation plans
 ├── designs/           # Design proposals (existing)
@@ -191,9 +230,18 @@ Deferred work items (review findings, future improvements) go on the GitHub Proj
 
 ### Workflow
 
-1. **Plan** — use `ce-plan` skill: research codebase + external docs, produce implementation plan in `docs/plans/`
-2. **Work** — use `ce-work` skill: execute the plan step by step, run validations after each change
-3. **Review** — use `ce-review` skill: spawn parallel reviewer subagents, prioritize findings (P0-P3), fix issues
-4. **Compound** — use `ce-compound` skill: capture what worked/didn't, update AGENTS.md patterns, create solution docs
+**For new features or changes:**
+0. **Brainstorm** (optional) — use `ce-brainstorm` if the idea is vague or needs scoping before planning
+1. **Plan** — use `ce-plan`: research codebase + external docs, produce implementation plan in `docs/plans/`
+2. **Work** — use `ce-work`: execute the plan step by step, run validations after each change
+3. **Review** — use `ce-code-review`: spawn parallel reviewer subagents, prioritize findings (P0-P3), fix issues
+4. **Compound** — use `ce-compound`: capture what worked/didn't, update AGENTS.md patterns, create solution docs
+
+**For bugs:**
+- Use `ce-debug` instead of the Plan→Work→Review→Compound loop. It runs a structured diagnosis loop: reproduce → isolate → root cause → fix → verify.
+
+**For shipping:**
+- Use `ce-commit-push-pr` to commit, push, open a PR, and enable auto-merge in one step.
+- Use `ce-commit` for smaller commits without a full PR.
 
 Every completed unit of work should end with the compound step — this is what makes the system get smarter over time.
