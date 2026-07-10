@@ -57,3 +57,14 @@ repo.deleteRequirement(slot.id, req.id);
 - **Vitest config**: enable `--fail-on-unhandled-errors` in CI to catch unawaited Promises
 - **Code review checklist**: when changing a method to `async`, grep for call sites in `tests/` and update them
 - **TypeScript**: if/when the project adopts TS, the compiler catches unawaited Promises at build time
+- **Component tests**: read the component's `useEffect` before writing mocks. Every `await repo.something()` call needs a corresponding mock method that resolves. Missing mocks cause silent timeouts (1000ms+) rather than clear errors — vitest's `waitFor` hangs on unresolved promises.
+
+## Related: component test mock checklist
+
+When a component test fails with a timeout (not an assertion error), the component is calling an un-mocked async method. Check these common misses:
+
+1. `repo.initTodos()` / `repo.initMaterials()` — initialization methods added to Repository
+2. `loadoutRepo.init()` / `lr.init()` — LoadoutRepository async init
+3. `loadoutRepo.getAllRequirements()` — dashboard aggregation
+4. `modRepo.getTrackedMods()` — dashboard mods card
+5. Any `globalThis.*` variables used in server modules (e.g. `device`, `device_id` for conflict logging) must be set in `tests/unit/setup.ts`
