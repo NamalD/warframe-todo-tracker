@@ -1,11 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-RUN apk add --no-cache python3 build-base
-COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+RUN apk add --no-cache python3 build-base && npm install -g pnpm
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
 ENV NODE_ENV=production
-RUN npm run build
+RUN pnpm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
