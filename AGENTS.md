@@ -114,7 +114,7 @@ When writing tests:
 
 - `docs/migration-plan.md` — past Vite→Next.js migration (complete, ignore proposed file layout)
 - `docs/wfcd-integration.md` — design doc for `@wfcd/items` integration
-- `.hermes/plans/sqlite-architecture.md` — design doc for SQLite persistence layer
+- `docs/plans/sqlite-architecture.md` — design doc for SQLite persistence layer
 - `docs/schema.md` — conceptual data model (storage-agnostic); actual DDL is in `src/data/database.js`
 
 These docs explain *why* the data layer is shaped this way, but the code is the source of truth for current behavior.
