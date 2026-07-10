@@ -37,9 +37,7 @@ Playwright e2e tests boot their own dev server on port 3001 (`BASE_URL` override
 
 ## Commit conventions
 
-**Every commit must reference a GitHub issue** using one of these keywords in the subject line or body: `Closes #N`, `Fixes #N`, or `Resolves #N`. Merge commits are exempt.
-
-A GitHub Actions workflow (`.github/workflows/commit-check.yml`) enforces this on every push. This ensures all work links to a tracked issue and the auto-deploy hook fires on issue-closing commits.
+**Every feature/bug-fix commit must reference a GitHub issue** using one of these keywords in the body: `Closes #N`, `Fixes #N`, or `Resolves #N`. This ensures the auto-deploy hook fires on issue-closing commits.
 
 Format:
 ```
