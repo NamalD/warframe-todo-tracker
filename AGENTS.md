@@ -141,8 +141,9 @@ docs/
 ├── plans/             # Implementation plans
 ├── designs/           # Design proposals (existing)
 └── ...                # Historical docs (existing)
-todos/                 # Triage and review findings
 ```
+
+Deferred work items (review findings, future improvements) go on the GitHub Project board, not in local files.
 
 ### Workflow
 
