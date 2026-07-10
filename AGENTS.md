@@ -39,6 +39,8 @@ Playwright e2e tests boot their own dev server on port 3001 (`BASE_URL` override
 
 **Every feature/bug-fix commit must reference a GitHub issue** using one of these keywords in the body: `Closes #N`, `Fixes #N`, or `Resolves #N`. This ensures the auto-deploy hook fires on issue-closing commits.
 
+Process commits (`[Process]`, `[Compound]`, `[Review]`) are exempt — they don't close issues and don't need a reference.
+
 Format:
 ```
 [Tag] Short description (#issue-number)
