@@ -210,57 +210,22 @@ describe('BuildRepository', () => {
   });
 
   describe('persistence', () => {
-    it('persists builds to localStorage', () => {
+    it('persists builds in memory across operations', () => {
       repo.createBuild({ name: 'Persist Test' });
-      const stored = localStorage.getItem('warframe-builds');
-      expect(stored).toBeTruthy();
-      const parsed = JSON.parse(stored);
-      expect(parsed.builds.length).toBe(1);
-      expect(parsed.builds[0].name).toBe('Persist Test');
-    });
-
-    it('loads builds from localStorage on construction', async () => {
-      localStorage.setItem('warframe-builds', JSON.stringify({
-        builds: [
-          {
-            id: 'build-stored',
-            name: 'Stored Build',
-            item_id: null,
-            custom_item_name: null,
-            acquired: false,
-            notes: '',
-            wiki_url: null,
-            created_at: '2026-01-01T00:00:00Z',
-            updated_at: '2026-01-01T00:00:00Z',
-            requirements: [],
-          },
-        ],
-      }));
-
-      const mod = await import('../../src/data/build-repository.js?stored=1');
-      const Repo = mod.default;
-      const r = new Repo();
-      const builds = r.getBuilds();
+      // Builds persist in the repository's in-memory store (server sync is fire-and-forget)
+      const builds = repo.getBuilds();
       expect(builds.length).toBe(1);
-      expect(builds[0].name).toBe('Stored Build');
-    });
-  });
-
-  describe('edge cases: corrupted localStorage', () => {
-    it('handles corrupted localStorage JSON gracefully', async () => {
-      localStorage.setItem('warframe-builds', 'not-valid{');
-      const mod = await import('../../src/data/build-repository.js?corrupt=1');
-      const Repo = mod.default;
-      const r = new Repo();
-      expect(r.getBuilds()).toEqual([]);
+      expect(builds[0].name).toBe('Persist Test');
     });
 
-    it('handles missing localStorage key', async () => {
-      localStorage.removeItem('warframe-builds');
-      const mod = await import('../../src/data/build-repository.js?missing=1');
-      const Repo = mod.default;
-      const r = new Repo();
-      expect(r.getBuilds()).toEqual([]);
+    it('getBuilds returns builds sorted by created_at', () => {
+      // createBuild is synchronous and returns immediately
+      repo.createBuild({ name: 'Second' });
+      repo.createBuild({ name: 'First' });
+      const builds = repo.getBuilds();
+      expect(builds.length).toBe(2);
+      expect(builds[0].name).toBe('Second');
+      expect(builds[1].name).toBe('First');
     });
   });
 });

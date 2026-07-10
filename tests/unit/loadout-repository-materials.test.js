@@ -16,22 +16,22 @@ describe('LoadoutRepository', () => {
     it('getLoadouts returns empty array initially', () => {
       expect(repo.getLoadouts()).toEqual([]);
     });
-    it('createLoadout creates a new loadout with slots', () => {
-      const loadout = repo.createLoadout({ name: 'Test' });
+    it('createLoadout creates a new loadout with slots', async () => {
+      const loadout = await repo.createLoadout({ name: 'Test' });
       expect(loadout).toHaveProperty('id');
       expect(loadout.name).toBe('Test');
       expect(loadout.slots.length).toBe(7);
     });
-    it('getLoadoutById returns the correct loadout', () => {
-      const created = repo.createLoadout({ name: 'Find Me' });
+    it('getLoadoutById returns the correct loadout', async () => {
+      const created = await repo.createLoadout({ name: 'Find Me' });
       expect(repo.getLoadoutById(created.id).name).toBe('Find Me');
     });
     it('getLoadoutById returns null for unknown id', () => {
       expect(repo.getLoadoutById('nonexistent')).toBeNull();
     });
-    it('deleteLoadout removes a loadout', () => {
-      const created = repo.createLoadout({ name: 'Delete Me' });
-      expect(repo.deleteLoadout(created.id)).toBe(true);
+    it('deleteLoadout removes a loadout', async () => {
+      const created = await repo.createLoadout({ name: 'Delete Me' });
+      expect(await repo.deleteLoadout(created.id)).toBe(true);
       expect(repo.getLoadouts().length).toBe(0);
     });
   });
@@ -40,8 +40,8 @@ describe('LoadoutRepository', () => {
     it('getDashboardSummary returns empty for no loadouts', () => {
       expect(repo.getDashboardSummary()).toEqual([]);
     });
-    it('getDashboardSummary includes legacy requirements', () => {
-      const l = repo.createLoadout({ name: 'Test' });
+    it('getDashboardSummary includes legacy requirements', async () => {
+      const l = await repo.createLoadout({ name: 'Test' });
       const s = repo.addSlot(l.id, { slot_type: 'other', item_id: 'item-1' });
       repo.addRequirement(s.id, { name: 'Forma', acquired: false });
       const summary = repo.getDashboardSummary();
