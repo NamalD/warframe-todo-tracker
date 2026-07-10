@@ -3,15 +3,15 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "yarn next dev",
-    "build": "yarn next build",
-    "start": "yarn next start",
-    "test": "yarn node tests/test-pack.mjs",
-    "test:unit": "yarn vitest run",
-    "test:unit:watch": "yarn vitest",
-    "test:unit:coverage": "yarn vitest run --coverage",
-    "test:e2e": "yarn playwright test",
-    "test:e2e:ui": "yarn playwright test --ui"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node tests/test-pack.mjs",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:unit:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@wfcd/items": "^1.1275.0",
