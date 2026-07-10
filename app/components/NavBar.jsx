@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -15,6 +16,12 @@ const NAV_LINKS = [
 
 export default function NavBar() {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    router.push('/login');
+  };
 
   return (
     <nav className="site-nav">
@@ -28,6 +35,9 @@ export default function NavBar() {
           {NAV_LINKS.map(({ href, label }) => (
             <Link key={href} href={href}>{label}</Link>
           ))}
+          <button className="btn secondary logout-btn" onClick={handleLogout}>
+            Sign Out
+          </button>
         </div>
 
         {/* Hamburger button — visible on mobile */}
@@ -51,6 +61,9 @@ export default function NavBar() {
               {label}
             </Link>
           ))}
+          <button className="btn secondary logout-btn" onClick={() => { setOpen(false); handleLogout(); }}>
+            Sign Out
+          </button>
         </div>
       </div>
     </nav>
