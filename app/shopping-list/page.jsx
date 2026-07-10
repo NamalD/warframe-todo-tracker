@@ -175,6 +175,7 @@ function ShoppingList() {
       {totalCount > 0 ? (
         <div className="card">
           <h2>Materials ({totalCount})</h2>
+          <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
               <tr>
@@ -284,6 +285,7 @@ function ShoppingList() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       ) : (
         <div className="card">
