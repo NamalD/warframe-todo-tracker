@@ -14,7 +14,7 @@ describe('prebuild cache freshness', () => {
 
   beforeAll(() => {
     if (!existsSync(CACHE_PATH)) {
-      throw new Error('wfcd-cache.json not found — run node scripts/prebuild.mjs first');
+      throw new Error('wfcd-cache.json not found — run yarn node scripts/prebuild.mjs first');
     }
 
     // Read the committed cache
@@ -26,7 +26,7 @@ describe('prebuild cache freshness', () => {
     // Re-run prebuild into a temp directory
     const tmpDir = mkdtempSync(resolve(os.tmpdir(), 'prebuild-test-'));
     const env = { ...process.env, DATA_DIR: tmpDir };
-    execSync(`node "${PREBUILD_SCRIPT}"`, { cwd: ROOT, stdio: 'pipe', env });
+    execSync(`yarn node "${PREBUILD_SCRIPT}"`, { cwd: ROOT, stdio: 'pipe', env });
 
     // Read the freshly generated cache (prebuild writes to public/data/,
     // not DATA_DIR — it writes to the static public dir. So we need to
@@ -34,7 +34,7 @@ describe('prebuild cache freshness', () => {
     // Actually, prebuild writes to public/data/ regardless of DATA_DIR.
     // Save the committed, run prebuild, then restore.
     const committedRaw = readFileSync(CACHE_PATH, 'utf8');
-    execSync(`node "${PREBUILD_SCRIPT}"`, { cwd: ROOT, stdio: 'pipe' });
+    execSync(`yarn node "${PREBUILD_SCRIPT}"`, { cwd: ROOT, stdio: 'pipe' });
     const fresh = JSON.parse(readFileSync(CACHE_PATH, 'utf8'));
     freshItems = fresh.items.length;
     freshMats = fresh.materials.length;
