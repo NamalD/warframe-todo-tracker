@@ -35,6 +35,35 @@ yarn test                     # tests/test-pack.mjs — runs everything in seque
 
 Playwright e2e tests boot their own dev server on port 3001 (`BASE_URL` overrides) and reuse an already-running server outside CI.
 
+## Deployment
+
+The app is deployed to a VPS via Docker Compose. Deployment is automated via GitHub Actions:
+
+1. Test Suite runs on every PR and push to main
+2. On test pass, the "Deploy" workflow triggers
+3. Builds Docker image, pushes to GHCR (`ghcr.io/namald/warframe-todo-tracker`)
+4. SSHes into VPS as deploy user
+5. Pulls latest `docker-compose.yml` and code from git
+6. Runs `docker compose pull && docker compose up -d`
+7. Cleans up old images
+
+### Required repository secrets
+
+| Secret | Description |
+|--------|-------------|
+| `VPS_HOST` | VPS IP address or hostname |
+| `VPS_USER` | SSH username on the VPS |
+| `VPS_SSH_KEY` | SSH private key for the deploy user |
+| `PASSWORD` | Warframe Tracker password (passed to container) |
+| `SESSION_SECRET` | Random string for HMAC session signing |
+
+### Setting up the VPS
+
+1. SSH key: Add the public key to `~/.ssh/authorized_keys` on the VPS
+2. Docker: Install Docker and add the SSH user to the `docker` group
+3. First deploy: The workflow clones the repo to `/home/$VPS_USER/warframe-todo-tracker/`
+4. Environment: `PASSWORD` and `SESSION_SECRET` are passed via SSH env vars
+
 ## Commit conventions
 
 **Every feature/bug-fix commit must reference a GitHub issue** using one of these keywords in the body: `Closes #N`, `Fixes #N`, or `Resolves #N`. This ensures the Project board card auto-moves to Done on merge.

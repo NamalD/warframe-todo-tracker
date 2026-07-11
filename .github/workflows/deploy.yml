@@ -42,8 +42,35 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          env:
+            PASSWORD: ${{ secrets.PASSWORD }}
+            SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           script: |
+            set -e
+
+            # Export secrets for docker compose
+            export PASSWORD
+            export SESSION_SECRET
+
+            # Create directory if it doesn't exist (first deploy)
+            mkdir -p /home/${{ secrets.VPS_USER }}/warframe-todo-tracker
+
             cd /home/${{ secrets.VPS_USER }}/warframe-todo-tracker
+
+            # Configure git for automated operations
+            git config user.email "actions@github.com"
+            git config user.name "GitHub Actions"
+
+            # Ensure repo exists, clone if needed (first deploy)
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/${{ github.repository }} .
+            fi
+
+            # Pull latest code to get updated docker-compose.yml
+            git fetch origin
+            git reset --hard origin/main
+
+            # Deploy the updated compose file
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f
