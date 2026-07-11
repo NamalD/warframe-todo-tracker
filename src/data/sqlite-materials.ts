@@ -37,6 +37,18 @@ export function getAllMaterials(db: Database): Record<string, number> {
   return result;
 }
 
+export function getAllMaterialVersions(db: Database): Record<string, number> {
+  const rows = db.prepare(
+    'SELECT material_name, version FROM materials_inventory ORDER BY material_name'
+  ).all() as Array<{ material_name: string; version: number }>;
+
+  const result: Record<string, number> = {};
+  for (const row of rows) {
+    result[row.material_name] = row.version;
+  }
+  return result;
+}
+
 export function getMaterial(db: Database, materialName: string): MaterialRow | null {
   const row = db.prepare(
     'SELECT material_name, quantity, version, updated_at FROM materials_inventory WHERE material_name = ?'

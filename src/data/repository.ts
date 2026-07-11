@@ -54,6 +54,11 @@ export default class Repository {
   /** @type {MaterialInventory} */
   materialInventory = {};
 
+  // Per-material server row versions, required for PATCH conflict detection.
+  // Seeded by initMaterials(), advanced from each PATCH response — see #117.
+  /** @type {Record<string, number>} */
+  #materialVersions = {};
+
   // Private fields
   #initialized = false;
   #refDataInitialized = false;
@@ -90,7 +95,9 @@ export default class Repository {
       const res = await fetch('/api/materials');
       if (res.ok) {
         const body = await res.json();
-        const serverData = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
+        const hasEnvelope = body && typeof body === 'object' && 'data' in body;
+        const serverData = hasEnvelope ? body.data : body;
+        this.#materialVersions = (hasEnvelope && body.versions && typeof body.versions === 'object') ? body.versions : {};
         if (typeof serverData === 'object' && serverData !== null && !Array.isArray(serverData) && Object.keys(serverData).length > 0) {
           this.materialInventory = serverData;
         } else {
@@ -236,13 +243,28 @@ export default class Repository {
     return this.materialInventory[materialName];
   }
 
-  async #patchMaterial(name, quantity) {
+  async #patchMaterial(name, quantity, retried = false) {
     try {
-      await fetch('/api/materials', {
+      const res = await fetch('/api/materials', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ material_name: name, quantity, clientVersion: 0 }),
+        body: JSON.stringify({ material_name: name, quantity, clientVersion: this.#materialVersions[name] ?? 0 }),
       });
+      if (res.ok) {
+        const updated = await res.json();
+        if (updated && typeof updated.version === 'number') {
+          this.#materialVersions[name] = updated.version;
+        }
+      } else if (res.status === 409 && !retried) {
+        // Our version is stale (another device wrote, or we never learned it).
+        // The user just typed this quantity, so their edit wins: adopt the
+        // server version and retry once.
+        const conflict = await res.json().catch(() => null);
+        if (conflict && typeof conflict.server_version === 'number') {
+          this.#materialVersions[name] = conflict.server_version;
+          await this.#patchMaterial(name, quantity, true);
+        }
+      }
     } catch { /* best-effort */ }
   }
 

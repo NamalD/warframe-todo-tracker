@@ -57,12 +57,14 @@ describe('GET returns { data } with correct shape', () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
-  it('GET /api/materials returns { data }', async () => {
+  it('GET /api/materials returns { data, versions }', async () => {
     const res = await GET_materials();
     const body = await res.json();
     expect(body).toHaveProperty('data');
     expect(typeof body.data).toBe('object');
     expect(Array.isArray(body.data)).toBe(false);
+    expect(body).toHaveProperty('versions');
+    expect(typeof body.versions).toBe('object');
   });
 });
 
@@ -148,5 +150,11 @@ describe('Data persistence', () => {
     const getRes = await GET_materials();
     const getBody = await getRes.json();
     expect(getBody.data).toEqual({ 'Polymer Bundle': 500 });
+  });
+
+  it('materials GET exposes row versions for client conflict tracking (#117)', async () => {
+    const getRes = await GET_materials();
+    const getBody = await getRes.json();
+    expect(getBody.versions).toEqual({ 'Polymer Bundle': 1 });
   });
 });

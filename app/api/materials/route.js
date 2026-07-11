@@ -1,11 +1,13 @@
 import { getDb } from '../../../src/data/database';
-import { getAllMaterials, batchUpsert, upsertMaterialWithVersion } from '../../../src/data/sqlite-materials';
+import { getAllMaterials, getAllMaterialVersions, batchUpsert, upsertMaterialWithVersion } from '../../../src/data/sqlite-materials';
 
 export async function GET() {
   try {
     const db = getDb();
     const data = getAllMaterials(db);
-    return Response.json({ data });
+    // versions lets clients send an up-to-date clientVersion on PATCH — see #117
+    const versions = getAllMaterialVersions(db);
+    return Response.json({ data, versions });
   } catch (err) {
     console.error(`[api/materials GET] ${err.message}`);
     return Response.json({ error: 'Failed to read materials inventory' }, { status: 500 });
