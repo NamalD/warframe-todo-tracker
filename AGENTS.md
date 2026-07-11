@@ -84,7 +84,8 @@ The GitHub Project board is the source of truth for what's being worked on. Ever
 - When picking up an issue, move it from **Todo → In Progress** before writing any code
 - When committing code that closes an issue, use `Closes #N` — the git hook auto-moves the card to **Done** on merge to main
 - After every commit or push, verify the board state matches reality
-- If an open issue exists but isn't on the project board, add it (Todo or In Progress as appropriate)
+- If an open issue exists but isn't on the project board, add it (Todo or In Progress as appropriate) — and set its **Priority** and **Estimate** fields (see below)
+- Every board item carries **Priority** (P0–P3) and **Estimate** (XS/S/M/L/XL) single-select fields. Pick up work highest-priority-first, breaking ties toward the smaller estimate. Priority weighs data safety first (loss/corruption bugs), then everyday user value, then speculative scope; Estimate is t-shirt sizing (XS ≈ one-liner, S ≈ a focused session, M ≈ a day or two, L ≈ multi-day, XL ≈ open-ended multi-week)
 
 ### Reading the board (how to query it correctly)
 
@@ -95,8 +96,16 @@ The GitHub Project board is the source of truth for what's being worked on. Ever
   gh project item-list 4 --owner @me --limit 1000 --format json \
     | jq -r '.items[] | "\(.status)\t\(.content.number // "DRAFT")\t\(.title)"'
   ```
-- The `read:project` OAuth scope is required; if `gh project` errors with `missing required scopes`, run `gh auth refresh -h github.com -s read:project`.
-- **Board snapshot (2026-07-10):** In Progress = **#90** (Fix 57 failing tests). Todo backlog includes #29 (Void Relic tracking), #30 (Companion/Pet tracking), #31 (Parazon mod filter), #32 (modular weapons), #33 (expand item categories), #35-#58, #64-#68, #73, #74, #78, #89, #92. Most older issues (#1-#28, #34, #37-#51, #59-#63, #69-#71, #75-#80, #85-#88, #91, #93-#94) are Done.
+- To rank the backlog by priority/estimate (what to pick up next):
+  ```bash
+  gh project item-list 4 --owner @me --limit 1000 --format json \
+    | jq -r '.items[] | select(.status == "Todo") | "\(.priority // "-")\t\(.estimate // "-")\t#\(.content.number)\t\(.title)"' | sort
+  ```
+- To set Priority/Estimate on a board item, use `gh project item-edit --id <item-id> --project-id PVT_kwHOACqRis4Bc2Fb --field-id <field-id> --single-select-option-id <option-id>` with these IDs (stable, created 2026-07-11):
+  - **Priority** field `PVTSSF_lAHOACqRis4Bc2FbzhXrT4s`: P0=`68c09189`, P1=`83c82297`, P2=`379c4132`, P3=`0e04d828`
+  - **Estimate** field `PVTSSF_lAHOACqRis4Bc2FbzhXrT8A`: XS=`5c5e23d3`, S=`92fa8114`, M=`d7260a84`, L=`5da64983`, XL=`e2407bc6`
+- The `read:project` OAuth scope is required; if `gh project` errors with `missing required scopes`, run `gh auth refresh -h github.com -s read:project`. Editing fields additionally needs the `project` (write) scope.
+- **Board snapshot (2026-07-11):** Nothing In Progress. Todo backlog (all with Priority + Estimate set): P1 = #43, #45, #52, #121, #122; P2 = #29, #31, #33, #40, #42, #53-#56, #73; P3 = #30, #32, #35, #36, #44, #57, #58, #64-#68, #74, #78, #92, #98. Every other board item is Done.
 - Note: board items generally have **no assignee** (single-developer project) — that's expected, not a gap to fix.
 
 ## Agent behavior
