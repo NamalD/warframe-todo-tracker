@@ -374,6 +374,125 @@ describe('Repository (wfcd-cache lazy loading)', () => {
     });
   });
 
+  describe('material version tracking (#117)', () => {
+
+    function jsonRes(body, status = 200) {
+      return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) };
+    }
+
+    /**
+     * Fetch mock that serves GET /api/materials from `initial`, records every
+     * PATCH body into `patchBodies`, and answers each PATCH via `patchHandler`
+     * (defaults to echoing the write back with version = clientVersion + 1,
+     * matching upsertMaterialWithVersion).
+     */
+    function materialsFetchMock(initial, patchBodies, patchHandler) {
+      return vi.fn().mockImplementation((url, opts = {}) => {
+        const method = opts.method || 'GET';
+        if (url === '/api/materials' && method === 'GET') {
+          return Promise.resolve(jsonRes(initial));
+        }
+        if (url === '/api/materials' && method === 'PATCH') {
+          const body = JSON.parse(opts.body);
+          patchBodies.push(body);
+          if (patchHandler) return Promise.resolve(patchHandler(body));
+          return Promise.resolve(jsonRes({
+            material_name: body.material_name,
+            quantity: body.quantity,
+            version: body.clientVersion + 1,
+          }));
+        }
+        return Promise.resolve(jsonRes(FIXTURE_CACHE));
+      });
+    }
+
+    it('sends the version learned from initMaterials on PATCH', async () => {
+      const patchBodies = [];
+      const fetchMock = materialsFetchMock(
+        { data: { 'Alloy Plate': 5 }, versions: { 'Alloy Plate': 3 } },
+        patchBodies,
+      );
+      const repo = await newRepo(fetchMock);
+      await repo.initMaterials();
+
+      repo.setOwnedQuantity('Alloy Plate', 10);
+
+      await vi.waitFor(() => expect(patchBodies).toHaveLength(1));
+      expect(patchBodies[0]).toEqual({ material_name: 'Alloy Plate', quantity: 10, clientVersion: 3 });
+    });
+
+    it('updates the tracked version from each PATCH response', async () => {
+      const patchBodies = [];
+      const fetchMock = materialsFetchMock(
+        { data: { 'Alloy Plate': 5 }, versions: { 'Alloy Plate': 3 } },
+        patchBodies,
+      );
+      const repo = await newRepo(fetchMock);
+      await repo.initMaterials();
+
+      repo.setOwnedQuantity('Alloy Plate', 10);
+      await vi.waitFor(() => expect(patchBodies).toHaveLength(1));
+      await new Promise((r) => setTimeout(r, 0)); // let the response version land
+
+      repo.setOwnedQuantity('Alloy Plate', 20);
+      await vi.waitFor(() => expect(patchBodies).toHaveLength(2));
+      expect(patchBodies[1].clientVersion).toBe(4);
+    });
+
+    it('sends clientVersion 0 for a material the server has never seen', async () => {
+      const patchBodies = [];
+      const fetchMock = materialsFetchMock({ data: {}, versions: {} }, patchBodies);
+      const repo = await newRepo(fetchMock);
+      await repo.initMaterials();
+
+      repo.setOwnedQuantity('Ferrite', 100);
+
+      await vi.waitFor(() => expect(patchBodies).toHaveLength(1));
+      expect(patchBodies[0].clientVersion).toBe(0);
+    });
+
+    it('retries once with the server version on 409 so the edit persists', async () => {
+      const patchBodies = [];
+      const fetchMock = materialsFetchMock(
+        // Server never told us the version (e.g. page loaded before versions
+        // were exposed) — first PATCH will be stale and must recover.
+        { data: { 'Alloy Plate': 5 } },
+        patchBodies,
+        (body) => {
+          if (body.clientVersion < 7) {
+            return jsonRes({ conflict: true, record_id: body.material_name, server_version: 7, server_quantity: 5 }, 409);
+          }
+          return jsonRes({ material_name: body.material_name, quantity: body.quantity, version: body.clientVersion + 1 });
+        },
+      );
+      const repo = await newRepo(fetchMock);
+      await repo.initMaterials();
+
+      repo.setOwnedQuantity('Alloy Plate', 42);
+
+      await vi.waitFor(() => expect(patchBodies).toHaveLength(2));
+      expect(patchBodies[0].clientVersion).toBe(0);
+      expect(patchBodies[1]).toEqual({ material_name: 'Alloy Plate', quantity: 42, clientVersion: 7 });
+    });
+
+    it('gives up after one retry on repeated 409 (no infinite loop)', async () => {
+      const patchBodies = [];
+      const fetchMock = materialsFetchMock(
+        { data: { 'Alloy Plate': 5 }, versions: { 'Alloy Plate': 1 } },
+        patchBodies,
+        (body) => jsonRes({ conflict: true, record_id: body.material_name, server_version: body.clientVersion + 5, server_quantity: 5 }, 409),
+      );
+      const repo = await newRepo(fetchMock);
+      await repo.initMaterials();
+
+      repo.setOwnedQuantity('Alloy Plate', 42);
+
+      await vi.waitFor(() => expect(patchBodies).toHaveLength(2));
+      await new Promise((r) => setTimeout(r, 0));
+      expect(patchBodies).toHaveLength(2);
+    });
+  });
+
   describe('localStorage caching', () => {
 
     it('caches fetched data in localStorage under warframe-items-cache', async () => {
