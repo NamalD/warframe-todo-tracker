@@ -639,7 +639,11 @@ async function main() {
     sources,
   };
 
-  const outDir = resolve(ROOT, 'public/data');
+  // PREBUILD_OUT_DIR lets tests generate a fresh cache without touching the
+  // committed public/data files (parallel test files parse those in place).
+  const outDir = process.env.PREBUILD_OUT_DIR
+    ? resolve(process.env.PREBUILD_OUT_DIR)
+    : resolve(ROOT, 'public/data');
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
   }

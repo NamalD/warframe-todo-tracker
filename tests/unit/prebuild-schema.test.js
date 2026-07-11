@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { readFileSync, existsSync, writeFileSync, mkdtempSync } from 'fs';
+import { readFileSync, existsSync, mkdtempSync } from 'fs';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
 import os from 'os';
@@ -9,68 +9,45 @@ const CACHE_PATH = resolve(ROOT, 'public/data/wfcd-cache.json');
 const PREBUILD_SCRIPT = resolve(ROOT, 'scripts/prebuild.mjs');
 
 describe('prebuild cache freshness', () => {
-  let committedItems, committedMats, committedVersion;
-  let freshItems, freshMats, freshVersion;
+  let committed, fresh;
 
   beforeAll(() => {
     if (!existsSync(CACHE_PATH)) {
       throw new Error('wfcd-cache.json not found — run yarn node scripts/prebuild.mjs first');
     }
 
-    // Read the committed cache
-    const committed = JSON.parse(readFileSync(CACHE_PATH, 'utf8'));
-    committedItems = committed.items.length;
-    committedMats = committed.materials.length;
-    committedVersion = committed.schemaVersion;
+    committed = JSON.parse(readFileSync(CACHE_PATH, 'utf8'));
 
-    // Re-run prebuild into a temp directory
+    // Generate the fresh cache into a temp dir — never into public/data,
+    // which parallel test files parse at module load (#127: a mid-write
+    // read there fails the whole sibling test file with a JSON error).
     const tmpDir = mkdtempSync(resolve(os.tmpdir(), 'prebuild-test-'));
-    const env = { ...process.env, DATA_DIR: tmpDir };
-    execSync(`yarn node "${PREBUILD_SCRIPT}"`, { cwd: ROOT, stdio: 'pipe', env });
-
-    // Read the freshly generated cache (prebuild writes to public/data/,
-    // not DATA_DIR — it writes to the static public dir. So we need to
-    // read from the actual path after a clean run.)
-    // Actually, prebuild writes to public/data/ regardless of DATA_DIR.
-    // Save the committed, run prebuild, then restore.
-    const committedRaw = readFileSync(CACHE_PATH, 'utf8');
-    execSync(`yarn node "${PREBUILD_SCRIPT}"`, { cwd: ROOT, stdio: 'pipe' });
-    const fresh = JSON.parse(readFileSync(CACHE_PATH, 'utf8'));
-    freshItems = fresh.items.length;
-    freshMats = fresh.materials.length;
-    freshVersion = fresh.schemaVersion;
-
-    // Restore original committed cache
-    writeFileSync(CACHE_PATH, committedRaw);
+    execSync(`yarn node "${PREBUILD_SCRIPT}"`, {
+      cwd: ROOT,
+      stdio: 'pipe',
+      env: { ...process.env, PREBUILD_OUT_DIR: tmpDir },
+    });
+    fresh = JSON.parse(readFileSync(resolve(tmpDir, 'wfcd-cache.json'), 'utf8'));
   });
 
   it('committed cache has the same item count as a fresh prebuild', () => {
-    expect(freshItems).toBe(committedItems);
+    expect(fresh.items.length).toBe(committed.items.length);
   });
 
   it('committed cache has the same material count as a fresh prebuild', () => {
-    expect(freshMats).toBe(committedMats);
+    expect(fresh.materials.length).toBe(committed.materials.length);
   });
 
   it('committed cache has the same item names as a fresh prebuild', () => {
-    const committed = JSON.parse(readFileSync(CACHE_PATH, 'utf8'));
-    // Re-read fresh from the backup we already restored? No, we restored it.
-    // Re-run prebuild again... actually let's just compare names structurally.
-    // Instead, re-read committed and the backup we saved before restore.
-    // We already have fresh data in memory from beforeAll:
-    // freshItems/freshMats/freshVersion — but not the full fresh items array.
-    // Let me re-derive from the raw JSON we saved before restore.
-    // Actually we need to re-run prebuild or store the names. Let me simplify:
-    // The item count test + material count test are sufficient for CI.
-    // Names comparison would be nice but re-running prebuild here is expensive.
-    expect(freshItems).toBeGreaterThan(0);
+    const names = (cache) => cache.items.map((i) => i.name).sort();
+    expect(names(fresh)).toEqual(names(committed));
   });
 
   it('schemaVersion is bumped when item count increases', () => {
-    if (freshItems > committedItems) {
-      expect(freshVersion).toBeGreaterThan(committedVersion);
-    } else if (freshItems < committedItems) {
-      expect(freshVersion).not.toBeLessThan(committedVersion);
+    if (fresh.items.length > committed.items.length) {
+      expect(fresh.schemaVersion).toBeGreaterThan(committed.schemaVersion);
+    } else if (fresh.items.length < committed.items.length) {
+      expect(fresh.schemaVersion).not.toBeLessThan(committed.schemaVersion);
     }
     // If counts match, no bump needed
   });
@@ -80,6 +57,6 @@ describe('prebuild cache freshness', () => {
     const match = prebuildSource.match(/const\s+SCHEMA_VERSION\s*=\s*(\d+)/);
     expect(match).not.toBeNull();
     const sourceVersion = parseInt(match[1], 10);
-    expect(committedVersion).toBe(sourceVersion);
+    expect(committed.schemaVersion).toBe(sourceVersion);
   });
 });
