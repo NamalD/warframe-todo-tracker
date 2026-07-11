@@ -6,6 +6,7 @@ import repo from '../../../src/data/store.ts';
 
 function MaterialsTable({ materials, owned, onOwnedChange }) {
   return (
+    <div className="table-scroll">
     <table>
       <thead>
         <tr>
@@ -73,6 +74,7 @@ function MaterialsTable({ materials, owned, onOwnedChange }) {
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -170,7 +172,7 @@ function ItemDetail({ params }) {
         <p>Mastery Rank: {item.mastery_rank_required}</p>
         <p>
           Wiki:{' '}
-          <a href={item.wiki_url} target="_blank" rel="noreferrer">
+          <a href={item.wiki_url} target="_blank" rel="noreferrer" style={{ overflowWrap: 'anywhere' }}>
             {item.wiki_url}
           </a>
         </p>
