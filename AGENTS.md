@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents (Hermes, Claude Code, etc.) work
 
 ## Project
 
-Warframe TODO Tracker — a Next.js 14 App Router app for tracking Warframe craftable items, materials, mods, loadouts, and crafting progress. Single developer (NamalD on GitHub), deployed via Docker at warframe.namal.dev.
+Warframe TODO Tracker — a Next.js 14 App Router app for tracking Warframe craftable items, materials, mods, loadouts, and crafting progress. Single developer (NamalD on GitHub), deployed via Docker on a VPS at warframe.namal.dev.
 
 - **Runtime**: Node.js, Next.js 14 (App Router)
 - **Package manager**: Yarn 4 (PnP)
@@ -12,7 +12,7 @@ Warframe TODO Tracker — a Next.js 14 App Router app for tracking Warframe craf
 - **Database**: SQLite via `better-sqlite3` (`data/warframe.db`)
 - **Game data**: `@wfcd/items` npm package, flattened by prebuild into static JSON
 - **Testing**: Vitest (unit), Playwright (e2e), custom test-pack runner (`npm test`)
-- **Deployment**: Docker Compose, auto-deploys on issue-close via GitHub webhook
+- **Deployment**: Docker on VPS, auto-deploys via GitHub Actions (build → GHCR → VPS pull & restart)
 
 ## Commands
 
@@ -37,7 +37,7 @@ Playwright e2e tests boot their own dev server on port 3001 (`BASE_URL` override
 
 ## Commit conventions
 
-**Every feature/bug-fix commit must reference a GitHub issue** using one of these keywords in the body: `Closes #N`, `Fixes #N`, or `Resolves #N`. This ensures the auto-deploy hook fires on issue-closing commits.
+**Every feature/bug-fix commit must reference a GitHub issue** using one of these keywords in the body: `Closes #N`, `Fixes #N`, or `Resolves #N`. This ensures the Project board card auto-moves to Done on merge.
 
 Process commits (`[Process]`, `[Compound]`, `[Review]`) are exempt — they don't close issues and don't need a reference.
 
@@ -105,9 +105,10 @@ Manual fallback (if CE skills are unavailable):
 2. Commit and push changes to the branch
 3. Create a PR: `gh pr create --fill`
 4. Enable auto-merge: `gh pr merge --auto --squash --delete-branch`
-5. CI runs; when "Test Suite" passes, GitHub auto-merges and deploys
+5. CI runs; when "Test Suite" passes, GitHub auto-merges
+6. The "Deploy" workflow triggers after tests pass on main — builds Docker image, pushes to GHCR, SSHes into VPS, pulls image, and restarts Docker Compose
 
-The Docker auto-deploy hook fires on push to `main` (after merge). Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.
+Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.
 
 **CI gating**: Every PR runs `yarn vitest run` via `.github/workflows/test.yml`. The "Test Suite" status check is required — GitHub blocks the merge button until it passes. This is the deterministic gate ensuring no broken tests land on `main`.
 
