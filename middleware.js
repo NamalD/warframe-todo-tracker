@@ -1,16 +1,25 @@
 // middleware.js — protect all app routes behind a password check
+// Runs on the Edge runtime: use Web Crypto, not node:crypto.
 import { NextResponse } from 'next/server';
-import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const PASSWORD = process.env.PASSWORD || '';
 const SESSION_SECRET = process.env.SESSION_SECRET || '';
+
+function hexToBytes(hex) {
+  if (hex.length % 2 !== 0 || /[^0-9a-f]/i.test(hex)) return null;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
 
 /**
  * Verify a signed session cookie.
  * Cookie format: `sessionId.timestamp.signature`
  * Signature = HMAC-SHA256(sessionId + '.' + timestamp, SESSION_SECRET)
  */
-function verifySession(cookie) {
+async function verifySession(cookie) {
   if (!cookie || !SESSION_SECRET) return null;
 
   const parts = cookie.split('.');
@@ -23,17 +32,24 @@ function verifySession(cookie) {
   if (isNaN(issued)) return null;
   if (Date.now() - issued > 30 * 24 * 60 * 60 * 1000) return null;
 
-  // Verify signature
-  const expected = createHmac('sha256', SESSION_SECRET)
-    .update(`${sessionId}.${timestamp}`)
-    .digest('hex');
+  const signatureBytes = hexToBytes(signature);
+  if (!signatureBytes) return null;
 
-  try {
-    const valid = timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-    if (!valid) return null;
-  } catch {
-    return null;
-  }
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(SESSION_SECRET),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify']
+  );
+  const valid = await crypto.subtle.verify(
+    'HMAC',
+    key,
+    signatureBytes,
+    encoder.encode(`${sessionId}.${timestamp}`)
+  );
+  if (!valid) return null;
 
   return { sessionId, issued };
 }
@@ -53,7 +69,7 @@ export async function middleware(request) {
   }
 
   const cookie = request.cookies.get('auth_token')?.value;
-  const session = verifySession(cookie);
+  const session = await verifySession(cookie);
 
   if (!session) {
     const url = new URL('/login', request.url);
