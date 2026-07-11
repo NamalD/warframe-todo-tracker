@@ -154,9 +154,8 @@ function LoadoutDetailInner() {
     if (!reqFormVisible[slotId]) {
       setReqWarning((prev) => ({ ...prev, [slotId]: null }));
     }
-    if (!reqForm[slotId]) {
-      setReqForm((prev) => ({ ...prev, [slotId]: { name: '', wiki_url: '', user_notes: '' } }));
-    }
+    // Reset form when opening (was: only reset if form didn't exist)
+    setReqForm((prev) => ({ ...prev, [slotId]: { name: '', wiki_url: '', user_notes: '' } }));
   };
 
   const handleAddRequirement = (e, slotId) => {
