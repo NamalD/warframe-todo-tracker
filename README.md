@@ -4,7 +4,7 @@ Track Warframe craftable items, required materials, material and part sources, a
 
 ## Self-Hosting with Docker
 
-A production-ready Docker image is available for easy self-hosting. The image uses a multi-stage build: Node.js for the Vite build and nginx for serving static files.
+A production-ready Docker image is available for easy self-hosting. The image uses a multi-stage build: Node.js for the Next.js build and a Node.js runner for the standalone server.
 
 ### Prerequisites
 
@@ -21,7 +21,7 @@ docker build -t warframe-todo-tracker:latest .
 ### Run the container
 
 ```bash
-docker run -d --name warframe-todos -p 3000:80 warframe-todo-tracker:latest
+docker run -d --name warframe-todos -p 3000:3000 -v /path/on/host/data:/app/data warframe-todo-tracker:latest
 ```
 
 The app will be available at http://localhost:3000.
@@ -42,10 +42,32 @@ docker rm warframe-todos
 git pull
 docker build -t warframe-todo-tracker:latest .
 docker stop warframe-todos && docker rm warframe-todos
-docker run -d --name warframe-todos -p 3000:80 warframe-todo-tracker:latest
+docker run -d --name warframe-todos -p 3000:3000 -v /path/on/host/data:/app/data warframe-todo-tracker:latest
+```
+
+### Environment variables
+
+Create a `.env` file in the same directory as `docker-compose.yml` (or pass them directly to `docker run`):
+
+| Variable | Description |
+|----------|-------------|
+| `PASSWORD` | Warframe Tracker password. Leave blank to disable authentication. |
+| `SESSION_SECRET` | Random string for HMAC session signing. Required when `PASSWORD` is set. |
+
+### Data persistence
+
+The SQLite database and prebuild cache are stored in `/app/data` inside the container. Map this to a host directory or named volume so data survives container recreation:
+
+```bash
+# Named volume
+docker run -d --name warframe-todos -p 3000:3000 -v warframe-data:/app/data warframe-todo-tracker:latest
+
+# Bind mount
+docker run -d --name warframe-todos -p 3000:3000 -v /home/namal/apps/dbs/warframe-todo-tracker:/app/data warframe-todo-tracker:latest
 ```
 
 ### Troubleshooting
 
-- **Port already in use:** Change `-p 3000:80` to a different host port, e.g. `-p 8080:80`.
+- **Port already in use:** Change `-p 3000:3000` to a different host port, e.g. `-p 8080:3000`.
 - **Container exits immediately:** Check logs with `docker logs warframe-todos`.
+- **Data lost after container recreation:** Ensure you are using a volume mount (`-v ...:/app/data`).
