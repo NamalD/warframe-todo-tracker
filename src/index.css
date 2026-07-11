@@ -158,6 +158,11 @@ table {
   font-size: 13px;
   margin-top: 10px;
 }
+
+/* Wide tables scroll inside their card instead of stretching or clipping the page */
+.table-scroll {
+  overflow-x: auto;
+}
 th, td {
   text-align: left;
   padding: 8px 10px;

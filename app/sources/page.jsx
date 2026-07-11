@@ -67,6 +67,7 @@ function SourcesInner() {
               wiki &rarr;
             </a>
           </h2>
+          <div className="table-scroll">
           <table>
             <thead>
               <tr>
@@ -87,6 +88,7 @@ function SourcesInner() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       ))}
     </div>
