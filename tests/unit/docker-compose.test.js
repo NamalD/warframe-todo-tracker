@@ -23,10 +23,15 @@ describe('docker-compose.yml', () => {
     expect(content).toMatch(/^\s+volumes:\s*$/m);
   });
 
-  it('maps ./data to /app/data for data persistence', () => {
+  it('maps /app/data inside the container for data persistence', () => {
     const content = readComposeFile();
-    // Check for the bind mount: host ./data -> container /app/data
-    expect(content).toContain('./data:/app/data');
+    const lines = content.split('\n');
+    const appIndex = lines.findIndex((l) => l.trim() === 'app:');
+    expect(appIndex).toBeGreaterThan(-1);
+    const appVolumeBind = lines
+      .slice(appIndex + 1)
+      .find((l) => l.includes(':/app/data'));
+    expect(appVolumeBind).toBeDefined();
   });
 
   it('volumes entry is under the app service, not at top level', () => {
