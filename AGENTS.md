@@ -83,6 +83,8 @@ If the work doesn't have an existing issue, create one first with `gh issue crea
 - The commit can reference the issue number
 - Work can be claimed by moving the card to In Progress
 
+**When commits are ready:** If all commits on a branch are complete and ready to merge, create a PR using `gh pr create --fill`. Do not leave commits sitting on a branch without a PR. PRs wait for user review before merging - never auto-merge.
+
 ## Project board discipline
 
 The GitHub Project board is the source of truth for what's being worked on. Every issue on the board must have its status column match reality.
