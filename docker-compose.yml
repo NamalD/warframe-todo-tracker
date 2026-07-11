@@ -12,7 +12,7 @@ services:
       - PASSWORD=${PASSWORD:-}
       - SESSION_SECRET=${SESSION_SECRET:-}
     volumes:
-      - ./data:/app/data
+      - /home/namal/apps/dbs/warframe-todo-tracker:/app/data
     labels:
       - "app=warframe-todo-tracker"
       - "stack=warframe"
@@ -24,9 +24,4 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # GHCR credentials for pulling the private image (from `docker login ghcr.io`).
-      # Remove this mount if the GHCR package is made public.
-      - ${DOCKER_CONFIG:-~/.docker}/config.json:/config.json:ro
-    # Only watch containers with the watchtower.enable label, poll every 60s,
-    # and remove superseded images after updating.
     command: --label-enable --interval 60 --cleanup
