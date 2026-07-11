@@ -85,6 +85,8 @@ The GitHub Project board is the source of truth for what's being worked on. Ever
 - When committing code that closes an issue, use `Closes #N` — the git hook auto-moves the card to **Done** on merge to main
 - After every commit or push, verify the board state matches reality
 - If an open issue exists but isn't on the project board, add it (Todo or In Progress as appropriate) — and set its **Priority** and **Estimate** fields (see below)
+- **When you create an issue, triage it yourself in the same step**: add it to the board and set Priority and Estimate judged from the issue's actual content. **Never apply blanket default values** — an Action that stamped every new issue P2/S was removed for exactly this reason; automation must not set these fields
+- **Multiple agents work this repo — claim an issue before writing code.** An issue is free only if its board status is Todo **and** it has no open PR or pushed branch referencing it **and** no claim comment. To claim one: move its card to In Progress and leave a one-line comment on the issue saying you're picking it up. If signals conflict (e.g. Todo on the board but a branch exists), surface it to the user instead of starting
 - Every board item carries **Priority** (P0–P3) and **Estimate** (XS/S/M/L/XL) single-select fields. Pick up work highest-priority-first, breaking ties toward the smaller estimate. Priority weighs data safety first (loss/corruption bugs), then everyday user value, then speculative scope; Estimate is t-shirt sizing (XS ≈ one-liner, S ≈ a focused session, M ≈ a day or two, L ≈ multi-day, XL ≈ open-ended multi-week)
 
 ### Reading the board (how to query it correctly)
@@ -105,7 +107,7 @@ The GitHub Project board is the source of truth for what's being worked on. Ever
   - **Priority** field `PVTSSF_lAHOACqRis4Bc2FbzhXrT4s`: P0=`68c09189`, P1=`83c82297`, P2=`379c4132`, P3=`0e04d828`
   - **Estimate** field `PVTSSF_lAHOACqRis4Bc2FbzhXrT8A`: XS=`5c5e23d3`, S=`92fa8114`, M=`d7260a84`, L=`5da64983`, XL=`e2407bc6`
 - The `read:project` OAuth scope is required; if `gh project` errors with `missing required scopes`, run `gh auth refresh -h github.com -s read:project`. Editing fields additionally needs the `project` (write) scope.
-- **Board snapshot (2026-07-11):** Nothing In Progress. Todo backlog (all with Priority + Estimate set): P1 = #43, #45, #52, #121, #122; P2 = #29, #31, #33, #40, #42, #53-#56, #73; P3 = #30, #32, #35, #36, #44, #57, #58, #64-#68, #74, #78, #92, #98. Every other board item is Done.
+- **Board snapshot (2026-07-11, evening):** Todo backlog: P1 = #45, #52, #122; P2 = #29, #31, #33, #40, #42, #53-#56, #73, #130, #131; P3 = #30, #32, #35, #36, #44, #57, #58, #64-#68, #74, #78, #92, #98. #129 is an unboarded duplicate of #130 (same title — one should be closed). Every other board item is Done.
 - Note: board items generally have **no assignee** (single-developer project) — that's expected, not a gap to fix.
 
 ## Agent behavior
@@ -113,7 +115,7 @@ The GitHub Project board is the source of truth for what's being worked on. Ever
 When the user asks you to make a code change, configuration change, or infrastructure/operations change, **always complete the full git workflow** unless they explicitly say otherwise. Use the `ce-commit-push-pr` skill as the canonical way to ship changes:
 
 1. Create or use an existing feature branch
-2. Run `ce-commit-push-pr` — it commits (with issue reference), pushes, opens a PR, and enables auto-merge
+2. Run `ce-commit-push-pr` — it commits (with issue reference), pushes, and opens a PR. **Skip its auto-merge step** (see Git workflow — PRs wait for the user's review)
 
 Ops/config changes (`docker-compose.yml`, `.env`, deployment scripts, infrastructure-as-code, host path migrations, etc.) are in scope for CE. Do not treat them as ad-hoc live edits.
 
@@ -121,7 +123,7 @@ For smaller commits without a full PR, use `ce-commit` to create a well-formated
 
 If CE skills are unavailable, fall back to the manual steps in the Git workflow section below.
 
-Do not stop after making the file edit — the workflow is not complete until the PR is open and auto-merge is enabled.
+Do not stop after making the file edit — the workflow is not complete until the PR is open and its URL has been reported to the user for review.
 
 ## Git workflow
 
@@ -132,17 +134,16 @@ The canonical way to ship changes is via the `ce-commit-push-pr` skill, which ha
 2. Commits changes with an issue reference
 3. Pushes to the branch
 4. Opens a PR via `gh pr create --fill`
-5. Enables auto-merge via `gh pr merge --auto --squash --delete-branch`
+
+**Never enable auto-merge.** Every PR waits for the user to review and merge it personally — `allow_auto_merge` is disabled at the repository level, so `gh pr merge --auto` fails; do not work around that. Where `ce-commit-push-pr` or older docs say to enable auto-merge, skip that step and report the PR URL instead.
 
 For smaller commits without a full PR, use `ce-commit` to create a well-formatted commit with issue reference.
 
 Manual fallback (if CE skills are unavailable):
 1. Create a feature branch: `git checkout -b feat/short-description`
 2. Commit and push changes to the branch
-3. Create a PR: `gh pr create --fill`
-4. Enable auto-merge: `gh pr merge --auto --squash --delete-branch`
-5. CI runs; when "Test Suite" passes, GitHub auto-merges
-6. The "Deploy" workflow triggers after tests pass on main — builds the Docker image and pushes it to GHCR; Watchtower on the VPS picks it up and restarts the container automatically
+3. Create a PR: `gh pr create --fill` and report its URL — the user reviews and merges
+4. After the merge, tests pass on main and the "Deploy" workflow builds the Docker image and pushes it to GHCR; Watchtower on the VPS picks it up and restarts the container automatically
 
 Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.
 
