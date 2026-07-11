@@ -1,0 +1,102 @@
+name: Issue to Project Board
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  project: write
+
+jobs:
+  add-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add issue to project board and set defaults
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Project IDs from AGENTS.md
+            const PROJECT_ID = 'PVT_kwHOACqRis4Bc2Fb';
+            const PRIORITY_FIELD_ID = 'PVTSSF_lAHOACqRis4Bc2FbzhXrT4s';
+            const ESTIMATE_FIELD_ID = 'PVTSSF_lAHOACqRis4Bc2FbzhXrT8A';
+            
+            // Default values - can be adjusted after issue creation
+            const DEFAULT_PRIORITY_ID = '379c4132'; // P2
+            const DEFAULT_ESTIMATE_ID = '92fa8114'; // S
+            
+            const issue = context.payload.issue;
+            const issueId = issue.node_id;
+            
+            try {
+              // Add issue to project board
+              await github.rest.graphql(`
+                mutation {
+                  addProjectV2ItemById(input: { 
+                    projectId: "${PROJECT_ID}", 
+                    contentId: "${issueId}" 
+                  }) { 
+                    item { 
+                      id 
+                    } 
+                  } 
+                }
+              `);
+              
+              // Get the newly created item ID
+              const addItemResult = await github.rest.graphql(`
+                query {
+                  repository(owner: "${context.repo.owner}", name: "${context.repo.repo}") {
+                    issue(number: ${issue.number}) {
+                      projectItems(first: 1, projectId: "${PROJECT_ID}") {
+                        nodes {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              `);
+              
+              const itemId = addItemResult.repository.issue.projectItems.nodes[0]?.id;
+              
+              if (itemId) {
+                // Set default Priority (P2)
+                await github.rest.graphql(`
+                  mutation {
+                    updateProjectV2ItemFieldValue(input: { 
+                      projectId: "${PROJECT_ID}", 
+                      itemId: "${itemId}", 
+                      fieldId: "${PRIORITY_FIELD_ID}", 
+                      value: { singleSelectOptionId: "${DEFAULT_PRIORITY_ID}" } 
+                    }) { 
+                      projectV2Item { 
+                        id 
+                      } 
+                    } 
+                  }
+                `);
+                
+                // Set default Estimate (S)
+                await github.rest.graphql(`
+                  mutation {
+                    updateProjectV2ItemFieldValue(input: { 
+                      projectId: "${PROJECT_ID}", 
+                      itemId: "${itemId}", 
+                      fieldId: "${ESTIMATE_FIELD_ID}", 
+                      value: { singleSelectOptionId: "${DEFAULT_ESTIMATE_ID}" } 
+                    }) { 
+                      projectV2Item { 
+                        id 
+                      } 
+                    } 
+                  }
+                `);
+              }
+              
+              console.log(`Successfully added issue #${issue.number} to project board`);
+            } catch (error) {
+              console.error('Error adding issue to project:', error.message);
+              // Don't fail the workflow - issue creation should still succeed
+            }
+          
