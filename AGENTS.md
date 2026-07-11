@@ -101,12 +101,14 @@ The GitHub Project board is the source of truth for what's being worked on. Ever
 
 ## Agent behavior
 
-When the user asks you to make a code change, **always complete the full git workflow** unless they explicitly say otherwise. Use the `ce-commit-push-pr` skill as the canonical way to ship changes:
+When the user asks you to make a code change, configuration change, or infrastructure/operations change, **always complete the full git workflow** unless they explicitly say otherwise. Use the `ce-commit-push-pr` skill as the canonical way to ship changes:
 
 1. Create or use an existing feature branch
 2. Run `ce-commit-push-pr` — it commits (with issue reference), pushes, opens a PR, and enables auto-merge
 
-For smaller commits without a full PR, use `ce-commit` to create a well-formatted commit with issue reference.
+Ops/config changes (`docker-compose.yml`, `.env`, deployment scripts, infrastructure-as-code, host path migrations, etc.) are in scope for CE. Do not treat them as ad-hoc live edits.
+
+For smaller commits without a full PR, use `ce-commit` to create a well-formated commit with issue reference.
 
 If CE skills are unavailable, fall back to the manual steps in the Git workflow section below.
 
