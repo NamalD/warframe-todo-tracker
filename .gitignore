@@ -10,3 +10,4 @@ node_modules/
 .pi-subagents/
 playwright-report/
 test-results/
+worktrees/

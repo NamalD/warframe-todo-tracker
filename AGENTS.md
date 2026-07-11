@@ -2,6 +2,10 @@
 
 This file provides guidance to AI coding agents (Hermes, Claude Code, etc.) working in this repository. For the canonical workflow, issue rules, commit conventions, project board discipline, stop conditions, and validation requirements, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
+## Worktree requirement
+
+**Every change must be made in a fresh worktree created from `main`.** Do not edit files directly in the main checkout. Create the worktree at `./worktrees/<branch-name>`, make your changes there, and clean it up after the PR is merged. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the exact sequence.
+
 ## Project
 
 Warframe TODO Tracker — a Next.js 14 App Router app for tracking Warframe craftable items, materials, mods, loadouts, and crafting progress. Single developer (NamalD on GitHub), deployed via Docker on a VPS at warframe.namal.dev.

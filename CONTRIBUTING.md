@@ -6,14 +6,25 @@ This is the canonical guide for all changes to this repository. Humans and AI ag
 
 Every repository modification ships through the same sequence:
 
-1. Create or switch to a dedicated feature branch.
-2. Make changes.
-3. Commit with an issue reference.
-4. Push the branch.
-5. Open a PR.
-6. Enable gated squash auto-merge.
+1. Ensure the main checkout is clean (`git status` shows no modifications).
+2. Create a fresh worktree from `main`: `git worktree add ./worktrees/<branch-name> -b <branch-name> main`.
+3. `cd` into the worktree and make changes there.
+4. Commit with an issue reference.
+5. Push the branch.
+6. Open a PR.
+7. Enable gated squash auto-merge.
+8. After the PR is merged, clean up: `git worktree remove ./worktrees/<branch-name>` and `git branch -d <branch-name>`.
 
-Never push directly to `main`. Never stop after a local commit or pushed branch without a PR. Never manually merge or disable required checks.
+Never make changes directly in the main checkout. Never push directly to `main`. Never stop after a local commit or pushed branch without a PR. Never manually merge or disable required checks.
+
+### Worktree conventions
+
+- **Location:** `./worktrees/<branch-name>` (relative to the main checkout).
+- **Base:** always create from `main`, not from the current branch.
+- **Naming:** use a short descriptive branch name (`fix/login-loop`, `feat/coda-weapons`, `docs/align-workflow-docs`).
+- **Cleanup:** remove the worktree and delete the branch after the PR is merged. If the worktree was already removed by `--delete-branch-on-merge`, just delete the local branch.
+- **Dirty main:** if the main checkout has uncommitted changes, stash or commit them before creating a worktree. Do not discard work silently.
+- **Existing worktree:** if `./worktrees/<branch-name>` already exists, stop and ask before overwriting or reusing it.
 
 ## Issue requirements
 
