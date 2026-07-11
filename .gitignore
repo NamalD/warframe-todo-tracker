@@ -9,5 +9,7 @@ home/
 node_modules/
 .pi-subagents/
 playwright-report/
+/data/
+.pi-subagents/
 test-results/
 worktrees/
