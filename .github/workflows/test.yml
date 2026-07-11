@@ -41,3 +41,7 @@ jobs:
       - name: Run unit tests
         if: steps.docsonly.outputs.only_docs != 'true'
         run: yarn vitest run
+
+      - name: Build
+        if: steps.docsonly.outputs.only_docs != 'true'
+        run: yarn build
