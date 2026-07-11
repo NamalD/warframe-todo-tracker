@@ -27,6 +27,14 @@ last_update: 2026-07-10
 
 **Foundation merged**: PR #95 — 33 files changed, `yarn build` passes, all 637 tests pass.
 
+## Current State (2026-07-11)
+
+- `src/data/` is fully TypeScript (`.ts`).
+- `app/` UI files remain JavaScript/JSX (`.jsx`/`.js`).
+- Tests remain a mix of `.js`, `.jsx`, `.ts`, and `.tsx`.
+- `tsconfig.json` and `.eslintrc.json` are already configured with `strict: true`.
+- The Oxc workaround (`// @ts-nocheck` + JSDoc) is used for files where native TS syntax currently fails under Vite 6 / Vitest 4.
+
 ## Goal Capsule
 
 Convert all ~85 source and test files from JavaScript/JSX to TypeScript/TSX with `strict: true`, adding type annotations for core data shapes while keeping the existing Next.js 14 architecture intact.
@@ -65,43 +73,43 @@ Convert all ~85 source and test files from JavaScript/JSX to TypeScript/TSX with
 
 ### Source files to convert (~50 files):
 
-**Data layer (14 files):**
-- `src/data/database.js` → `.ts`
-- `src/data/server-store.js` → `.ts`
-- `src/data/sqlite-todos.js` → `.ts`
-- `src/data/sqlite-loadouts.js` → `.ts`
-- `src/data/sqlite-materials.js` → `.ts`
-- `src/data/sqlite-builds.js` → `.ts`
-- `src/data/sqlite-user-items.js` → `.ts`
-- `src/data/repository.js` → `.ts` (client component — stays `.ts` with `'use client'`)
-- `src/data/loadout-repository.js` → `.ts`
-- `src/data/mod-repository.js` → `.ts`
-- `src/data/build-repository.js` → `.ts`
-- `src/data/material-aggregator.js` → `.ts`
-- `src/data/requirement-options.js` → `.ts`
-- `src/data/seed.js` → `.ts`
+**Data layer (14 files) — already converted in PR #95:**
+- `src/data/database.ts`
+- `src/data/server-store.ts`
+- `src/data/sqlite-todos.ts`
+- `src/data/sqlite-loadouts.ts`
+- `src/data/sqlite-materials.ts`
+- `src/data/sqlite-builds.ts`
+- `src/data/sqlite-user-items.ts`
+- `src/data/repository.ts` (client component — uses `'use client'`)
+- `src/data/loadout-repository.ts`
+- `src/data/mod-repository.ts`
+- `src/data/build-repository.ts`
+- `src/data/material-aggregator.ts`
+- `src/data/requirement-options.ts`
+- `src/data/seed.ts`
 
-**Stores (4 files):**
-- `src/data/store.js` → `.ts`
-- `src/data/loadout-store.js` → `.ts`
-- `src/data/mod-store.js` → `.ts`
-- `src/data/build-store.js` → `.ts`
+**Stores (4 files) — already converted in PR #95:**
+- `src/data/store.ts`
+- `src/data/loadout-store.ts`
+- `src/data/mod-store.ts`
+- `src/data/build-store.ts`
 
-**Utility (1 file):**
-- `src/utils.js` → `.ts`
+**Utility (1 file) — already converted in PR #95:**
+- `src/utils.ts`
 
-**Dashboard components (2 files):**
+**Dashboard components (2 files) — remaining:**
 - `src/components/build-dashboard-section.jsx` → `.tsx`
 - `src/components/loadout-dashboard-section.jsx` → `.tsx`
 
-**App pages + components (18 files):**
+**App pages + components (18 files) — remaining:**
 - All `app/**/page.jsx` → `.tsx` (13 files: items, items/[id], mods, mods/[id], loadouts, loadouts/[id], builds, builds/[id], todos, shopping-list, sources, login, home + layout, not-found)
 - `app/components/NavBar.jsx` → `.tsx`
 - `app/components/MultiSelectPillFilter.jsx` → `.tsx`
 - `app/components/searchable-select.jsx` → `.tsx`
 - `app/loadouts/[id]/requirement-combobox.jsx` → `.tsx`
 
-**API routes (8 files):**
+**API routes (10 files) — remaining:**
 - `app/api/todos/route.js` → `.ts`
 - `app/api/todos/[id]/route.js` → `.ts`
 - `app/api/loadouts/route.js` → `.ts`
@@ -113,13 +121,29 @@ Convert all ~85 source and test files from JavaScript/JSX to TypeScript/TSX with
 - `app/api/sync/route.js` → `.ts`
 - `app/api/login/route.js` → `.ts`
 
-**Scripts (2 files):**
+**Scripts (2 files) — remaining:**
 - `scripts/prebuild.mjs` → `.mts` (or `.ts` — stay ESM with `.mts`)
 - `tests/test-pack.mjs` → `.mts`
 
-**Unit tests (~35 files):**
+**Unit tests (~35 files) — remaining:**
 - All `tests/unit/**/*.test.js` → `.test.ts`
 - All `tests/unit/**/*.test.jsx` → `.test.tsx`
+
+## Migration Status
+
+### Completed (PR #95)
+- `src/data/*.ts` — data layer fully converted
+- `src/utils.ts` — utilities converted
+- `tsconfig.json`, `.eslintrc.json` — configured with `strict: true`
+- `package.json` — `@types/*` and TypeScript tooling added
+
+### Remaining
+- `app/**/*.jsx` / `app/**/*.js` — UI pages and components
+- `app/api/**/route.js` — API route handlers
+- `scripts/*.mjs` — prebuild and test-pack scripts
+- `tests/unit/**/*.test.{js,jsx}` — unit tests still using JavaScript
+- `scripts/*.mjs` — prebuild and test-pack scripts
+- `tests/unit/**/*.test.{js,jsx}` — unit tests still using JavaScript
 
 ### Config files left as-is:
 - `next.config.js` — Next.js does not support TypeScript config files
@@ -133,9 +157,11 @@ Convert all ~85 source and test files from JavaScript/JSX to TypeScript/TSX with
 - **vitest.config.ts already TypeScript**: Uses `import` syntax, typed config. Keep this pattern.
 - **Client components use `'use client'`**: Repository files have `'use client'` at the top. TypeScript doesn't change this — `.ts` files with `'use client'` work fine in Next.js App Router.
 - **API routes follow Next.js Route Handler pattern**: Each exports named HTTP method functions (`export async function GET`, etc.). Next.js provides `NextRequest` / `NextResponse` types.
-- **Server-only modules use `import 'server-only'`**: `database.js` and sqlite helpers. Keep this guard — TypeScript won't enforce it but it's runtime-critical.
+- **Server-only modules use `import 'server-only'`**: `database.ts` and sqlite helpers. Keep this guard — TypeScript won't enforce it but it's runtime-critical.
 
 ## Implementation Units
+
+> **Note:** U1–U5 are complete (merged in PR #95). The remaining units (U6–U11) cover the unconverted `app/` UI, API routes, scripts, and tests.
 
 ### U1: Infrastructure Setup
 
@@ -197,9 +223,11 @@ Convert all ~85 source and test files from JavaScript/JSX to TypeScript/TSX with
 
 ### U3: Server Data Layer
 
-**Files**: `src/data/database.js` → `.ts`, `src/data/server-store.js` → `.ts`, `src/data/sqlite-todos.js` → `.ts`, `src/data/sqlite-loadouts.js` → `.ts`, `src/data/sqlite-materials.js` → `.ts`, `src/data/sqlite-builds.js` → `.ts`, `src/data/sqlite-user-items.js` → `.ts`
+**Status:** Complete. Files are already `.ts`.
 
-**What to do:**
+**Original files**: `src/data/database.js` → `.ts`, `src/data/server-store.js` → `.ts`, `src/data/sqlite-todos.js` → `.ts`, `src/data/sqlite-loadouts.js` → `.ts`, `src/data/sqlite-materials.js` → `.ts`, `src/data/sqlite-builds.js` → `.ts`, `src/data/sqlite-user-items.js` → `.ts`
+
+**What was done:**
 1. Rename each `.js` → `.ts`
 2. Add `import type` for data interfaces from `types/data.ts`
 3. Add return types to exported functions (e.g., `getDb(): Database`, `getAllTodos(): Todo[]`)
@@ -223,9 +251,11 @@ Convert all ~85 source and test files from JavaScript/JSX to TypeScript/TSX with
 
 ### U4: Client Repositories
 
-**Files**: `src/data/repository.js` → `.ts`, `src/data/loadout-repository.js` → `.ts`, `src/data/mod-repository.js` → `.ts`, `src/data/build-repository.js` → `.ts`, `src/data/store.js` → `.ts`, `src/data/loadout-store.js` → `.ts`, `src/data/mod-store.js` → `.ts`, `src/data/build-store.js` → `.ts`, `src/data/seed.js` → `.ts`, `src/data/material-aggregator.js` → `.ts`, `src/data/requirement-options.js` → `.ts`
+**Status:** Complete. Files are already `.ts`.
 
-**What to do:**
+**Original files**: `src/data/repository.js` → `.ts`, `src/data/loadout-repository.js` → `.ts`, `src/data/mod-repository.js` → `.ts`, `src/data/build-repository.js` → `.ts`, `src/data/store.js` → `.ts`, `src/data/loadout-store.js` → `.ts`, `src/data/mod-store.js` → `.ts`, `src/data/build-store.js` → `.ts`, `src/data/seed.js` → `.ts`, `src/data/material-aggregator.js` → `.ts`, `src/data/requirement-options.js` → `.ts`
+
+**What was done:**
 1. Rename each `.js` → `.ts`
 2. Keep `'use client'` directive at top of client-component files
 3. Add type annotations to public fields (e.g., `items: Item[] = []`)
@@ -325,6 +355,8 @@ Convert all ~85 source and test files from JavaScript/JSX to TypeScript/TSX with
 
 ### U9: Scripts
 
+**Status:** Remaining.
+
 **Files**: `scripts/prebuild.mjs` → `scripts/prebuild.mts`, `tests/test-pack.mjs` → `tests/test-pack.mts`
 
 **What to do:**
@@ -341,9 +373,11 @@ Convert all ~85 source and test files from JavaScript/JSX to TypeScript/TSX with
 
 ### U10: Unit Test Conversion
 
+**Status:** Remaining.
+
 **Files**: ~35 test files in `tests/unit/`
 
-**What to do:**
+**What to do:****
 1. Rename `.test.js` → `.test.ts`, `.test.jsx` → `.test.tsx`
 2. Add type annotations to test fixtures (mock data should match `types/data.ts` interfaces)
 3. Type mock functions: `vi.fn<Parameters, ReturnType>()`
