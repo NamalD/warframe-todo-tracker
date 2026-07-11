@@ -92,6 +92,8 @@ The GitHub Project board is the source of truth for what's being worked on. Ever
 ### Reading the board (how to query it correctly)
 
 - The relevant board is **GitHub Project #4 "Warframe Item Tracker"** (`gh project item-list 4 --owner @me`). The other project, **"Iris"** (project #5), is an unrelated email-assistant project — ignore it.
+  - **Project ID string:** `PVT_kwHOACqRis4Bc2Fb` (use with `--project-id` flag for item-edit operations)
+  - **Quick reference for adding items:** `gh project item-add 4 --owner @me --url <issue-url>`
 - **`gh project item-list` truncates by default.** Always pass `--limit 1000` or you'll only see a subset of items and will wrongly conclude columns are empty / issues are missing.
 - To get a clean status+title dump:
   ```bash
