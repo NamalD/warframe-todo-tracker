@@ -26,7 +26,7 @@
 
 ## Overview
 
-Replace the current JSON-file-based server persistence (`server-store.js`) with SQLite, enabling safe multi-device sync through per-record version tracking. The three user-data domains—**loadouts**, **todos**, and **materials-inventory**—move from monolithic JSON files (`data/{loadouts,todos,materials-inventory}.json`) into a single SQLite database (`data/tracker.db`). Reference data (items, materials, tree relationships from `@wfcd/items` npm package) stays out of SQLite — it's read-only and served via `data/wfcd-cache.json`.
+Replace the current JSON-file-based server persistence (`server-store.ts`) with SQLite, enabling safe multi-device sync through per-record version tracking. The three user-data domains—**loadouts**, **todos**, and **materials-inventory**—move from monolithic JSON files (`data/{loadouts,todos,materials-inventory}.json`) into a single SQLite database (`data/warframe.db`). Reference data (items, materials, tree relationships from `@wfcd/items` npm package) stays out of SQLite — it's read-only and served via `data/wfcd-cache.json`.
 
 ---
 
@@ -61,7 +61,7 @@ Todos are already flat — fully normalized columns. Materials-inventory is key-
 - ~2x faster than `sql.js` for read-heavy workloads
 - Well-maintained, widely used in Node.js ecosystem
 - Single-user app — no concurrent connection concerns
-- Docker build: needs `node:20-alpine` with build tools for native compilation (already present in the builder stage)
+- Docker build: needs `node:22-alpine` with build tools for native compilation (already present in the builder stage)
 
 **Trade-off acknowledged:** Synchronous DB operations block the Node.js event loop. Acceptable here because:
 - The app is single-user with low concurrency
@@ -177,7 +177,7 @@ const MIGRATIONS = [
 ```
 
 On every server start:
-1. If `tracker.db` doesn't exist, create it and apply all migrations from the start
+1. If `warframe.db` doesn't exist, create it and apply all migrations from the start
 2. If it exists, check `schema_version` latest, apply any pending migrations
 
 ---
@@ -279,7 +279,7 @@ Response:
 
 ### Phase 1 (Direct Migration — Maintains Backward Compatibility)
 
-The existing GET/PUT routes remain but their implementation switches from `server-store.js` to SQLite:
+The existing GET/PUT routes remain but their implementation switches from `server-store.ts` to SQLite:
 
 | Route | Method | Current | SQLite Version |
 |-------|--------|---------|----------------|
@@ -333,13 +333,13 @@ New routes for per-record mutations with version checking:
 
 ```
 app/api/loadouts/route.js
-  └─ imports sqliteDb from src/data/sqlite-db.js
+  └─ imports db from src/data/database.ts
       └─ sqliteDb.getAllLoadouts()
           └─ db.prepare('SELECT * FROM loadouts').all()
-              └─ SQLite file at DATA_DIR/tracker.db
+              └─ SQLite file at DATA_DIR/warframe.db
 ```
 
-No repository singleton — the `sqlite-db.js` module initializes once on server startup and exports a ready-to-use helper object.
+No repository singleton — the `database.ts` module initializes once on server startup and exports a ready-to-use helper object.
 
 ---
 
@@ -348,7 +348,7 @@ No repository singleton — the `sqlite-db.js` module initializes once on server
 ### Step 1: Detect Existing JSON Files
 
 On first server startup after the SQLite module is deployed:
-1. Check if `data/tracker.db` exists
+1. Check if `data/warframe.db` exists
 2. If not, check `data/loadouts.json`, `data/todos.json`, `data/materials-inventory.json`
 3. If any exist, run the migration
 
@@ -401,7 +401,7 @@ VALUES (1, 'Initial SQLite schema — migrated from JSON files');
 
 If rollback is needed:
 1. Rename `*.json.migrated` back to `*.json`
-2. Delete or rename `tracker.db`
+2. Delete or rename `warframe.db`
 3. Deploy the previous version
 
 ---
@@ -412,23 +412,25 @@ If rollback is needed:
 
 ```
 src/data/
-  sqlite-db.js          ← New: SQLite initialization, schema setup, migration
-  sqlite-loadouts.js    ← New: Loadout-specific queries (CRUD)
-  sqlite-todos.js       ← New: Todo-specific queries (CRUD)
-  sqlite-materials.js   ← New: Materials-inventory queries (CRUD)
-  sqlite-sync.js        ← New: Sync endpoint logic (GET/POST)
+  database.ts          ← New: SQLite initialization, schema setup, migration
+  sqlite-loadouts.ts        ← New: Loadout-specific queries (CRUD)
+  sqlite-todos.ts           ← New: Todo-specific queries (CRUD)
+  sqlite-materials.ts       ← New: Materials-inventory queries (CRUD)
+  sqlite-builds.ts          ← New: Build-specific queries (CRUD)
+  sqlite-user-items.ts      ← New: User-items queries
+  sqlite-sync.js            ← New: Sync endpoint logic (GET/POST)
 
 app/api/loadouts/route.js      ← Modified: uses sqlite-loadouts instead of server-store
 app/api/todos/route.js         ← Modified: uses sqlite-todos instead of server-store
 app/api/materials/route.js     ← Modified: uses sqlite-materials instead of server-store
 app/api/sync/route.js          ← New: sync endpoint
 
-src/data/server-store.js       ← Deprecated but kept for rollback. Will be removed in a future cleanup task.
+src/data/server-store.ts       ← Deprecated but kept for rollback. Will be removed in a future cleanup task.
 ```
 
 ### Module API Design
 
-**`sqlite-db.js`** — Singleton DB initialization
+**`database.ts`** — Singleton DB initialization
 
 ```javascript
 /**
@@ -447,7 +449,7 @@ export function runMigrations(db) { ... }
 export function migrateFromJsonIfNeeded(db) { ... }
 ```
 
-**`sqlite-loadouts.js`** — Loadout CRUD
+**`sqlite-loadouts.ts`** — Loadout CRUD
 
 ```javascript
 export function getAllLoadouts(db) { ... }              // → array of loadout objects
@@ -458,9 +460,9 @@ export function deleteLoadout(db, id, clientVersion) { ... }       // → succes
 export function replaceAllLoadouts(db, loadouts) { ... } // → bulk replace (Phase 1 compat)
 ```
 
-**`sqlite-todos.js`** — Todo CRUD (same pattern)
+**`sqlite-todos.ts`** — Todo CRUD (same pattern)
 
-**`sqlite-materials.js`** — Materials inventory CRUD (same pattern)
+**`sqlite-materials.ts`** — Materials inventory CRUD (same pattern)
 
 **`sqlite-sync.js`** — Sync logic
 
@@ -473,9 +475,9 @@ export function processSyncBatch(db, batch, deviceId) { ... } // POST /api/sync
 
 ```
 Next.js cold start
-  └─ import sqlite-db.js in layout or global middleware
+  └─ import database.ts in layout or global middleware
       └─ initDatabase()
-          ├─ Open/create DATA_DIR/tracker.db
+          ├─ Open/create DATA_DIR/warframe.db
           ├─ PRAGMA journal_mode = WAL
           ├─ runMigrations()
           │   └─ Compare schema_version vs MIGRATIONS array
@@ -506,15 +508,15 @@ volumes:
 
 ### SQLite Impact
 
-The SQLite file lives at `DATA_DIR/tracker.db`. `DATA_DIR` defaults to `path.join(process.cwd(), 'data')` which maps to the Docker volume at `/app/data`. This is the same pattern as the current JSON files — **no docker-compose change needed**.
+The SQLite file lives at `DATA_DIR/warframe.db`. `DATA_DIR` defaults to `path.join(process.cwd(), 'data')` which maps to the Docker volume at `/app/data`. This is the same pattern as the current JSON files — **no docker-compose change needed**.
 
 ```javascript
-// src/data/sqlite-db.js
+// src/data/database.ts
 import path from 'node:path';
 import 'server-only';
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'tracker.db');
+const DB_PATH = path.join(DATA_DIR, 'warframe.db');
 ```
 
 ### WAL Mode & Docker Volumes
@@ -523,7 +525,7 @@ SQLite WAL mode works correctly on Docker bind-mounted volumes. The WAL (`-wal`)
 
 ### Potential Issues
 
-1. **Node.js Alpine + better-sqlite3 native bindings:** The `node:20-alpine` image needs `build-base` and `python3` to compile the native addon. These are present in the builder stage but must survive to the runner stage.
+1. **Node.js Alpine + better-sqlite3 native bindings:** The `node:22-alpine` image needs `build-base` and `python3` to compile the native addon. These are present in the builder stage but must survive to the runner stage.
 
    **Solution:** Move `better-sqlite3` to `dependencies` (not `devDependencies`) so the compiled `.node` binary is copied into the standalone output. The Dockerfile already does `COPY --from=builder /app/.next/standalone` which includes `node_modules`. Alternatively, use `sql.js` (pure JS, no native compilation) if native addons prove troublesome in the standalone output.
 
@@ -562,7 +564,7 @@ These are scoped as future implementation tasks — not part of the current arch
 - `GET /api/sync` → returns `{loadouts: [], todos: [], materials_inventory: {}, server_timestamp: "..."}`
 
 ### Error State
-- **SQLite file locked/corrupt:** Returns 500 with `{ error: 'Database error', code: 'DB_ERROR' }`. A corrupt DB is renamed to `tracker.db.corrupt` and a fresh one is created (with automatic re-migration from JSON backups).
+- **SQLite file locked/corrupt:** Returns 500 with `{ error: 'Database error', code: 'DB_ERROR' }`. A corrupt DB is renamed to `warframe.db.corrupt` and a fresh one is created (with automatic re-migration from JSON backups).
 - **Disk full:** SQLite throws `SQLITE_FULL`. Caught by the error handler, returns 500.
 - **Migration fails mid-way:** Rolled back by SQLite transaction. JSON files remain untouched. Next startup retries the migration.
 - **Version conflict (409):** Returns `{ conflict: true, record_id, server_version, server_data }`.
@@ -582,29 +584,29 @@ These are scoped as future implementation tasks — not part of the current arch
 The following implementation tasks should be created:
 
 ### Task 1: Install better-sqlite3 + Set up SQLite Module
-- **Description:** Add `better-sqlite3` to package.json. Create `src/data/sqlite-db.js` with `initDatabase()`, `runMigrations()`, and `migrateFromJsonIfNeeded()`.
-- **Files:** `package.json`, `src/data/sqlite-db.js`
+- **Description:** Add `better-sqlite3` to package.json. Create `src/data/database.ts` with `initDatabase()`, `runMigrations()`, and `migrateFromJsonIfNeeded()`.
+- **Files:** `package.json`, `src/data/database.ts`
 - **Dependencies:** None (start here)
 
 ### Task 2: Loadout CRUD — SQLite Queries
-- **Description:** Create `src/data/sqlite-loadouts.js` with `getAllLoadouts`, `getLoadoutById`, `createLoadout`, `updateLoadout`, `deleteLoadout`, `replaceAllLoadouts`.
-- **Files:** `src/data/sqlite-loadouts.js`
+- **Description:** Create `src/data/sqlite-loadouts.ts` with `getAllLoadouts`, `getLoadoutById`, `createLoadout`, `updateLoadout`, `deleteLoadout`, `replaceAllLoadouts`.
+- **Files:** `src/data/sqlite-loadouts.ts`
 - **Dependencies:** Task 1
 
 ### Task 3: Todo CRUD — SQLite Queries
-- **Description:** Create `src/data/sqlite-todos.js` with all CRUD operations for the todos table.
-- **Files:** `src/data/sqlite-todos.js`
+- **Description:** Create `src/data/sqlite-todos.ts` with all CRUD operations for the todos table.
+- **Files:** `src/data/sqlite-todos.ts`
 - **Dependencies:** Task 1
 - **Parallel with:** Task 2
 
 ### Task 4: Materials Inventory CRUD — SQLite Queries
-- **Description:** Create `src/data/sqlite-materials.js` with all CRUD operations for the materials_inventory table.
-- **Files:** `src/data/sqlite-materials.js`
+- **Description:** Create `src/data/sqlite-materials.ts` with all CRUD operations for the materials_inventory table.
+- **Files:** `src/data/sqlite-materials.ts`
 - **Dependencies:** Task 1
 - **Parallel with:** Tasks 2, 3
 
 ### Task 5: Update API Routes to Use SQLite (Phase 1)
-- **Description:** Modify `app/api/loadouts/route.js`, `app/api/todos/route.js`, `app/api/materials/route.js` to use the new SQLite CRUD modules instead of `server-store.js`. Maintain backward-compatible GET/PUT full-array semantics.
+- **Description:** Modify `app/api/loadouts/route.js`, `app/api/todos/route.js`, `app/api/materials/route.js` to use the new SQLite CRUD modules instead of `server-store.ts`. Maintain backward-compatible GET/PUT full-array semantics.
 - **Files:** `app/api/loadouts/route.js`, `app/api/todos/route.js`, `app/api/materials/route.js`
 - **Dependencies:** Tasks 2, 3, 4 (hard)
 
@@ -614,13 +616,13 @@ The following implementation tasks should be created:
 - **Dependencies:** Task 5 (hard)
 
 ### Task 7: Update Client Sync to Use Granular API (Phase 2)
-- **Description:** Modify `sync-helper.js`, `repository.js`, and `loadout-repository.js` to use per-record sync with version tracking. Handle 409 conflicts in the UI.
-- **Files:** `src/data/sync-helper.js`, `src/data/repository.js`, `src/data/loadout-repository.js`
+- **Description:** Modify `sync-helper.ts`, `repository.ts`, and `loadout-repository.ts` to use per-record sync with version tracking. Handle 409 conflicts in the UI.
+- **Files:** `src/data/sync-helper.ts`, `src/data/repository.ts`, `src/data/loadout-repository.ts`
 - **Dependencies:** Task 6 (hard)
 
 ### Task 8: Clean Up Deprecated Code
-- **Description:** Remove `server-store.js`. Remove `.json.migrated` files from previous migration runs. Add tests for SQLite modules.
-- **Files:** `src/data/server-store.js` (delete), data test fixtures (clean up)
+- **Description:** Remove `server-store.ts`. Remove `.json.migrated` files from previous migration runs. Add tests for SQLite modules.
+- **Files:** `src/data/server-store.ts` (delete), data test fixtures (clean up)
 - **Dependencies:** Task 7 (hard)
 
 ---

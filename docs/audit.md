@@ -1,39 +1,40 @@
-# Docker Runtime Audit — Warframe TODO Tracker
+# Architecture Audit — Warframe TODO Tracker
 
-Date: 2026-07-06
+Date: 2026-07-11
 
 ## Application Profile
 
-- **Type:** Client-side SPA (React)
-- **Framework:** React 18 + React Router, built with Vite
-- **Backend:** None — fully client-side
-- **Database:** None — state stored in browser localStorage
-- **API calls:** None at runtime (seed data is bundled)
+- **Type:** Server-rendered React app (Next.js 14 App Router)
+- **Framework:** Next.js 14 with React 18
+- **Backend:** Next.js API Route Handlers
+- **Database:** SQLite via `better-sqlite3` (`data/warframe.db`)
+- **API calls:** Client-side fetch to local `/api/*` routes for user data; static JSON for reference data
+- **Authentication:** Session-based via `jose` JWTs, optional password gate
 
 ## Build Requirements
 
-- Node.js ≥ 18 (uses node:20-alpine in Docker)
-- npm (for `npm ci` and `npm run build`)
-- No git dependency (unlike the Task-Checklist, no commit hash injection)
+- Node.js ≥ 18 (uses node:22-alpine in Docker)
+- Yarn 4 (uses `node-modules` linker in Docker; PnP locally per `.yarnrc.yml`)
+- No git dependency
 
 ## Build Output
 
-- `npm run build` → static assets in `dist/`
-- `dist/index.html` — entry point (~0.44 KB)
-- `dist/assets/index-*.js` — bundled JS (~190 KB)
-- `dist/assets/index-*.css` — bundled CSS (~2.94 KB)
+- `yarn build` → Next.js standalone output in `.next/`
+- `.next/standalone/` — Node.js server bundle
+- `.next/static/` — client JS/CSS chunks
+- `public/` — static assets including prebuilt `public/data/*.json`
 
 ## Runtime Requirements
 
-- **Server:** Any static file server with SPA fallback (nginx, caddy, etc.)
-- **SPA routing:** Server must serve `index.html` for all unknown routes (handled by nginx `try_files`)
-- **Port:** 80 (configurable)
-- **Environment variables:** None required
-- **Filesystem:** Read-only, no persistence needed
+- **Server:** Node.js 22+ (standalone Next.js server)
+- **Port:** 3000
+- **Environment variables:** `PASSWORD`, `SESSION_SECRET`, `DATA_DIR` (optional)
+- **Filesystem:** Write access to `DATA_DIR` for SQLite DB (`warframe.db`) and prebuild cache
 - **Network:** No outbound API calls at runtime
 
 ## Docker Image Design
 
-- **Builder:** node:20-alpine — installs deps, runs build
-- **Runtime:** nginx:alpine — serves static files on port 80 with SPA routing
-- **Base path:** `/` (nginx serves from root; app's Vite base path `/warframe-todo-tracker/` is handled client-side)
+- **Builder:** node:22-alpine — installs deps, runs Next.js build
+- **Runtime:** node:22-alpine — runs standalone Next.js server
+- **Port:** 3000
+- **Volumes:** `DATA_DIR` must be persisted (bind mount or named volume) to survive container recreation
