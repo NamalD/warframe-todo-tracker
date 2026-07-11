@@ -77,6 +77,12 @@ Closes #N
 
 If the work doesn't have an existing issue, create one first with `gh issue create` before committing.
 
+**For new features or bugs discovered during work:** Always create a new issue on the project board before starting work. This ensures:
+- The work is tracked on the board (Todo column)
+- Priority and Estimate are set by the issue creator
+- The commit can reference the issue number
+- Work can be claimed by moving the card to In Progress
+
 ## Project board discipline
 
 The GitHub Project board is the source of truth for what's being worked on. Every issue on the board must have its status column match reality.
