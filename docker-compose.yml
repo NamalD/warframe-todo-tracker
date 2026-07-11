@@ -3,14 +3,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: ghcr.io/namald/warframe-todo-tracker:latest
     container_name: warframe-todo-tracker
-    image: warframe-todo-tracker:latest
     ports:
       - "3000:3000"
     restart: unless-stopped
     environment:
       - PASSWORD=${PASSWORD:-}
-      - AUTH_HASH=${AUTH_HASH:-}
+      - SESSION_SECRET=${SESSION_SECRET:-}
     volumes:
       - ./data:/app/data
     labels:
