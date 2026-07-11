@@ -42,8 +42,10 @@ browser cache is missing). Useful surfaces:
 
 ## Gotchas
 
-- `yarn vitest run` regenerates `public/data/*.json` (cachedAt churn) —
-  `git checkout -- public/data` before committing.
+- `yarn vitest run` no longer touches `public/data/*.json` (the schema test
+  generates its fresh cache into a temp dir via `PREBUILD_OUT_DIR`, #127) —
+  if `git status` shows churn there, something regenerated them manually;
+  `git checkout -- public/data` to restore.
 - `.gitignore`'s `data/` rule also matches `src/data/`; tracked files are fine
   but `git add` on explicit `src/data/...` pathspecs is refused — use
   `git add -u` (or `-f`).
