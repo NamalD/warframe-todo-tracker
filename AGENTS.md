@@ -37,32 +37,28 @@ Playwright e2e tests boot their own dev server on port 3001 (`BASE_URL` override
 
 ## Deployment
 
-The app is deployed to a VPS via Docker Compose. Deployment is automated via GitHub Actions:
+The app is deployed to a VPS via Docker Compose using pull-based deploys — CI never connects to the VPS:
 
 1. Test Suite runs on every PR and push to main
-2. On test pass, the "Deploy" workflow triggers
-3. Builds Docker image, pushes to GHCR (`ghcr.io/namald/warframe-todo-tracker`)
-4. SSHes into VPS as deploy user
-5. Pulls latest `docker-compose.yml` and code from git
-6. Runs `docker compose pull && docker compose up -d`
-7. Cleans up old images
+2. On test pass on main, the "Deploy" workflow builds the Docker image and pushes it to GHCR (`ghcr.io/namald/warframe-todo-tracker:latest`)
+3. Watchtower (a service in `docker-compose.yml`) polls GHCR every 60s from the VPS, restarts the app container when the image changes, and prunes the old image
 
-### Required repository secrets
+No repository secrets are needed for deployment — the workflow pushes to GHCR with the built-in `GITHUB_TOKEN`. App secrets live on the VPS in a `.env` file next to `docker-compose.yml`, which Docker Compose reads automatically:
 
-| Secret | Description |
+| `.env` variable | Description |
 |--------|-------------|
-| `VPS_HOST` | VPS IP address or hostname |
-| `VPS_USER` | SSH username on the VPS |
-| `VPS_SSH_KEY` | SSH private key for the deploy user |
 | `PASSWORD` | Warframe Tracker password (passed to container) |
 | `SESSION_SECRET` | Random string for HMAC session signing |
 
-### Setting up the VPS
+### Setting up the VPS (one-time)
 
-1. SSH key: Add the public key to `~/.ssh/authorized_keys` on the VPS
-2. Docker: Install Docker and add the SSH user to the `docker` group
-3. First deploy: The workflow clones the repo to `/home/$VPS_USER/warframe-todo-tracker/`
-4. Environment: `PASSWORD` and `SESSION_SECRET` are passed via SSH env vars
+1. Install Docker and add your user to the `docker` group
+2. Clone the repo: `git clone https://github.com/NamalD/warframe-todo-tracker ~/warframe-todo-tracker`
+3. Create `~/warframe-todo-tracker/.env` containing `PASSWORD=...` and `SESSION_SECRET=...`
+4. Authenticate to GHCR so the private image can be pulled: `docker login ghcr.io -u namald` with a personal access token that has `read:packages` (skip and remove the `config.json` mount from the watchtower service if the package is public)
+5. Start everything: `docker compose up -d`
+
+Image updates are fully automatic from then on. Changes to `docker-compose.yml` itself are the one thing that still needs a manual `git pull && docker compose up -d` on the VPS.
 
 ## Commit conventions
 
@@ -135,7 +131,7 @@ Manual fallback (if CE skills are unavailable):
 3. Create a PR: `gh pr create --fill`
 4. Enable auto-merge: `gh pr merge --auto --squash --delete-branch`
 5. CI runs; when "Test Suite" passes, GitHub auto-merges
-6. The "Deploy" workflow triggers after tests pass on main — builds Docker image, pushes to GHCR, SSHes into VPS, pulls image, and restarts Docker Compose
+6. The "Deploy" workflow triggers after tests pass on main — builds the Docker image and pushes it to GHCR; Watchtower on the VPS picks it up and restarts the container automatically
 
 Author: `NamalD` on GitHub, `namald@users.noreply.github.com`.
 
