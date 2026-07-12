@@ -81,8 +81,11 @@ async function downloadFile(url, dest) {
   return new Promise((resolve, reject) => {
     const protocol = url.startsWith('https') ? https : http;
     const file = createWriteStream(dest);
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (compatible; WarframeTodoTracker/1.0; +https://github.com/NamalD/warframe-todo-tracker)',
+    };
     protocol
-      .get(url, (response) => {
+      .get(url, { headers }, (response) => {
         if (response.statusCode === 301 || response.statusCode === 302) {
           downloadFile(response.headers.location, dest).then(resolve, reject);
           return;
@@ -130,22 +133,23 @@ async function getExportRecipesHash() {
 async function fetchExportRecipes() {
   const cachePath = resolve(ROOT, 'public/data/export-recipes-cache.json');
 
-  const currentHash = await getExportRecipesHash();
-
-  // Check if we have a cached version with the same hash
+  // 1. If we have a committed cache, use it immediately and skip the network.
+  //    This makes prebuild deterministic in CI/offline and avoids 403s from
+  //    the origin server when only the hash has changed.
   if (existsSync(cachePath)) {
     try {
       const cached = JSON.parse(readFileSync(cachePath, 'utf8'));
-      if (cached.hash === currentHash) {
-        console.log(`[prebuild] ExportRecipes cache hit (hash: ${currentHash})`);
+      if (cached && cached.hash && Array.isArray(cached.data)) {
+        console.log(`[prebuild] ExportRecipes cache hit (hash: ${cached.hash})`);
         return cached.data;
       }
-      console.log(`[prebuild] ExportRecipes hash changed: ${cached.hash} → ${currentHash}`);
     } catch {
-      console.warn('[prebuild] Invalid ExportRecipes cache, re-fetching');
+      console.warn('[prebuild] Invalid ExportRecipes cache, will re-fetch');
     }
   }
 
+  // 2. No valid cache — download the index + manifest.
+  const currentHash = await getExportRecipesHash();
   console.log(`[prebuild] Downloading ExportRecipes (hash: ${currentHash})...`);
   const url = `http://content.warframe.com/PublicExport/Manifest/ExportRecipes_en.json!${currentHash}`;
   const jsonPath = resolve(ROOT, 'tmp/export_recipes.json');
@@ -153,7 +157,7 @@ async function fetchExportRecipes() {
   const raw = JSON.parse(readFileSync(jsonPath, 'utf8'));
   const data = raw.ExportRecipes || raw;
 
-  // Write cache
+  // 3. Write cache for next time
   writeFileSync(
     cachePath,
     JSON.stringify({ hash: currentHash, data, cachedAt: new Date().toISOString() }),
