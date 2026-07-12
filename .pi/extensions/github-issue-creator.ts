@@ -7,7 +7,8 @@
  * Usage: /create-issue [feature|bug] "initial description or idea"
  */
 
-import type { ExtensionAPI, ExtensionCommandContext, ModelInfo } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import type { Model } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 
@@ -91,17 +92,11 @@ const TEMPLATES: Record<IssueType, IssueTemplate> = {
 	},
 };
 
-function getCurrentModel(registry: ModelRegistry): ModelInfo | undefined {
-	const models = registry.getModels();
-	const activeModel = registry.getActiveModel();
-	return models.find((m) => m.id === activeModel?.id);
-}
-
 async function generateIssueWithAI(
 	pi: ExtensionAPI,
 	type: IssueType,
 	initialIdea: string,
-	model: ModelInfo,
+	model: Model<any>,
 ): Promise<AIGeneratedIssue> {
 	const template = TEMPLATES[type];
 
@@ -341,8 +336,8 @@ export default function (pi: ExtensionAPI) {
 				idea = input;
 			}
 
-			// Get current model
-			const model = getCurrentModel(ctx.modelRegistry);
+			// Get current model from context
+			const model = ctx.model;
 			if (!model) {
 				ctx.ui.notify("No active model available", "error");
 				return;
