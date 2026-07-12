@@ -51,6 +51,8 @@ export default class Repository {
   sources = [];
   /** @type {TreeRelationship[]} */
   treeRelationships = [];
+  /** @type {Record<string, { [componentName: string]: { materials: Array<{ name: string; quantity: number }>; quantity: number } }>} */
+  warframeComponentSubMaterials = {};
   /** @type {Todo[]} */
   todos = [...SEED_TODOS.map(t => ({ ...t }))];
   /** @type {MaterialInventory} */
@@ -189,6 +191,7 @@ export default class Repository {
               this.materials = cached.materials || [];
               this.treeRelationships = cached.treeRelationships || [];
               this.sources = cached.sources || [];
+              this.warframeComponentSubMaterials = cached.warframeComponentSubMaterials || {};
               this.#refDataInitialized = true;
               // Merge server-side item flags into cached data
               await this.#syncUserItemFlags().catch(() => {});
@@ -202,6 +205,7 @@ export default class Repository {
       this.materials = fetched.materials || [];
       this.treeRelationships = fetched.treeRelationships || [];
       this.sources = fetched.sources || [];
+      this.warframeComponentSubMaterials = fetched.warframeComponentSubMaterials || {};
 
       if (typeof window !== 'undefined') {
         localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify({
@@ -211,7 +215,8 @@ export default class Repository {
           items: fetched.items,
           materials: fetched.materials,
           treeRelationships: fetched.treeRelationships,
-          sources: fetched.sources
+          sources: fetched.sources,
+          warframeComponentSubMaterials: fetched.warframeComponentSubMaterials,
         }));
       }
       this.#refDataInitialized = true;
@@ -227,6 +232,7 @@ export default class Repository {
             this.materials = cached.materials || [];
             this.treeRelationships = cached.treeRelationships || [];
             this.sources = cached.sources || [];
+            this.warframeComponentSubMaterials = cached.warframeComponentSubMaterials || {};
             this.#refDataInitialized = true;
             return;
           } catch (_e) { /* fall through */ }
@@ -390,6 +396,118 @@ export default class Repository {
         return { id: r.id, quantity_required: r.quantity_required, parent: parent ? { ...parent } : null };
       });
     return { children, parents };
+  }
+
+  // Crafting Tree (recursive dependency tree)
+  /**
+   * @typedef {Object} TreeNode
+   * @property {Item} item
+   * @property {Material[]} materials
+   * @property {TreeNode[]} children
+   * @property {number} quantityForParent
+   */
+  /**
+   * @param {string} itemId
+   * @param {number} multiplier
+   * @param {number} depth
+   * @returns {TreeNode}
+   */
+  #buildCraftingTree(itemId, multiplier = 1, depth = 0) {
+    const MAX_DEPTH = 8;
+    if (depth > MAX_DEPTH) {
+      return {
+        item: { id: itemId + '-cycle-warning', name: 'Cycle detected', item_type: 'warning' },
+        materials: [],
+        children: [],
+        quantityForParent: multiplier,
+      };
+    }
+
+    const item = this.items.find((i) => i.id === itemId);
+    if (!item) {
+      return {
+        item: { id: itemId, name: 'Unknown', item_type: 'unknown' },
+        materials: [],
+        children: [],
+        quantityForParent: multiplier,
+      };
+    }
+
+    const itemMaterials = this.materials.filter((m) => m.craftable_item_id === itemId);
+    const children = [];
+
+    // Source 1: auto-detected intermediates from @wfcd/items (weapons)
+    const seenSubItems = new Map();
+    for (const mat of itemMaterials) {
+      if (mat.is_intermediate && mat.sub_item_id) {
+        const existing = seenSubItems.get(mat.sub_item_id);
+        if (existing) {
+          existing.quantityForParent += mat.quantity_required;
+        } else {
+          const childNode = this.#buildCraftingTree(mat.sub_item_id, multiplier * mat.quantity_required, depth + 1);
+          childNode.quantityForParent = mat.quantity_required;
+          seenSubItems.set(mat.sub_item_id, childNode);
+        }
+      }
+    }
+    children.push(...seenSubItems.values());
+
+    // Source 2: manual Warframe component map (prebuild-injected)
+    const manualSubs = this.warframeComponentSubMaterials[itemId];
+    if (manualSubs && item.item_type === 'warframe') {
+      for (const [compName, compData] of Object.entries(manualSubs)) {
+        const syntheticId = `${itemId}-${compName.replace(/\s+/g, '-').toLowerCase()}`;
+        const childNode = {
+          item: { id: syntheticId, name: compName, item_type: 'warframe_component' },
+          materials: compData.materials.map((m, i) => ({
+            ...m,
+            material_name: m.name,
+            id: `${syntheticId}-mat-${i}`,
+            craftable_item_id: syntheticId,
+            component_unique_name: null,
+            quantity_required: m.quantity,
+            wiki_url: `https://wiki.warframe.com/w/${encodeURIComponent(m.name.replace(/ /g, '_'))}`,
+            is_intermediate: false,
+            sub_item_id: null,
+            is_incarnon_install: false,
+            created_at: new Date().toISOString(),
+          })),
+          children: [],
+          quantityForParent: compData.quantity,
+        };
+        children.push(childNode);
+      }
+    }
+
+    return { item, materials: itemMaterials, children, quantityForParent: multiplier };
+  }
+
+  async getCraftingTreeForItem(itemId) {
+    await this.#ensureRefDataInitialized();
+    return this.#buildCraftingTree(itemId, 1, 0);
+  }
+
+  /**
+   * Flatten a crafting tree node into a map of material_name → total quantity
+   * needed, rolling up all leaf materials recursively.
+   */
+  static aggregateNodeMaterials(node) {
+    const map = new Map();
+
+    function walk(n) {
+      // Add this node's direct materials
+      for (const m of n.materials || []) {
+        const qty = (m.quantity_required || 1) * (n.quantityForParent || 1);
+        map.set(m.material_name, (map.get(m.material_name) || 0) + qty);
+      }
+      // Recurse into children
+      for (const child of n.children || []) {
+        walk(child);
+      }
+    }
+
+    walk(node);
+    return map;
   }
 
   // Todos

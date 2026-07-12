@@ -15,6 +15,12 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
+import { createWriteStream, createReadStream } from 'fs';
+import { pipeline } from 'stream/promises';
+import https from 'https';
+import http from 'http';
+import { URL } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -27,7 +33,7 @@ const ROOT = resolve(__dirname, '..');
  * change with no package bump previously went unnoticed by any existing
  * cache, silently hiding new fields from returning users).
  */
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -68,6 +74,197 @@ function categoryToItemType(category) {
 /** Construct a wiki URL fallback */
 function constructWikiUrl(name) {
   return `https://wiki.warframe.com/w/${encodeURIComponent(name.replace(/ /g, '_'))}`;
+}
+
+/** Download a file from URL to disk */
+async function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith('https') ? https : http;
+    const file = createWriteStream(dest);
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (compatible; WarframeTodoTracker/1.0; +https://github.com/NamalD/warframe-todo-tracker)',
+    };
+    protocol
+      .get(url, { headers }, (response) => {
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          downloadFile(response.headers.location, dest).then(resolve, reject);
+          return;
+        }
+        if (response.statusCode !== 200) {
+          reject(new Error(`HTTP ${response.statusCode} for ${url}`));
+          return;
+        }
+        pipeline(response, file)
+          .then(() => resolve())
+          .catch(reject);
+      })
+      .on('error', reject);
+  });
+}
+
+/** Decompress LZMA file */
+function decompressLzma(src, dest) {
+  execSync(`lzma -d -c "${src}" > "${dest}"`, { stdio: 'inherit' });
+}
+
+/** Fetch the Public Export index and return the ExportRecipes hash */
+async function getExportRecipesHash() {
+  const indexLzma = resolve(ROOT, 'tmp/export_index.txt.lzma');
+  const indexTxt = resolve(ROOT, 'tmp/export_index.txt');
+  mkdirSync(resolve(ROOT, 'tmp'), { recursive: true });
+
+  await downloadFile(
+    'https://origin.warframe.com/PublicExport/index_en.txt.lzma',
+    indexLzma
+  );
+  decompressLzma(indexLzma, indexTxt);
+
+  const index = readFileSync(indexTxt, 'utf8')
+    .trim()
+    .split(/\r?\n/)
+    .find((line) => line.startsWith('ExportRecipes_'));
+
+  if (!index) throw new Error('ExportRecipes not found in index');
+  // Format: ExportRecipes_en.json!00_HashHere
+  return index.split('!')[1];
+}
+
+/** Fetch and cache ExportRecipes JSON. Returns parsed data. */
+async function fetchExportRecipes() {
+  const cachePath = resolve(ROOT, 'public/data/export-recipes-cache.json');
+
+  // 1. If we have a committed cache, use it immediately and skip the network.
+  //    This makes prebuild deterministic in CI/offline and avoids 403s from
+  //    the origin server when only the hash has changed.
+  if (existsSync(cachePath)) {
+    try {
+      const cached = JSON.parse(readFileSync(cachePath, 'utf8'));
+      if (cached && cached.hash && Array.isArray(cached.data)) {
+        console.log(`[prebuild] ExportRecipes cache hit (hash: ${cached.hash})`);
+        return cached.data;
+      }
+    } catch {
+      console.warn('[prebuild] Invalid ExportRecipes cache, will re-fetch');
+    }
+  }
+
+  // 2. No valid cache — download the index + manifest.
+  const currentHash = await getExportRecipesHash();
+  console.log(`[prebuild] Downloading ExportRecipes (hash: ${currentHash})...`);
+  const url = `http://content.warframe.com/PublicExport/Manifest/ExportRecipes_en.json!${currentHash}`;
+  const jsonPath = resolve(ROOT, 'tmp/export_recipes.json');
+  await downloadFile(url, jsonPath);
+  const raw = JSON.parse(readFileSync(jsonPath, 'utf8'));
+  const data = raw.ExportRecipes || raw;
+
+  // 3. Write cache for next time
+  writeFileSync(
+    cachePath,
+    JSON.stringify({ hash: currentHash, data, cachedAt: new Date().toISOString() }),
+    'utf8'
+  );
+  console.log(`[prebuild] Cached ExportRecipes (${data.length} recipes)`);
+
+  return data;
+}
+
+/**
+ * Build warframeComponentSubMaterials from ExportRecipes.
+ * Maps item IDs to their component crafting requirements.
+ */
+function buildWarframeComponentSubMaterials(recipes, materials, itemsByUniqueName) {
+  const result = {};
+
+  // Build lookup: component_unique_name -> material_name
+  const matByUniqueName = {};
+  for (const m of materials) {
+    if (m.component_unique_name) {
+      matByUniqueName[m.component_unique_name] = m.material_name;
+    }
+  }
+
+  // Find all Warframe main blueprints (not component blueprints, not alt helmets)
+  const mainBlueprints = recipes.filter((r) => {
+    const name = r.uniqueName || '';
+    // Must be a WarframeRecipes blueprint
+    if (!name.includes('/WarframeRecipes/')) return false;
+    // Must end with Blueprint (not ComponentBlueprint)
+    if (name.endsWith('ComponentBlueprint')) return false;
+    // Must have a resultType that is a Warframe item (Powersuits)
+    return r.resultType && r.resultType.includes('/Powersuits/');
+  });
+
+  for (const bp of mainBlueprints) {
+    // Find the Warframe item by matching resultType to uniqueName
+    const warframeItem = itemsByUniqueName.get(bp.resultType);
+    if (!warframeItem) continue;
+
+    const itemId = warframeItem.id;
+    const warframeName = warframeItem.name;
+    const components = {};
+
+    // The main blueprint's ingredients include the components + Orokin Cells
+    for (const ing of bp.ingredients || []) {
+      const itemType = ing.ItemType;
+
+      // Skip raw materials (like Orokin Cells) - only process components
+      if (!itemType.includes('/WarframeRecipes/')) continue;
+      if (!itemType.includes('Component')) continue;
+
+      // Find the component blueprint
+      const compBpName = itemType.replace('Component', 'Blueprint');
+      const compBp = recipes.find(
+        (r) => r.uniqueName === compBpName
+      );
+
+      if (!compBp) {
+        console.warn(`[prebuild] No component blueprint found for ${itemType}`);
+        continue;
+      }
+
+      // Determine display name: Neuroptics, Chassis, or Systems
+      let displayName;
+      if (itemType.includes('HelmetComponent')) {
+        displayName = `${warframeName} Neuroptics`;
+      } else if (itemType.includes('ChassisComponent')) {
+        displayName = `${warframeName} Chassis`;
+      } else if (itemType.includes('SystemsComponent')) {
+        displayName = `${warframeName} Systems`;
+      } else {
+        // Generic fallback
+        const last = itemType.split('/').pop() || '';
+        displayName = last.replace('Component', '').trim();
+      }
+
+      // Map ingredient uniqueNames to material names
+      const materialsList = [];
+      for (const matIng of compBp.ingredients || []) {
+        const matName = matByUniqueName[matIng.ItemType];
+        if (matName) {
+          materialsList.push({ name: matName, quantity: matIng.ItemCount });
+        } else {
+          // Fallback: derive from path
+          const last = matIng.ItemType.split('/').pop() || '';
+          const derived = last.replace(/([a-z])([A-Z])/g, '$1 $2');
+          console.warn(
+            `[prebuild] No wfcd material for ${matIng.ItemType} (${derived})`
+          );
+          materialsList.push({ name: derived, quantity: matIng.ItemCount });
+        }
+      }
+
+      components[displayName] = {
+        materials: materialsList,
+        quantity: 1,
+      };
+    }
+
+    if (Object.keys(components).length > 0) {
+      result[itemId] = components;
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -331,6 +528,11 @@ const INCARNON_VARIANT_MAP = {
   'Dex Sybaris': 'Sybaris',
 };
 
+/** Convert "Ash Helmet Component" → "Ash Neuroptics" */
+function normalizeComponentDisplayName(materialName) {
+  return materialName.replace(/Helmet Component$/, 'Neuroptics');
+}
+
 /** Helpers to look up Incarnon costs by base name or variant name */
 function getIncarnonCost(name) {
   return INCARNON_GENESIS_INSTALL_COSTS[name] || INCARNON_GENESIS_INSTALL_COSTS[INCARNON_VARIANT_MAP[name]];
@@ -444,6 +646,7 @@ async function main() {
     items.push({
       id: itemId,
       name: rawItem.name,
+      uniqueName: rawItem.uniqueName,
       item_type: categoryToItemType(rawItem.category),
       mastery_rank_required: rawItem.masteryReq ?? 0,
       is_user_tracked: false,
@@ -459,17 +662,31 @@ async function main() {
     if (rawItem.components) {
       for (const comp of rawItem.components) {
         const name = resolveName(comp.uniqueName, lookupMap);
+        const displayName = normalizeComponentDisplayName(name);
         const compItem = lookupMap.get(comp.uniqueName);
-        const isIntermediate = compItem && compItem.components && compItem.components.length > 0;
+        
+        // A component is intermediate only if it's a DIFFERENT item from the parent
+        // and that item has its own components. This prevents single-barrel weapons
+        // from being marked as intermediate when their component IS the weapon itself.
+        const isDifferentItem = comp.uniqueName !== rawItem.uniqueName;
+        const isIntermediate = isDifferentItem && !!(compItem && compItem.components && compItem.components.length > 0);
+
+        // Resolve sub_item_id for intermediates (weapons with craftable sub-parts)
+        let subItemId = null;
+        if (isIntermediate) {
+          const subItem = items.find((it) => it.uniqueName === comp.uniqueName);
+          if (subItem) subItemId = subItem.id;
+        }
 
         materials.push({
           id: `mat-${matSeq++}`,
           craftable_item_id: itemId,
-          material_name: name,
+          material_name: displayName,
           component_unique_name: comp.uniqueName,
           quantity_required: comp.itemCount ?? 1,
-          wiki_url: (compItem && compItem.wikiaUrl) || constructWikiUrl(name),
+          wiki_url: (compItem && compItem.wikiaUrl) || constructWikiUrl(displayName),
           is_intermediate: isIntermediate,
+          sub_item_id: subItemId,
           is_incarnon_install: false,
           created_at: new Date().toISOString(),
         });
@@ -515,6 +732,30 @@ async function main() {
       }
     }
   }
+
+  // ── Warframe component sub-materials (from Public Export API) ─
+  // @wfcd/items does not expose sub-component breakdowns for Warframe
+  // parts (Chassis, Neuroptics, Systems). We fetch them from DE's
+  // Public Export API (ExportRecipes), cache by content hash, and only
+  // re-download when the hash changes.
+  console.log('[prebuild] Fetching Warframe component recipes...');
+  const exportRecipes = await fetchExportRecipes();
+
+  // Build a map of uniqueName -> item for lookups
+  const itemsByUniqueName = new Map();
+  for (const item of items) {
+    if (item.uniqueName) itemsByUniqueName.set(item.uniqueName, item);
+  }
+
+  const WARFRAME_COMPONENT_SUB_MATERIALS = buildWarframeComponentSubMaterials(
+    exportRecipes,
+    materials,
+    itemsByUniqueName
+  );
+
+  console.log(
+    `[prebuild] Populated warframeComponentSubMaterials for ${Object.keys(WARFRAME_COMPONENT_SUB_MATERIALS).length} Warframes`
+  );
 
   // ── Custom vendor items (not in @wfcd/items) ────────────────────
   // Tektolyst Artifacts — Focus School weapons from Marie Leroux
@@ -590,6 +831,17 @@ async function main() {
   console.log(`[prebuild] Materials: ${materials.length}`);
   console.log(`[prebuild] Tree relationships: ${resolvedTree.length}`);
 
+  // ── Resolve sub_item_id for intermediate materials ──────────────
+  // Some components reference items that appear later in the @wfcd/items
+  // list (e.g. Akbolto references Bolto, but Bolto may come after Akbolto).
+  // The itemByUniqueName map was built above for treeRelationships.
+  for (const mat of materials) {
+    if (mat.is_intermediate && !mat.sub_item_id && mat.component_unique_name) {
+      mat.sub_item_id = itemByUniqueName.get(mat.component_unique_name) || null;
+    }
+  }
+  console.log('[prebuild] Resolved sub_item_id for intermediate materials');
+
   // ── Sources (material drop locations) ───────────────────────────
   // Common crafting resources (Orokin Cell, Alloy Plate, etc.) live in the
   // Misc category with type "Resource", not the Resources category alone —
@@ -637,6 +889,7 @@ async function main() {
     materials,
     treeRelationships: resolvedTree,
     sources,
+    warframeComponentSubMaterials: WARFRAME_COMPONENT_SUB_MATERIALS,
   };
 
   // PREBUILD_OUT_DIR lets tests generate a fresh cache without touching the

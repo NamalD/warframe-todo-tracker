@@ -78,12 +78,115 @@ function MaterialsTable({ materials, owned, onOwnedChange }) {
   );
 }
 
+function CraftingTreeNode({ node, owned, depth = 0, onOwnedChange }) {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.children && node.children.length > 0;
+
+  // Determine overall status for this node
+  const isWarframeComponent = node.item.item_type === 'warframe_component';
+  const isLeaf = !hasChildren;
+
+  // Compute aggregated progress for intermediate nodes
+  const aggregated = hasChildren ? repo.constructor.aggregateNodeMaterials(node) : null;
+  let aggregatedPct = 0;
+  let aggregatedOwned = 0;
+  let aggregatedTotal = 0;
+  if (aggregated) {
+    for (const [matName, totalNeeded] of aggregated) {
+      aggregatedTotal += totalNeeded;
+      aggregatedOwned += Math.min(owned[matName] || 0, totalNeeded);
+    }
+    aggregatedPct = aggregatedTotal > 0 ? Math.round((aggregatedOwned / aggregatedTotal) * 100) : 0;
+  }
+
+  return (
+    <div style={{ marginLeft: depth > 0 ? 20 : 0, marginBottom: 10 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 10px',
+          background: depth === 0 ? '#1a1a2e' : '#16213e',
+          borderRadius: 6,
+          cursor: hasChildren ? 'pointer' : 'default',
+          flexWrap: 'wrap',
+        }}
+        onClick={() => hasChildren && setExpanded(!expanded)}
+      >
+        {hasChildren && (
+          <span style={{ fontSize: 12, color: '#888' }}>{expanded ? '▼' : '▶'}</span>
+        )}
+        <span style={{ fontWeight: depth === 0 ? 'bold' : 'normal', color: '#ffcf6a' }}>
+          {node.item.name}
+        </span>
+        {node.quantityForParent > 1 && (
+          <span className="muted" style={{ fontSize: 13 }}>x{node.quantityForParent}</span>
+        )}
+        {isWarframeComponent && <span className="badge" style={{ fontSize: 11 }}>component</span>}
+        {hasChildren && aggregated && (
+          <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>
+            {aggregatedOwned}/{aggregatedTotal}
+          </span>
+        )}
+      </div>
+
+      {hasChildren && aggregated && (
+        <div style={{ marginTop: 4, marginBottom: 6, paddingLeft: 28 }}>
+          <div className="progress-bar" style={{ height: 6, background: '#0f3460', borderRadius: 3, overflow: 'hidden' }}>
+            <div
+              className="progress-fill"
+              style={{
+                width: `${aggregatedPct}%`,
+                background: aggregatedPct >= 100 ? '#6fcf97' : aggregatedPct > 0 ? '#f4c430' : '#e74c3c',
+                height: '100%',
+                transition: 'width 0.3s ease',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {expanded && (
+        <div style={{ marginTop: 6, paddingLeft: depth === 0 ? 0 : 10 }}>
+          {hasChildren ? (
+            <div>
+              {node.children.map((child, idx) => (
+                <CraftingTreeNode
+                  key={child.item.id + '-' + idx}
+                  node={child}
+                  owned={owned}
+                  depth={depth + 1}
+                  onOwnedChange={onOwnedChange}
+                />
+              ))}
+              {/* Also show raw materials for this node that aren't in children */}
+              {node.materials && node.materials.filter(m => !m.is_intermediate).length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <div className="muted" style={{ marginBottom: 4, fontSize: 12 }}>Raw materials:</div>
+                  <MaterialsTable
+                    materials={node.materials.filter(m => !m.is_intermediate)}
+                    owned={owned}
+                    onOwnedChange={onOwnedChange}
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <MaterialsTable materials={node.materials} owned={owned} onOwnedChange={onOwnedChange} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ItemDetail({ params }) {
   const routeParams = useParams();
   const id = params?.id || routeParams?.id;
   const [item, setItem] = useState(null);
   const [materials, setMaterials] = useState([]);
-  const [tree, setTree] = useState({ children: [], parents: [] });
+  const [craftingTree, setCraftingTree] = useState(null);
   const [loading, setLoading] = useState(true);
   const [owned, setOwned] = useState({});
 
@@ -95,8 +198,8 @@ function ItemDetail({ params }) {
       setItem(data);
       const mats = await repo.getMaterialsForItem(id);
       setMaterials(mats);
-      const treeData = await repo.getTreeForItem(id);
-      setTree(treeData);
+      const treeData = await repo.getCraftingTreeForItem(id);
+      setCraftingTree(treeData);
 
       // Load owned quantities for all materials of this item
       const inv = repo.getMaterialInventory();
@@ -219,30 +322,10 @@ function ItemDetail({ params }) {
 
       <div className="card" style={{ marginTop: 14 }}>
         <h2>Crafting Tree</h2>
-        {tree.children.length === 0 && tree.parents.length === 0 && (
-          <p className="muted">No tree relationships.</p>
-        )}
-        {tree.parents.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
-            <div className="muted" style={{ marginBottom: 6 }}>Requires:</div>
-            {tree.parents.map((rel) => (
-              <div key={rel.id} className="tree-row">
-                <Link href={`/items/${rel.parent?.id}`}>{rel.parent?.name || 'Unknown'}</Link>{' '}
-                <span className="muted">x{rel.quantity_required}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {tree.children.length > 0 && (
-          <div>
-            <div className="muted" style={{ marginBottom: 6 }}>Used in:</div>
-            {tree.children.map((rel) => (
-              <div key={rel.id} className="tree-row">
-                <Link href={`/items/${rel.child?.id}`}>{rel.child?.name || 'Unknown'}</Link>{' '}
-                <span className="muted">x{rel.quantity_required}</span>
-              </div>
-            ))}
-          </div>
+        {!craftingTree ? (
+          <p className="muted">No tree data available.</p>
+        ) : (
+          <CraftingTreeNode node={craftingTree} owned={owned} depth={0} onOwnedChange={handleOwnedChange} />
         )}
       </div>
     </div>
