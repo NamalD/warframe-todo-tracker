@@ -41,6 +41,7 @@ Tokens fix the source-of-truth problem first; the inline-style migration
 |-------|-------|-----|
 | `--wf-border-subtle` | `#1a1f2a` | Dimmed border (e.g. acquired loadout slot) |
 | `--wf-border` | `#1e2230` | Default border / divider |
+| `--wf-border-raised` | `#262b3a` | Raised overlay border (toasts, popovers) |
 | `--wf-border-strong` | `#2a2f3f` | Stronger border (inputs, buttons, tree rows) |
 | `--wf-border-focus` | `#3c465a` | Focus / hover border |
 
@@ -67,10 +68,11 @@ Tokens fix the source-of-truth problem first; the inline-style migration
 
 | Token | Value | Use |
 |-------|-------|-----|
-| `--wf-success` | `#6fcf97` | Completed, acquired, progress-done |
+| `--wf-success` | `#6fcf97` | Completed, acquired, progress-done, success toast |
 | `--wf-success-hover` | `#5ad68e` | Checkbox checked hover |
 | `--wf-warning` | `#f2c94c` | In-progress, progress fill |
-| `--wf-danger` | `#eb5757` | Blocked / destructive |
+| `--wf-danger` | `#eb5757` | Blocked / destructive, error toast |
+| `--wf-info` | `#56ccf2` | Info toast |
 
 ### Buttons
 
@@ -115,8 +117,10 @@ matches today) so categories and statuses can diverge later.
   are still literals; a spacing scale is a good follow-up but was out of scope
   for the color/radius/type first pass.
 - **A few intrinsic literals remain** by design: `1px` hamburger bars, the
-  `7px` skeleton-line radius, and the `40px` empty-state icon are
-  component-specific, not part of any scale.
+  `7px` skeleton-line radius, the `40px` empty-state icon, the `18px` toast
+  dismiss glyph, and the toast `box-shadow` (an `rgba()` elevation shadow) are
+  component-specific, not part of any scale. A shadow/elevation scale is a
+  reasonable future token group.
 
 ## Inline-style migration (follow-up)
 

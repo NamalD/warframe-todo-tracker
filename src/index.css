@@ -18,6 +18,7 @@
   /* Borders & dividers */
   --wf-border-subtle: #1a1f2a;   /* dimmed (e.g. acquired slot) */
   --wf-border: #1e2230;          /* default border / divider */
+  --wf-border-raised: #262b3a;   /* raised overlay border (toasts, popovers) */
   --wf-border-strong: #2a2f3f;   /* stronger border */
   --wf-border-focus: #3c465a;    /* focus / hover border */
 
@@ -39,6 +40,7 @@
   --wf-success-hover: #5ad68e;
   --wf-warning: #f2c94c;
   --wf-danger: #eb5757;
+  --wf-info: #56ccf2;
 
   /* Buttons — primary variant */
   --wf-btn-primary-bg: #2a3444;
@@ -550,29 +552,29 @@ ul.plain li:last-child { border-bottom: none; }
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
-  background: #161a24;
-  border: 1px solid #262b3a;
-  border-left: 3px solid #9aa0ad;
-  border-radius: 8px;
+  background: var(--wf-surface-active);
+  border: 1px solid var(--wf-border-raised);
+  border-left: 3px solid var(--wf-text-dim);
+  border-radius: var(--wf-radius-md);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  color: #e7e9ee;
-  font-size: 14px;
+  color: var(--wf-text);
+  font-size: var(--wf-font-md);
   line-height: 1.4;
   animation: toast-in 0.18s ease-out;
 }
 
-.toast-success { border-left-color: #6fcf97; }
-.toast-error { border-left-color: #eb5757; }
-.toast-info { border-left-color: #56ccf2; }
+.toast-success { border-left-color: var(--wf-success); }
+.toast-error { border-left-color: var(--wf-danger); }
+.toast-info { border-left-color: var(--wf-info); }
 
 .toast-icon {
   flex: 0 0 auto;
-  font-size: 14px;
+  font-size: var(--wf-font-md);
   line-height: 1.5;
 }
-.toast-success .toast-icon { color: #6fcf97; }
-.toast-error .toast-icon { color: #eb5757; }
-.toast-info .toast-icon { color: #56ccf2; }
+.toast-success .toast-icon { color: var(--wf-success); }
+.toast-error .toast-icon { color: var(--wf-danger); }
+.toast-info .toast-icon { color: var(--wf-info); }
 
 .toast-message {
   flex: 1 1 auto;
@@ -584,14 +586,14 @@ ul.plain li:last-child { border-bottom: none; }
   flex: 0 0 auto;
   background: none;
   border: none;
-  color: #8a91a0;
+  color: var(--wf-text-faint);
   font-size: 18px;
   line-height: 1;
   padding: 0 2px;
   cursor: pointer;
   transition: color 0.15s ease;
 }
-.toast-dismiss:hover { color: #e7e9ee; }
+.toast-dismiss:hover { color: var(--wf-text); }
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px); }
