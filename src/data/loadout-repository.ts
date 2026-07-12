@@ -1,6 +1,8 @@
 // @ts-nocheck
 'use client';
 
+import { toast } from '../toast/toast-bus.ts';
+
 /**
  * @typedef {import('../types/data').ClientLoadout} ClientLoadout
  * @typedef {import('../types/data').Build} Build
@@ -91,20 +93,26 @@ export default class LoadoutRepository {
   }
 
   async #patch(loadout) {
-    const payload = { data: stripDataFields(loadout), clientVersion: loadout.version || 0 };
-    const res = await fetch(`/api/loadouts/${loadout.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      console.error(`PATCH /api/loadouts/${loadout.id} failed:`, res.status);
-      return;
-    }
-    // Update in-memory version from server response
-    const updated = await res.json();
-    if (updated && updated.version) {
-      loadout.version = updated.version;
+    try {
+      const payload = { data: stripDataFields(loadout), clientVersion: loadout.version || 0 };
+      const res = await fetch(`/api/loadouts/${loadout.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        console.error(`PATCH /api/loadouts/${loadout.id} failed:`, res.status);
+        toast.error("Couldn't save loadout changes");
+        return;
+      }
+      // Update in-memory version from server response
+      const updated = await res.json();
+      if (updated && updated.version) {
+        loadout.version = updated.version;
+      }
+    } catch (err) {
+      console.error(`PATCH /api/loadouts/${loadout.id} failed:`, err);
+      toast.error("Couldn't save loadout changes");
     }
   }
 
@@ -187,9 +195,13 @@ export default class LoadoutRepository {
         if (created && created.version) {
           loadout.version = created.version;
         }
+        toast.success('Loadout created');
+      } else {
+        toast.error("Couldn't create loadout");
       }
     } catch (err) {
       console.error('Failed to create loadout on server:', err);
+      toast.error("Couldn't create loadout");
     }
   }
 
@@ -215,13 +227,16 @@ export default class LoadoutRepository {
 
   async #serverDelete(id, version) {
     try {
-      await fetch(`/api/loadouts/${id}`, {
+      const res = await fetch(`/api/loadouts/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientVersion: version }),
       });
+      if (res.ok) toast.success('Loadout deleted');
+      else toast.error("Couldn't delete loadout");
     } catch (err) {
       console.error('Failed to delete loadout on server:', err);
+      toast.error("Couldn't delete loadout");
     }
   }
 

@@ -1,6 +1,8 @@
 // @ts-nocheck
 'use client';
 
+import { toast } from '../toast/toast-bus.ts';
+
 /**
  * @typedef {import('../types/data').Build} Build
  * @typedef {import('../types/data').Requirement} Requirement
@@ -42,16 +44,24 @@ export default class BuildRepository {
     }
   }
 
-  /** @returns {Promise<void>} */
+  /** @returns {Promise<boolean>} true when the write reached the server */
   async #persistToServer() {
     try {
-      await fetch('/api/builds', {
+      const res = await fetch('/api/builds', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.#data.builds),
       });
+      if (!res.ok) {
+        console.error('Failed to persist builds:', res.status);
+        toast.error("Couldn't save build changes");
+        return false;
+      }
+      return true;
     } catch (err) {
       console.error('Failed to persist builds:', err);
+      toast.error("Couldn't save build changes");
+      return false;
     }
   }
 
@@ -106,7 +116,7 @@ export default class BuildRepository {
     };
     // @ts-ignore - JSDoc type on private field
     this.#data.builds.push(build);
-    this.#persistToServer().catch(() => {});
+    this.#persistToServer().then((ok) => { if (ok) toast.success('Build created'); }).catch(() => {});
     return this.getBuildById(id);
   }
 
@@ -128,7 +138,7 @@ export default class BuildRepository {
     // @ts-ignore - JSDoc type on private field
     this.#data.builds = this.#data.builds.filter((b) => b.id !== id);
     if (this.#data.builds.length !== before) {
-      this.#persistToServer().catch(() => {});
+      this.#persistToServer().then((ok) => { if (ok) toast.success('Build deleted'); }).catch(() => {});
       return true;
     }
     return false;

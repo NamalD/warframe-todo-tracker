@@ -1,5 +1,6 @@
 import './../src/index.css';
 import NavBar from './components/NavBar';
+import ToastViewport from './components/ToastViewport';
 
 export const metadata = {
   title: 'Warframe Tracker',
@@ -11,6 +12,7 @@ export default function RootLayout({ children }) {
       <body>
         <NavBar />
         <main>{children}</main>
+        <ToastViewport />
       </body>
     </html>
   );
