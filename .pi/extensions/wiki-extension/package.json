@@ -1,0 +1,9 @@
+{
+  "name": "wiki-extension",
+  "version": "1.0.0",
+  "description": "Tools for reading and writing to an Obsidian wiki vault",
+  "keywords": ["pi-package", "wiki", "obsidian", "knowledge-base"],
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}

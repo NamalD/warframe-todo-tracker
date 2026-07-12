@@ -1,0 +1,9 @@
+{
+  "name": "doc-lint",
+  "version": "1.0.0",
+  "description": "Warns on stale architecture docs by checking for keywords that contradict current project architecture",
+  "keywords": ["pi-package", "doc-lint", "documentation", "lint", "stale-docs"],
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}
