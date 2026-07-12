@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
+  { href: '/worldstate', label: 'World State' },
   { href: '/items', label: 'Items' },
   { href: '/sources', label: 'Sources' },
   { href: '/todos', label: 'Todos' },
