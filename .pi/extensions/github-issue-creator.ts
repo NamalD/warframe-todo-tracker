@@ -340,9 +340,9 @@ export default function (pi: ExtensionAPI) {
 				}
 				idea = input;
 			}
-
+			
 			// Get current model
-			const model = getCurrentModel(pi);
+			const model = getCurrentModel(ctx.modelRegistry);
 			if (!model) {
 				ctx.ui.notify("No active model available", "error");
 				return;
