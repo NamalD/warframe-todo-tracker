@@ -91,9 +91,9 @@ const TEMPLATES: Record<IssueType, IssueTemplate> = {
 	},
 };
 
-function getCurrentModel(pi: ExtensionAPI): ModelInfo | undefined {
-	const models = pi.getModels();
-	const activeModel = pi.getActiveModel();
+function getCurrentModel(registry: ModelRegistry): ModelInfo | undefined {
+	const models = registry.getModels();
+	const activeModel = registry.getActiveModel();
 	return models.find((m) => m.id === activeModel?.id);
 }
 
@@ -340,7 +340,7 @@ export default function (pi: ExtensionAPI) {
 				}
 				idea = input;
 			}
-			
+
 			// Get current model
 			const model = getCurrentModel(ctx.modelRegistry);
 			if (!model) {
