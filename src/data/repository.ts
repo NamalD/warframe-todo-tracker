@@ -1,6 +1,8 @@
 // @ts-nocheck
 'use client';
 
+import { toast } from '../toast/toast-bus.ts';
+
 /**
  * @typedef {import('../types/data').Item} Item
  * @typedef {import('../types/data').Material} Material
@@ -152,12 +154,15 @@ export default class Repository {
 
   async #pushTodos() {
     try {
-      await fetch('/api/todos', {
+      const res = await fetch('/api/todos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: this.todos, version: 0 }),
       });
-    } catch { /* best-effort */ }
+      if (!res.ok) toast.error("Couldn't save your to-do changes");
+    } catch {
+      toast.error("Couldn't save your to-do changes");
+    }
   }
 
   #ensureRefDataInitialized() {
@@ -264,8 +269,12 @@ export default class Repository {
           this.#materialVersions[name] = conflict.server_version;
           await this.#patchMaterial(name, quantity, true);
         }
+      } else {
+        toast.error("Couldn't save material inventory");
       }
-    } catch { /* best-effort */ }
+    } catch {
+      toast.error("Couldn't save material inventory");
+    }
   }
 
   // Items (async — lazy init)
@@ -343,12 +352,15 @@ export default class Repository {
   async #pushUserItemFlag(itemId, field, value) {
     if (typeof window === 'undefined') return;
     try {
-      await fetch('/api/user-items', {
+      const res = await fetch('/api/user-items', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ item_id: itemId, fields: { [field]: value } }),
       });
-    } catch { /* best-effort */ }
+      if (!res.ok) toast.error("Couldn't save item tracking");
+    } catch {
+      toast.error("Couldn't save item tracking");
+    }
   }
 
   // Sources
@@ -421,8 +433,12 @@ export default class Repository {
         if (updated && updated.version) {
           todo.version = updated.version;
         }
+      } else {
+        toast.error("Couldn't save your to-do changes");
       }
-    } catch { /* best-effort */ }
+    } catch {
+      toast.error("Couldn't save your to-do changes");
+    }
   }
 
   deleteTodo(id) {
@@ -438,11 +454,14 @@ export default class Repository {
 
   async #deleteTodoOnServer(id, version) {
     try {
-      await fetch(`/api/todos/${id}`, {
+      const res = await fetch(`/api/todos/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientVersion: version }),
       });
-    } catch { /* best-effort */ }
+      if (!res.ok) toast.error("Couldn't delete your to-do");
+    } catch {
+      toast.error("Couldn't delete your to-do");
+    }
   }
 }
