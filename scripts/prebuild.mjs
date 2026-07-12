@@ -183,6 +183,26 @@ function buildWarframeComponentSubMaterials(recipes, materials, itemsByUniqueNam
     }
   }
 
+  // Override map for materials whose wfcd/derived name differs from the
+  // in-game display name. Keys are the names resolved from wfcd or derived
+  // from the ExportRecipes ItemType path; values are the game-facing names.
+  const MATERIAL_NAME_OVERRIDES = {
+    // Duviri/Entrati resources (Oraxia, etc.)
+    'Duviri Murmur Item A': 'Temporal Dust',
+    'Entrati Lab Misc Item B': 'Necracoil',
+    'Duviri Rock Item': 'Aggristone',
+    'Entrati Lab Misc Item A': 'Entrati Obols',
+    'Duviri Plant Item A': 'Kovnik',
+    'Duviri Mushroom Item': 'Tasoma Extract',
+  };
+
+  function resolveMaterialName(name) {
+    if (MATERIAL_NAME_OVERRIDES[name]) {
+      return MATERIAL_NAME_OVERRIDES[name];
+    }
+    return name;
+  }
+
   // Find all Warframe main blueprints (not component blueprints, not alt helmets)
   const mainBlueprints = recipes.filter((r) => {
     const name = r.uniqueName || '';
@@ -241,7 +261,7 @@ function buildWarframeComponentSubMaterials(recipes, materials, itemsByUniqueNam
       for (const matIng of compBp.ingredients || []) {
         const matName = matByUniqueName[matIng.ItemType];
         if (matName) {
-          materialsList.push({ name: matName, quantity: matIng.ItemCount });
+          materialsList.push({ name: resolveMaterialName(matName), quantity: matIng.ItemCount });
         } else {
           // Fallback: derive from path
           const last = matIng.ItemType.split('/').pop() || '';
@@ -249,7 +269,7 @@ function buildWarframeComponentSubMaterials(recipes, materials, itemsByUniqueNam
           console.warn(
             `[prebuild] No wfcd material for ${matIng.ItemType} (${derived})`
           );
-          materialsList.push({ name: derived, quantity: matIng.ItemCount });
+          materialsList.push({ name: resolveMaterialName(derived), quantity: matIng.ItemCount });
         }
       }
 
