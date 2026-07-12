@@ -7,8 +7,11 @@
  * Usage: /create-issue [feature|bug] "initial description or idea"
  */
 
+import { spawn } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import type { Model } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 
@@ -37,11 +40,6 @@ interface AIGeneratedIssue {
 
 const IssueTypeSchema = StringEnum(["feature", "bug"] as const, {
 	description: "Type of issue to create",
-});
-
-const CreateIssueParams = Type.Object({
-	type: Type.Optional(IssueTypeSchema),
-	initialIdea: Type.Optional(Type.String({ description: "Initial idea or description for the issue" })),
 });
 
 const TEMPLATES: Record<IssueType, IssueTemplate> = {
@@ -92,11 +90,28 @@ const TEMPLATES: Record<IssueType, IssueTemplate> = {
 	},
 };
 
+function getPiInvocation(args: string[]): { command: string; args: string[] } {
+	const currentScript = process.argv[1];
+	const isBunVirtualScript = currentScript?.startsWith("/$bunfs/root/");
+	if (currentScript && !isBunVirtualScript && fs.existsSync(currentScript)) {
+		return { command: process.execPath, args: [currentScript, ...args] };
+	}
+
+	const execName = path.basename(process.execPath).toLowerCase();
+	const isGenericRuntime = /^(node|bun)(\.exe)?$/.test(execName);
+	if (!isGenericRuntime) {
+		return { command: process.execPath, args };
+	}
+
+	return { command: "pi", args };
+}
+
 async function generateIssueWithAI(
 	pi: ExtensionAPI,
+	cwd: string,
 	type: IssueType,
 	initialIdea: string,
-	model: Model<any>,
+	modelId: string,
 ): Promise<AIGeneratedIssue> {
 	const template = TEMPLATES[type];
 
@@ -142,41 +157,68 @@ ${initialIdea || "(none provided — create a sensible issue from the project co
 
 Consider: Warframe domain complexity, SQLite migrations, @wfcd/items data handling, Next.js App Router patterns, testing requirements, Docker/VPS deployment impact.`;
 
-	try {
-		const response = await pi.askAI({
-			model: model.id,
-			messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
-			temperature: 0.3,
-			maxTokens: 3000,
-			jsonMode: true,
+	const invocation = getPiInvocation([
+		"--mode",
+		"json",
+		"-p",
+		prompt,
+		"--model",
+		modelId,
+	]);
+
+	return new Promise((resolve, reject) => {
+		const proc = spawn(invocation.command, invocation.args, {
+			cwd,
+			stdio: ["ignore", "pipe", "pipe"],
 		});
 
-		const content = response.content[0];
-		if (content.type !== "text") {
-			throw new Error("AI response was not text");
-		}
+		let stdout = "";
+		let stderr = "";
 
-		const parsed = JSON.parse(content.text) as AIGeneratedIssue;
+		proc.stdout.on("data", (data) => {
+			stdout += data.toString();
+		});
 
-		// Validate required fields
-		if (!parsed.title || !parsed.body || !parsed.estimate) {
-			throw new Error("AI response missing required fields");
-		}
+		proc.stderr.on("data", (data) => {
+			stderr += data.toString();
+		});
 
-		// Validate estimate
-		const validSizes = ["XS", "S", "M", "L", "XL"] as const;
-		const validPoints = [1, 2, 3, 5, 8];
-		if (!validSizes.includes(parsed.estimate.size) || !validPoints.includes(parsed.estimate.points)) {
-			throw new Error("Invalid estimate values from AI");
-		}
+		proc.on("close", (code) => {
+			if (code !== 0) {
+				reject(new Error(`pi subprocess exited with code ${code}: ${stderr}`));
+				return;
+			}
 
-		return {
-			...parsed,
-			template: type,
-		};
-	} catch (error) {
-		throw new Error(`AI generation failed: ${error instanceof Error ? error.message : String(error)}`);
-	}
+			try {
+				// The JSON output is the last line of stdout in JSON mode
+				const lines = stdout.trim().split("\n");
+				const lastLine = lines[lines.length - 1];
+				const parsed = JSON.parse(lastLine) as AIGeneratedIssue;
+
+				// Validate required fields
+				if (!parsed.title || !parsed.body || !parsed.estimate) {
+					throw new Error("AI response missing required fields");
+				}
+
+				const validSizes = ["XS", "S", "M", "L", "XL"] as const;
+				const validPoints = [1, 2, 3, 5, 8];
+				if (!validSizes.includes(parsed.estimate.size) || !validPoints.includes(parsed.estimate.points)) {
+					throw new Error("Invalid estimate values from AI");
+				}
+
+				resolve({
+					...parsed,
+					template: type,
+				});
+			} catch (e) {
+				reject(new Error(`Failed to parse AI response: ${e instanceof Error ? e.message : String(e)}`));
+			}
+		});
+
+		proc.on("error", (e) => {
+			reject(new Error(`Failed to spawn pi: ${e.message}`));
+		});
+	});
 }
 
 async function confirmWithUser(
@@ -348,7 +390,7 @@ export default function (pi: ExtensionAPI) {
 			// Generate issue with AI
 			let generatedIssue: AIGeneratedIssue;
 			try {
-				generatedIssue = await generateIssueWithAI(pi, type, idea, model);
+				generatedIssue = await generateIssueWithAI(pi, ctx.cwd, type, idea, model.id);
 			} catch (error) {
 				ctx.ui.notify(`AI generation failed: ${error}`, "error");
 				return;
