@@ -175,6 +175,24 @@ const MIGRATIONS: Migration[] = [
     );
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);`,
   },
+  {
+    version: 4,
+    description: 'Add checklist_tasks table for daily/weekly/biweekly task tracking',
+    sql: `CREATE TABLE IF NOT EXISTS checklist_tasks (
+      id                  TEXT PRIMARY KEY,
+      cadence             TEXT NOT NULL DEFAULT 'daily'
+                            CHECK(cadence IN ('daily','weekly','biweekly')),
+      category            TEXT NOT NULL DEFAULT '',
+      label               TEXT NOT NULL DEFAULT '',
+      sort_order          INTEGER NOT NULL DEFAULT 0,
+      last_completed_at   TEXT,
+      version             INTEGER NOT NULL DEFAULT 0,
+      created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_checklist_cadence ON checklist_tasks(cadence, sort_order);`,
+  },
 ];
 
 // ---------------------------------------------------------------------------
