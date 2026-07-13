@@ -7,8 +7,9 @@ import repo from '../../../src/data/store.ts';
 import RequirementCombobox from './requirement-combobox';
 import SearchableSelect from '../../components/searchable-select';
 import { getOptionsForSlot } from '../../../src/data/requirement-options.ts';
+import { NECRAMECHS, ARCHGUNS, getNecramechMeleesFor, formatSlotType } from '../../../src/data/necramech-options.ts';
 
-const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
+const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'necramech', 'archgun', 'necramech_melee', 'companion', 'archwing', 'other'];
 
 const SLOT_TYPE_TO_ITEM_TYPE = {
   warframe: 'warframe',
@@ -16,6 +17,25 @@ const SLOT_TYPE_TO_ITEM_TYPE = {
   secondary: 'secondary',
   melee: 'melee',
 };
+
+// Slot types not backed by the reference item catalog (@wfcd/items has no
+// clean Necramech/Archgun/Necramech-melee data — see necramech-options.ts).
+// Picks from these slots' curated option lists are stored as custom_item_name.
+const CURATED_NAME_SLOT_TYPES = new Set(['necramech', 'archgun', 'necramech_melee']);
+
+/**
+ * Curated {value, label} options for slot types not backed by the item
+ * catalog, or null for catalog-backed slot types.
+ */
+function getCuratedOptions(slotType, slots) {
+  if (slotType === 'necramech') return NECRAMECHS.map((n) => ({ value: n, label: n }));
+  if (slotType === 'archgun') return ARCHGUNS.map((n) => ({ value: n, label: n }));
+  if (slotType === 'necramech_melee') {
+    const mechSlot = (slots || []).find((s) => s.slot_type === 'necramech');
+    return getNecramechMeleesFor(mechSlot?.custom_item_name).map((n) => ({ value: n, label: n }));
+  }
+  return null;
+}
 
 function LoadoutDetailInner() {
   const params = useParams();
@@ -96,14 +116,23 @@ function LoadoutDetailInner() {
 
   const handlePopulateSlot = (e, slotId) => {
     e.preventDefault();
-    const hasItem = populateForm.item_id || populateForm.custom_item_name.trim();
+    const slot = slots.find((s) => s.id === slotId);
+    const isCurated = CURATED_NAME_SLOT_TYPES.has(slot?.slot_type);
+    // Curated slots (necramech/archgun/necramech_melee) pick a plain name
+    // rather than a real catalog item — route the picker's selection into
+    // custom_item_name instead of item_id.
+    const finalItemId = isCurated ? null : (populateForm.item_id || null);
+    const finalCustomName = isCurated
+      ? (populateForm.item_id || populateForm.custom_item_name.trim() || null)
+      : (populateForm.custom_item_name.trim() || null);
+    const hasItem = finalItemId || finalCustomName;
     if (!hasItem) return;
 
     // Check for duplicate items in this loadout (exclude the slot being populated)
     const existing = slots.filter((s) => {
       if (s.id === slotId) return false;
-      if (populateForm.item_id && s.item_id === populateForm.item_id) return true;
-      if (populateForm.custom_item_name.trim() && s.custom_item_name === populateForm.custom_item_name.trim()) return true;
+      if (finalItemId && s.item_id === finalItemId) return true;
+      if (finalCustomName && s.custom_item_name === finalCustomName) return true;
       return false;
     });
     if (existing.length > 0) {
@@ -112,8 +141,8 @@ function LoadoutDetailInner() {
     }
 
     loadoutRepo.updateSlot(id, slotId, {
-      item_id: populateForm.item_id || null,
-      custom_item_name: populateForm.custom_item_name.trim() || null,
+      item_id: finalItemId,
+      custom_item_name: finalCustomName,
       notes: populateForm.notes
     });
     setPopulatingSlotId(null);
@@ -295,7 +324,7 @@ function LoadoutDetailInner() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}
                    onClick={() => openPopulate(slot.id)}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span className={`badge ${slot.slot_type}`}>{slot.slot_type}</span>
+                  <span className={`badge ${slot.slot_type}`}>{formatSlotType(slot.slot_type)}</span>
                   <span className="muted" style={{ fontStyle: 'italic' }}>Empty slot — click to populate</span>
                 </div>
               </div>
@@ -310,7 +339,7 @@ function LoadoutDetailInner() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 8 }}>
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span className={`badge ${slot.slot_type}`}>{slot.slot_type}</span>
+                  <span className={`badge ${slot.slot_type}`}>{formatSlotType(slot.slot_type)}</span>
                   {!isEmpty && (
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                       <input
@@ -330,7 +359,7 @@ function LoadoutDetailInner() {
                       <SearchableSelect
                         value={populateForm.item_id}
                         onChange={(val) => setPopulateForm({ ...populateForm, item_id: val, custom_item_name: '' })}
-                        options={(SLOT_TYPE_TO_ITEM_TYPE[slot.slot_type]
+                        options={getCuratedOptions(slot.slot_type, slots) || (SLOT_TYPE_TO_ITEM_TYPE[slot.slot_type]
                           ? items.filter(it => it.item_type === SLOT_TYPE_TO_ITEM_TYPE[slot.slot_type])
                           : items
                         ).map(it => ({ value: it.id, label: it.name }))}

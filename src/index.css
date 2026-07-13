@@ -51,6 +51,9 @@
   --wf-cat-primary: #6fcf97;
   --wf-cat-secondary: #eb5757;
   --wf-cat-melee: #56ccf2;
+  --wf-cat-necramech: #7c8aa5;
+  --wf-cat-archgun: #d4a24c;
+  --wf-cat-necramech-melee: #c9556f;
   --wf-cat-companion: #bb6bd9;
   --wf-cat-archwing: #f2994a;
   --wf-cat-sentinels: #a0d2db;
@@ -259,6 +262,9 @@ td { color: var(--wf-text-secondary); }
 .badge.primary { color: var(--wf-cat-primary); }
 .badge.secondary { color: var(--wf-cat-secondary); }
 .badge.melee { color: var(--wf-cat-melee); }
+.badge.necramech { color: var(--wf-cat-necramech); }
+.badge.archgun { color: var(--wf-cat-archgun); }
+.badge.necramech_melee { color: var(--wf-cat-necramech-melee); }
 .badge.companion { color: var(--wf-cat-companion); }
 .badge.archwing { color: var(--wf-cat-archwing); }
 .badge.sentinels { color: var(--wf-cat-sentinels); }
