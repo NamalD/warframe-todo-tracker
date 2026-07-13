@@ -146,6 +146,7 @@ describe('extractWorldState', () => {
   it('keeps a valid arbitration', () => {
     const raw = { arbitration: { node: 'Cinxia (Ceres)', type: 'Defense', enemy: 'Corpus', expiry: '2026-07-12T23:00:00.000Z' } };
     expect(extractWorldState(raw).arbitration).toEqual({
+      id: 'arbitration',
       node: 'Cinxia (Ceres)',
       type: 'Defense',
       enemy: 'Corpus',
@@ -170,6 +171,26 @@ describe('extractWorldState', () => {
     expect(archimedeas.map((a) => a.label)).toEqual(['Deep Archimedea', 'Temporal Archimedea']);
     expect(archimedeas[0].missions[0]).toMatchObject({ missionType: 'Disruption', deviation: 'Double Trouble' });
     expect(archimedeas[0].personalModifiers[0].name).toBe('Energy Exhaustion');
+  });
+
+  it('assigns stable ids for mark-done/hide state', () => {
+    const ws = extractWorldState(RAW);
+    expect(ws.sortie.id).toBe('sortie');
+    expect(ws.archonHunt.id).toBe('archon-hunt');
+    expect(ws.steelPath.id).toBe('steel-path');
+    expect(ws.voidTrader.id).toBe('void-trader');
+    expect(ws.darvoDeal.id).toBe('darvo-deal');
+    expect(ws.archimedeas.map((a) => a.id)).toEqual(['archimedea:0', 'archimedea:1']);
+    expect(ws.fissures.normal[0].id).toMatch(/^fissure:/);
+    expect(ws.invasions[0].id).toBe('invasion:Acheron (Pluto):Grineer Offensive');
+  });
+
+  it('gives fissures a fresh id when their expiry rotates, so a stale dismissal cannot match a new rotation', () => {
+    const a = extractWorldState(RAW).fissures.normal[0];
+    const rotated = extractWorldState({
+      fissures: [{ ...RAW.fissures[0], expiry: '2999-01-01T00:00:00.000Z' }],
+    }).fissures.normal[0];
+    expect(a.id).not.toBe(rotated.id);
   });
 
   it('is total: empty/garbage input never throws', () => {
