@@ -193,6 +193,15 @@ const MIGRATIONS: Migration[] = [
 
     CREATE INDEX IF NOT EXISTS idx_checklist_cadence ON checklist_tasks(cadence, sort_order);`,
   },
+  {
+    version: 5,
+    description: 'Add worldstate_dismissed table for "mark done" hiding of world state events',
+    sql: `CREATE TABLE IF NOT EXISTS worldstate_dismissed (
+      event_id      TEXT PRIMARY KEY,
+      expiry        TEXT,
+      dismissed_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );`,
+  },
 ];
 
 // ---------------------------------------------------------------------------
