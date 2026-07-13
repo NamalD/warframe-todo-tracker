@@ -17,6 +17,7 @@ function str(v) {
 function mapSortie(s) {
   if (!s || typeof s !== 'object') return null;
   return {
+    id: 'sortie',
     boss: str(s.boss),
     faction: str(s.faction),
     expiry: str(s.expiry),
@@ -33,6 +34,7 @@ function mapSortie(s) {
 function mapArchonHunt(a) {
   if (!a || typeof a !== 'object') return null;
   return {
+    id: 'archon-hunt',
     boss: str(a.boss),
     faction: str(a.faction),
     expiry: str(a.expiry),
@@ -46,13 +48,18 @@ function mapSteelPath(sp) {
   if (!sp || typeof sp !== 'object') return null;
   const r = sp.currentReward;
   return {
+    id: 'steel-path',
     currentReward: r ? { name: str(r.name), cost: typeof r.cost === 'number' ? r.cost : null } : null,
     expiry: str(sp.expiry),
   };
 }
 
+// Fissures rotate through the same node/tier combos, so the id folds in the
+// expiry — a fresh rotation gets a fresh id, which is what lets a dismissal
+// naturally "auto-show" the next instance instead of hiding it forever.
 function mapFissure(f) {
   return {
+    id: `fissure:${str(f?.tier)}:${str(f?.node)}:${str(f?.expiry)}`,
     tier: str(f?.tier),
     tierNum: typeof f?.tierNum === 'number' ? f.tierNum : null,
     missionType: str(f?.missionType),
@@ -100,6 +107,10 @@ function mapInvasion(inv) {
   const completion =
     typeof inv.completion === 'number' ? Math.max(0, Math.min(100, Math.round(inv.completion))) : null;
   return {
+    // Invasions carry no expiry — they end when completed and drop out of the
+    // upstream feed, so node+desc (stable for the invasion's lifetime) doubles
+    // as the id; a dismissal simply stops matching once it disappears.
+    id: `invasion:${str(inv.node)}:${str(inv.desc)}`,
     node: str(inv.node),
     desc: str(inv.desc),
     completion,
@@ -117,6 +128,7 @@ function mapArbitration(a) {
     !str(a.type) || a.type === 'Unknown' || !str(a.node) || String(a.node).startsWith('SolNode000');
   if (invalid) return null;
   return {
+    id: 'arbitration',
     node: str(a.node),
     type: str(a.type),
     enemy: str(a.enemy),
@@ -130,6 +142,7 @@ function mapVoidTrader(v) {
   // (e.g. "TennoConHUB2") instead — only surface a genuine relay name.
   const loc = str(v.location);
   return {
+    id: 'void-trader',
     character: str(v.character) ?? "Baro Ki'Teer",
     location: loc && /relay/i.test(loc) ? loc : null,
     activation: str(v.activation),
@@ -151,6 +164,7 @@ function mapDarvoDeal(deals) {
   if (!d || typeof d !== 'object') return null;
   const num = (v) => (typeof v === 'number' ? v : null);
   return {
+    id: 'darvo-deal',
     item: str(d.item),
     salePrice: num(d.salePrice),
     originalPrice: num(d.originalPrice),
@@ -168,6 +182,7 @@ const ARCHIMEDEA_LABELS = ['Deep Archimedea', 'Temporal Archimedea'];
 function mapArchimedeas(list) {
   const arr = Array.isArray(list) ? list : [];
   return arr.map((a, i) => ({
+    id: `archimedea:${i}`,
     label: ARCHIMEDEA_LABELS[i] || `Archimedea ${i + 1}`,
     expiry: str(a?.expiry),
     missions: Array.isArray(a?.missions)
