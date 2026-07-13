@@ -496,3 +496,110 @@ describe('LoadoutDetailPage — inline requirements during populate', () => {
     expect(nameInput).toBeInTheDocument();
   });
 });
+
+describe('LoadoutDetailPage — necramech slot picker', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPush.mockClear();
+    mockLoadoutRepo._syncCallback = null;
+    mockLoadoutRepo.lastSyncError = null;
+    mockLoadouts.length = 0;
+    mockItems.length = 0;
+
+    mockLoadouts.push({
+      id: 'loadout-1',
+      name: 'Necramech Loadout',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      slots: [
+        {
+          id: 'necramech-slot',
+          loadout_id: 'loadout-1',
+          slot_type: 'necramech',
+          item_id: null,
+          custom_item_name: null,
+          acquired: false,
+          notes: '',
+          display_order: 0,
+          requirements: [],
+        },
+      ],
+    });
+  });
+
+  it('offers Bonewidow and Voidrig as options', async () => {
+    render(React.createElement(LoadoutDetailInner));
+    await waitFor(() => {
+      expect(screen.getByText('Empty slot — click to populate')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Empty slot — click to populate'));
+
+    const input = await screen.findByPlaceholderText('Select item...');
+    fireEvent.focus(input);
+
+    await waitFor(() => {
+      expect(screen.getByText('Bonewidow')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Voidrig')).toBeInTheDocument();
+  });
+});
+
+describe('LoadoutDetailPage — necramech_melee slot picker', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPush.mockClear();
+    mockLoadoutRepo._syncCallback = null;
+    mockLoadoutRepo.lastSyncError = null;
+    mockLoadouts.length = 0;
+    mockItems.length = 0;
+
+    mockLoadouts.push({
+      id: 'loadout-1',
+      name: 'Necramech Loadout',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      slots: [
+        {
+          id: 'necramech-slot',
+          loadout_id: 'loadout-1',
+          slot_type: 'necramech',
+          item_id: null,
+          custom_item_name: 'Bonewidow',
+          acquired: true,
+          notes: '',
+          display_order: 0,
+          requirements: [],
+        },
+        {
+          id: 'necramech-melee-slot',
+          loadout_id: 'loadout-1',
+          slot_type: 'necramech_melee',
+          item_id: null,
+          custom_item_name: null,
+          acquired: false,
+          notes: '',
+          display_order: 1,
+          requirements: [],
+        },
+      ],
+    });
+  });
+
+  it('filters options to the selected necramech\'s exclusive melee', async () => {
+    render(React.createElement(LoadoutDetailInner));
+    await waitFor(() => {
+      expect(screen.getByText('Empty slot — click to populate')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Empty slot — click to populate'));
+
+    const input = await screen.findByPlaceholderText('Select item...');
+    fireEvent.focus(input);
+
+    await waitFor(() => {
+      expect(screen.getByText('Ironbridge')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Cocytus')).not.toBeInTheDocument();
+  });
+});

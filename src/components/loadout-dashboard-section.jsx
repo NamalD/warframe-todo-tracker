@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import LoadoutRepository from '../data/loadout-repository.ts';
 import repo from '../data/store.ts';
+import { formatSlotType } from '../data/necramech-options.ts';
 
 export default function LoadoutDashboardSection() {
   const [summary, setSummary] = useState(null);
@@ -50,7 +51,7 @@ export default function LoadoutDashboardSection() {
                     : item ? item.name : 'Empty slot';
                   return (
                     <div key={slot.slot_id} style={{ fontSize: 13, padding: '2px 0' }}>
-                      <span className={`badge ${slot.slot_type}`} style={{ marginRight: 6 }}>{slot.slot_type}</span>
+                      <span className={`badge ${slot.slot_type}`} style={{ marginRight: 6 }}>{formatSlotType(slot.slot_type)}</span>
                       {item ? (
                         <Link href={`/items/${item.id}`}>{displayName}</Link>
                       ) : (
@@ -67,7 +68,7 @@ export default function LoadoutDashboardSection() {
                 <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>Unacquired Requirements:</div>
                 {entry.unacquired_requirements.map((req) => (
                   <div key={req.requirement_id} style={{ fontSize: 13, padding: '2px 0' }}>
-                    <span className={`badge ${req.slot_type}`} style={{ marginRight: 6, opacity: 0.6 }}>{req.slot_type}</span>
+                    <span className={`badge ${req.slot_type}`} style={{ marginRight: 6, opacity: 0.6 }}>{formatSlotType(req.slot_type)}</span>
                     <span>— {req.name}</span>
                   </div>
                 ))}

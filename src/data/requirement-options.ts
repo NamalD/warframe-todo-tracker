@@ -35,6 +35,21 @@ const REQUIREMENT_OPTIONS = {
     { name: 'Forma' },
     { name: 'Umbra Forma' },
   ],
+  necramech: [
+    { name: 'Orokin Reactor' },
+    { name: 'Forma' },
+  ],
+  archgun: [
+    { name: 'Orokin Catalyst' },
+    { name: 'Exilus Weapon Adapter' },
+    { name: 'Archgun Arcane Adapter' },
+    { name: 'Gravimag' },
+    { name: 'Forma' },
+  ],
+  necramech_melee: [
+    { name: 'Orokin Catalyst' },
+    { name: 'Forma' },
+  ],
   companion: [
     { name: 'Orokin Reactor' },
   ],

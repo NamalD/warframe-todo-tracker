@@ -30,6 +30,22 @@ describe('requirement-options', () => {
       expect(options.find((o) => o.name === 'Melee Arcane Adapter')).toBeTruthy();
     });
 
+    it('returns necramech options for necramech slot_type', () => {
+      const options = getOptionsForSlot('necramech');
+      expect(options.find((o) => o.name === 'Orokin Reactor')).toBeTruthy();
+    });
+
+    it('returns archgun options for archgun slot_type', () => {
+      const options = getOptionsForSlot('archgun');
+      expect(options.find((o) => o.name === 'Orokin Catalyst')).toBeTruthy();
+      expect(options.find((o) => o.name === 'Archgun Arcane Adapter')).toBeTruthy();
+    });
+
+    it('returns necramech_melee options for necramech_melee slot_type', () => {
+      const options = getOptionsForSlot('necramech_melee');
+      expect(options.find((o) => o.name === 'Orokin Catalyst')).toBeTruthy();
+    });
+
     it('returns companion options for companion slot_type', () => {
       const options = getOptionsForSlot('companion');
       expect(options.find((o) => o.name === 'Orokin Reactor')).toBeTruthy();

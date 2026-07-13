@@ -4,9 +4,23 @@ category: nextjs
 tags: [typescript, oxc, vite, vitest, jsdoc, migration]
 date: 2026-07-10
 issue: #93
+status: resolved (2026-07-13, vite@8.1.3 / vitest@4.1.10) — see Prevention/Update
 ---
 
 # TypeScript migration with JSDoc typing under Vite 6 / Vitest 4
+
+> **Update 2026-07-13**: re-tested against the currently installed toolchain
+> (vite@8.1.3, vitest@4.1.10, @vitejs/plugin-react@6.0.3) — the parser bug no
+> longer reproduces. A probe file using real `import type` and typed class
+> instance fields ran clean under both `yarn vitest run` and `yarn tsc --noEmit`.
+> New `src/data/*.ts` files should be written as real TypeScript; the
+> `@ts-nocheck`/JSDoc pattern below is now only needed for files not yet
+> migrated. Migrate existing files opportunistically (when already doing a
+> substantial edit to one), not as a dedicated sweep. Also note: several
+> existing `@typedef {import('../types/data')...}` paths are actually wrong
+> (missing a `../` — the real path from `src/data/` is `../../types/data`)
+> and were never caught because `@ts-nocheck` suppresses resolution errors;
+> real `import type` will catch this class of mistake going forward.
 
 ## Problem
 When converting Next.js 14 client code from JavaScript to TypeScript (.js → .ts), the Oxc-based transformer in Vite 6 / Vitest 4 throws parse/build errors on valid TS syntax, specifically:
