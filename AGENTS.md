@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents (Hermes, Claude Code, etc.) work
 
 ## Worktree requirement
 
-**Every change must be made in a fresh worktree created from `main`.** Do not edit files directly in the main checkout. Create the worktree at `./worktrees/<branch-name>`, make your changes there, and clean it up after the PR is merged. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the exact sequence.
+**Every change must be made in a fresh worktree created from `origin/main`.** Do not edit files directly in the main checkout, and do not branch from local `main` — it can be stale. Start every issue with `git fetch origin` and branch from `origin/main`, not whatever the local checkout happens to be tracking. Create the worktree at `./worktrees/<branch-name>`, make your changes there, and clean it up after the PR is merged. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the exact sequence.
 
 ## Project
 

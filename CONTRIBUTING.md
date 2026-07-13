@@ -7,7 +7,7 @@ This is the canonical guide for all changes to this repository. Humans and AI ag
 Every repository modification ships through the same sequence:
 
 1. Ensure the main checkout is clean (`git status` shows no modifications).
-2. Create a fresh worktree from `main`: `git worktree add ./worktrees/<branch-name> -b <branch-name> main`.
+2. Fetch first, then create a fresh worktree from `origin/main`: `git fetch origin && git worktree add ./worktrees/<branch-name> -b <branch-name> origin/main`. Never branch from local `main` — it can be stale relative to origin.
 3. `cd` into the worktree and make changes there.
 4. Commit with an issue reference.
 5. Push the branch.
@@ -20,7 +20,7 @@ Never make changes directly in the main checkout. Never push directly to `main`.
 ### Worktree conventions
 
 - **Location:** `./worktrees/<branch-name>` (relative to the main checkout).
-- **Base:** always create from `main`, not from the current branch.
+- **Base:** always create from `origin/main`, fetched fresh — never from local `main` or the current branch, both of which can be stale.
 - **Naming:** use a short descriptive branch name (`fix/login-loop`, `feat/coda-weapons`, `docs/align-workflow-docs`).
 - **Cleanup:** remove the worktree and delete the branch after the PR is merged. If the worktree was already removed by `--delete-branch-on-merge`, just delete the local branch.
 - **Dirty main:** if the main checkout has uncommitted changes, stash or commit them before creating a worktree. Do not discard work silently.
