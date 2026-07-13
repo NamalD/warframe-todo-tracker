@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { SlotType } from '../../types/data';
 
 /**
  * Necramech, Archgun, and Necramech-melee reference data.
@@ -11,9 +11,9 @@
  * INCARNON_GENESIS_INSTALL_COSTS in scripts/prebuild.mjs.
  */
 
-export const NECRAMECHS = ['Bonewidow', 'Voidrig'];
+export const NECRAMECHS: string[] = ['Bonewidow', 'Voidrig'];
 
-export const ARCHGUNS = [
+export const ARCHGUNS: string[] = [
   'Arbucep', 'Cortege', 'Corvas', 'Corvas Prime', 'Cyngas', 'Dual Decurion',
   'Fluctus', 'Grattler', 'Imperator', 'Imperator Vandal', 'Kuva Ayanga',
   'Kuva Grattler', 'Larkspur', 'Larkspur Prime', 'Mandonel', 'Mausolon',
@@ -21,37 +21,33 @@ export const ARCHGUNS = [
 ];
 
 /** Each necramech has exactly one exclusive melee weapon. */
-const NECRAMECH_MELEE_BY_MECH = {
+const NECRAMECH_MELEE_BY_MECH: Record<string, string> = {
   Bonewidow: 'Ironbridge',
   Voidrig: 'Cocytus',
 };
 
-export const NECRAMECH_MELEES = Object.values(NECRAMECH_MELEE_BY_MECH);
+export const NECRAMECH_MELEES: string[] = Object.values(NECRAMECH_MELEE_BY_MECH);
 
 /**
  * Get the necramech-exclusive melee weapon(s) for a given necramech name.
  * Falls back to the full list when the mech is unknown/unset so the melee
  * slot is never blocked on the necramech slot being filled first.
- * @param {string|null|undefined} necramechName
- * @returns {string[]}
  */
-export function getNecramechMeleesFor(necramechName) {
+export function getNecramechMeleesFor(necramechName: string | null | undefined): string[] {
   if (necramechName && NECRAMECH_MELEE_BY_MECH[necramechName]) {
     return [NECRAMECH_MELEE_BY_MECH[necramechName]];
   }
   return NECRAMECH_MELEES;
 }
 
-const SLOT_TYPE_LABELS = {
+const SLOT_TYPE_LABELS: Partial<Record<SlotType, string>> = {
   necramech_melee: 'necramech melee',
 };
 
 /**
  * Display label for a slot_type — most are already human-readable;
  * a few (e.g. 'necramech_melee') need a space in place of the underscore.
- * @param {string} slotType
- * @returns {string}
  */
-export function formatSlotType(slotType) {
+export function formatSlotType(slotType: SlotType): string {
   return SLOT_TYPE_LABELS[slotType] || slotType;
 }
