@@ -122,11 +122,8 @@ describe('PUT /api/loadouts', () => {
     expect(getBody.data).toHaveLength(1);
     expect(getBody.data[0].id).toBe('l1');
     expect(getBody.data[0].name).toBe('First Loadout');
-    // loadout-repository.ts reads `loadout.slots` directly (flat shape) —
-    // this used to always come back empty because the server stored the
-    // client's payload under a `data` key nobody read (see the loadout
-    // slots bug spotted mid-session).
-    expect(getBody.data[0].slots).toEqual([{ id: 'l1-warframe', slot_type: 'warframe', item_id: null }]);
+    // loadout-repository.ts reads `loadout.slots` directly (flat shape) —\n    // this used to always come back empty because the server stored the\n    // client's payload under a `data` key nobody read (see the loadout\n    // slots bug spotted mid-session).\n    // Server-side migration also backfills missing slot types (archgun,\n    // necramech, necramech_melee, etc.) for pre-existing loadouts.\n    expect(getBody.data[0].slots).toEqual(expect.arrayContaining([\n      { id: 'l1-warframe', slot_type: 'warframe', item_id: null },\n    ]));
+    expect(getBody.data[0].slots.length).toBeGreaterThanOrEqual(1);
   });
 
   it('merges (adds) new data on second write, without deleting the first', async () => {
