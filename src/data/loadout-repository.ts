@@ -8,7 +8,7 @@
  */
 
 const STORAGE_KEY = 'warframe-loadouts';
-const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
+const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'necramech', 'other'];
 
 /**
  * @param {{ data?: Object }} loadout

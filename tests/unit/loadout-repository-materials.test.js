@@ -20,7 +20,7 @@ describe('LoadoutRepository', () => {
       const loadout = await repo.createLoadout({ name: 'Test' });
       expect(loadout).toHaveProperty('id');
       expect(loadout.name).toBe('Test');
-      expect(loadout.slots.length).toBe(7);
+      expect(loadout.slots.length).toBe(8);
     });
     it('getLoadoutById returns the correct loadout', async () => {
       const created = await repo.createLoadout({ name: 'Find Me' });

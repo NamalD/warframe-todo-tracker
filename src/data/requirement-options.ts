@@ -38,6 +38,11 @@ const REQUIREMENT_OPTIONS = {
   companion: [
     { name: 'Orokin Reactor' },
   ],
+  necramech: [
+    { name: 'Orokin Reactor' },
+    { name: 'Gravimag' },
+    { name: 'Forma' },
+  ],
   archwing: [
     { name: 'Orokin Reactor' },
     { name: 'Forma' },

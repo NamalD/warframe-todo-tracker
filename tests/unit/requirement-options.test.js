@@ -75,7 +75,7 @@ describe('requirement-options', () => {
     it('returns an array of slot types with predefined options', () => {
       const types = getAllSlotTypes();
       expect(Array.isArray(types)).toBe(true);
-      expect(types).toEqual(expect.arrayContaining(['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other']));
+      expect(types).toEqual(expect.arrayContaining(['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'necramech', 'other']));
     });
 
     it('returns unique slot types (no duplicates)', () => {

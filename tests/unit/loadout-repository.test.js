@@ -22,7 +22,7 @@ describe('LoadoutRepository', () => {
       const loadout = await repo.createLoadout({ name: 'Test Loadout' });
       expect(loadout).toHaveProperty('id');
       expect(loadout.name).toBe('Test Loadout');
-      expect(loadout.slots.length).toBe(7); // all slot types
+      expect(loadout.slots.length).toBe(8); // all slot types
       expect(loadout.slots[0].slot_type).toBe('warframe');
     });
 
@@ -86,7 +86,7 @@ describe('LoadoutRepository', () => {
       expect(slot.item_id).toBe('item-1');
 
       const updated = repo.getLoadoutById(loadout.id);
-      expect(updated.slots.length).toBe(8); // 7 default + 1 new
+      expect(updated.slots.length).toBe(9); // 8 default + 1 new
     });
 
     it('addSlot returns null for unknown loadout', () => {

@@ -8,7 +8,7 @@ import RequirementCombobox from './requirement-combobox';
 import SearchableSelect from '../../components/searchable-select';
 import { getOptionsForSlot } from '../../../src/data/requirement-options.ts';
 
-const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'other'];
+const SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'companion', 'archwing', 'necramech', 'other'];
 
 const SLOT_TYPE_TO_ITEM_TYPE = {
   warframe: 'warframe',

@@ -148,7 +148,7 @@ export type MaterialInventory = Record<string, number>;
 // User-generated data — Loadouts
 // ═══════════════════════════════════════════════════════════════════
 
-export type SlotType = 'warframe' | 'primary' | 'secondary' | 'melee' | 'companion' | 'archwing' | 'other';
+export type SlotType = 'warframe' | 'primary' | 'secondary' | 'melee' | 'companion' | 'archwing' | 'necramech' | 'other';
 
 export interface Requirement {
   id: string;
