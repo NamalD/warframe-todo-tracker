@@ -17,6 +17,9 @@ Warframe TODO Tracker — a Next.js 14 App Router app for tracking Warframe craf
 - **Game data**: `@wfcd/items` npm package, flattened by prebuild into static JSON
 - **Testing**: Vitest (unit), Playwright (e2e), custom test-pack runner (`npm test`)
 - **Deployment**: Docker on VPS, auto-deploys via GitHub Actions (build → GHCR → VPS pull & restart)
+- **GitHub Project**: owner=`NamalD`, project=`Warframe Item Tracker`, number=`4`, project ID=`PVT_kwHOACqRis4Bc2Fb`
+  - Status field ID: `PVTSSF_lAHOACqRis4Bc2FbzhXb60w`
+  - Status option IDs: Todo=`f75ad846`, In Progress=`47fc9ee4`, Done=`98236657`
 
 ## Commands
 
