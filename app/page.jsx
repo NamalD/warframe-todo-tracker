@@ -250,8 +250,13 @@ function Home() {
                   </div>
                   <div style={{ marginTop: 8 }}>
                     {mat.items.map((it) => (
-                      <div key={`${it.id}::${it.label}`} style={{ fontSize: 13 }}>
-                        <Link href={`/items/${it.id}`}>{it.label}</Link>
+                      <div
+                        key={it.type === 'loadout' ? `${it.loadoutId}-${it.slot}` : `${it.id}::${it.label}`}
+                        style={{ fontSize: 13 }}
+                      >
+                        <Link href={it.type === 'loadout' ? `/loadouts/${it.loadoutId}` : `/items/${it.id}`}>
+                          {it.label}
+                        </Link>
                       </div>
                     ))}
                   </div>
