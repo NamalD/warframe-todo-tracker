@@ -13,6 +13,7 @@ import { toast } from '../toast/toast-bus.ts';
  */
 
 const ITEMS_CACHE_KEY = 'warframe-items-cache';
+const RELIC_CACHE_KEY = 'warframe-relics-cache';
 const OLD_TODOS_KEY = 'warframe-todos';
 const OLD_MATERIALS_KEY = 'warframe-materials-inventory';
 
@@ -53,6 +54,8 @@ export default class Repository {
   treeRelationships = [];
   /** @type {Record<string, { [componentName: string]: { materials: Array<{ name: string; quantity: number }>; quantity: number } }>} */
   warframeComponentSubMaterials = {};
+  /** @type {Record<string, Array<{relicName:string,component:string,rarity:string,vaulted:boolean}>>} */
+  relicsCache = {};
   /** @type {Todo[]} */
   todos = [...SEED_TODOS.map(t => ({ ...t }))];
   /** @type {MaterialInventory} */
@@ -68,6 +71,47 @@ export default class Repository {
   #refDataInitialized = false;
   /** @type {Promise<void> | null} */
   #refDataInitPromise = null;
+
+  /** @type {boolean} */
+  #relicsInitialized = false;
+
+  async #loadRelics() {
+    if (typeof window === 'undefined') return;
+    try {
+      const response = await fetch('/data/relics-cache.json');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const fetched = await response.json();
+      this.relicsCache = fetched.primeRelicMap || {};
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(RELIC_CACHE_KEY, JSON.stringify({
+          version: fetched.version,
+          schemaVersion: fetched.schemaVersion,
+          cachedAt: fetched.cachedAt,
+          primeRelicMap: this.relicsCache,
+        }));
+      }
+    } catch (err) {
+      // Graceful degradation: use empty cache, page still works
+      this.relicsCache = {};
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedRaw = localStorage.getItem(RELIC_CACHE_KEY);
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw);
+            if (cached.primeRelicMap) this.relicsCache = cached.primeRelicMap;
+          }
+        } catch (_e) { /* no-op */ }
+      }
+    }
+  }
+
+  async initRelics() {
+    await this.#ensureRefDataInitialized();
+    if (this.#relicsInitialized) return;
+    await this.#loadRelics();
+    this.#relicsInitialized = true;
+  }
 
   async initTodos() {
     try {
@@ -509,6 +553,17 @@ export default class Repository {
     walk(node);
     return map;
   }
+  /** @param {string} itemId */
+  async getRelicsForItem(itemId) {
+    await this.initRelics();
+    const entries = this.relicsCache[itemId] || [];
+    // Return all entries as-is: the cache is already one entry per
+    // (relic, component) pair, and R4 requires listing each relic once
+    // per component it drops (some relics drop multiple components for
+    // the same prime item).
+    return entries.map((e) => ({ ...e }));
+  }
+
 
   // Todos
   getTodos() { return this.todos.map((t) => ({ ...t })); }

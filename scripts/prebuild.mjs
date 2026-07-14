@@ -33,7 +33,13 @@ const ROOT = resolve(__dirname, '..');
  * change with no package bump previously went unnoticed by any existing
  * cache, silently hiding new fields from returning users).
  */
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
+
+/** Detect if an item name denotes a Prime item (base prime or component) */
+function isPrimeItemName(name) {
+  if (!name) return false;
+  return / Prime(?: (?:Blueprint|Neuroptics|Chassis|Systems|Carapace|Cerebrum|Blade|Handle|Stock|Barrel|Receiver|Grip|Link|Stars|Carrier|Cephalon|Wings|Harness|Pouch|Gunstock|Disc|Guard|Heatsink|Ornament|Skin|Scarf|Hairs))?$/.test(name);
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -100,6 +106,72 @@ async function downloadFile(url, dest) {
       })
       .on('error', reject);
   });
+}
+
+/**
+ * Build relic cache: prime item ID → list of relic entries.
+ *
+ * Each entry: { relicName, component, rarity, vaulted }
+ * Keyed by the prime item's id (e.g. "item-3").
+ *
+ * We derive the prime item from @wfcd/items Relic rewards by matching
+ * reward.item.name against the known prime item names.
+ */
+async function buildRelicCache(transformedItems) {
+  // Relics are not in the main category pool, load them separately
+  const { default: Items } = await import('@wfcd/items');
+  const relics = new Items({ category: ['Relics'], i18n: false, i18nOnObject: false });
+
+  // Build: prime item name -> item id mapping
+  const primeNameToId = new Map();
+  for (const item of transformedItems) {
+    if (isPrimeItemName(item.name)) {
+      primeNameToId.set(item.name, item.id);
+    }
+  }
+  console.log(`[prebuild] Prime items found for relic mapping: ${primeNameToId.size}`);
+
+  const result = {};
+
+  for (const relic of relics) {
+    if (!relic.rewards) continue;
+
+    for (const reward of relic.rewards) {
+      const rewardName = reward.item?.name || '';
+      if (!rewardName.includes(' Prime')) continue;
+
+      // Find matching prime item name: reward name should start with prime name
+      // e.g. "Acceltra Prime Stock" -> match "Acceltra Prime"
+      let matchedPrimeName = null;
+      for (const primeName of primeNameToId.keys()) {
+        if (rewardName === primeName || rewardName.startsWith(primeName + ' ')) {
+          matchedPrimeName = primeName;
+          break;
+        }
+      }
+      if (!matchedPrimeName) continue;
+
+      const itemId = primeNameToId.get(matchedPrimeName);
+
+      // Derive component name from the suffix after the prime name
+      const suffix = rewardName.slice(matchedPrimeName.length).trim();
+      const component = suffix || 'Blueprint';
+
+      if (!result[itemId]) {
+        result[itemId] = [];
+      }
+      result[itemId].push({
+        relicName: relic.name,
+        component,
+        rarity: reward.rarity || 'Common',
+        vaulted: !!relic.vaulted,
+      });
+    }
+  }
+
+  const totalEntries = Object.values(result).reduce((sum, arr) => sum + arr.length, 0);
+  console.log(`[prebuild] primeRelicMap: ${Object.keys(result).length} prime items, ${totalEntries} relic entries`);
+  return result;
 }
 
 /** Decompress LZMA file */
@@ -920,7 +992,22 @@ async function main() {
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
   }
-  const outPath = resolve(outDir, 'wfcd-cache.json');
+
+  // ── Relic cache ────────────────────────────────────────────────
+  console.log('[prebuild] Building relic cache...');
+  const primeRelicMap = await buildRelicCache(items);
+  const relicsOutput = {
+    version,
+    schemaVersion: SCHEMA_VERSION,
+    cachedAt: new Date().toISOString(),
+    primeRelicMap,
+  };
+  const relicsOutPath = resolve(outDir, 'relics-cache.json');
+  writeFileSync(relicsOutPath, JSON.stringify(relicsOutput), 'utf8');
+  const relicsSizeKB = (JSON.stringify(relicsOutput).length / 1024).toFixed(1);
+  console.log(`[prebuild] Relic cache: ${relicsSizeKB} KB to ${relicsOutPath}`);
+
+    const outPath = resolve(outDir, 'wfcd-cache.json');
   writeFileSync(outPath, JSON.stringify(output), 'utf8');
 
   const sizeKB = (JSON.stringify(output).length / 1024).toFixed(1);

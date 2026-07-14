@@ -78,6 +78,86 @@ function MaterialsTable({ materials, owned, onOwnedChange }) {
   );
 }
 
+
+/** True when the item name follows the Prime naming convention */
+function isPrimeItem(name) {
+  if (!name) return false;
+  return / Prime(?: (?:Blueprint|Neuroptics|Chassis|Systems|Carapace|Cerebrum|Blade|Handle|Stock|Barrel|Receiver|Grip|Link|Stars|Carrier|Cephalon|Wings|Harness|Pouch|Gunstock|Disc|Guard|Heatsink|Ornament|Skin|Scarf|Hairs))?$/.test(name);
+}
+
+
+function RelicsNeeded({ itemId, itemName }) {
+  const [relics, setRelics] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const data = await repo.getRelicsForItem(itemId);
+      if (!cancelled) {
+        setRelics(data);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [itemId]);
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[1, 2, 3].map((n) => (
+          <div key={n} className="skeleton" style={{ height: 28, width: 140, borderRadius: 14 }} />
+        ))}
+      </div>
+    );
+  }
+
+  if (relics.length === 0) {
+    return <p className="muted">No relic data available.</p>;
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {relics.map((entry) => (
+        <div
+          key={entry.relicName + entry.component}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '4px 10px',
+            background: '#1a1a2e',
+            borderRadius: 14,
+            border: '1px solid #2a2a4a',
+            fontSize: 13,
+          }}
+        >
+          <span style={{ color: '#ffcf6a' }}>{entry.relicName}</span>
+          <span className="muted" style={{ fontSize: 11 }}>{entry.component}</span>
+          <span
+            className="badge"
+            style={{
+              fontSize: 10,
+              background: entry.rarity === 'Rare' ? '#2a1a0a' : entry.rarity === 'Uncommon' ? '#1a2a1a' : '#1a1a2e',
+              color: entry.rarity === 'Rare' ? '#f4c430' : entry.rarity === 'Uncommon' ? '#6fcf97' : '#888',
+              borderColor: entry.rarity === 'Rare' ? '#4a3a1a' : entry.rarity === 'Uncommon' ? '#2a4a2a' : '#2a2a4a',
+            }}
+          >
+            {entry.rarity}
+          </span>
+          {entry.vaulted && (
+            <span className="badge" style={{ fontSize: 10, background: '#1a1a2e', color: '#666', borderColor: '#333' }}>
+              vaulted
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CraftingTreeNode({ node, owned, depth = 0, onOwnedChange }) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children && node.children.length > 0;
@@ -188,6 +268,7 @@ function ItemDetail({ params }) {
   const [materials, setMaterials] = useState([]);
   const [craftingTree, setCraftingTree] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isPrime, setIsPrime] = useState(false);
   const [owned, setOwned] = useState({});
 
   useEffect(() => {
@@ -200,6 +281,9 @@ function ItemDetail({ params }) {
       setMaterials(mats);
       const treeData = await repo.getCraftingTreeForItem(id);
       setCraftingTree(treeData);
+      // Pre-check prime status for relic section
+      const itemData = await repo.getItemById(id);
+      setIsPrime(itemData ? isPrimeItem(itemData.name) : false);
 
       // Load owned quantities for all materials of this item
       const inv = repo.getMaterialInventory();
@@ -328,6 +412,13 @@ function ItemDetail({ params }) {
           <CraftingTreeNode node={craftingTree} owned={owned} depth={0} onOwnedChange={handleOwnedChange} />
         )}
       </div>
+
+      {isPrime && (
+        <div className="card" style={{ marginTop: 14 }}>
+          <h2>Relics Needed</h2>
+          <RelicsNeeded itemId={id} itemName={item.name} />
+        </div>
+      )}
     </div>
   );
 }
