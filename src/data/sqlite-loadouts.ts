@@ -47,15 +47,46 @@ function serializeData(val: unknown): string {
   return JSON.stringify(val);
 }
 
+const CURRENT_SLOT_TYPES = ['warframe', 'primary', 'secondary', 'melee', 'necramech', 'archgun', 'necramech_melee', 'companion', 'archwing', 'other'];
+
 function mapRow(row: LoadoutRow | null): LoadoutData | null {
   if (!row) return null;
   return {
     id: row.id,
     name: row.name,
-    data: parseData(row.data),
+    data: normalizeLoadoutData(parseData(row.data)),
     version: row.version,
     created_at: row.created_at,
     updated_at: row.updated_at,
+  };
+}
+
+function normalizeLoadoutData(data: unknown): unknown {
+  if (typeof data !== 'object' || data === null) return data;
+  const obj = data as Record<string, unknown>;
+  if (!Array.isArray(obj.slots)) return data;
+  const slots = obj.slots as Array<Record<string, unknown>>;
+  if (slots.length === 0) return data;
+  const hasSlotType = slots.some(s => typeof s.slot_type === 'string');
+  if (!hasSlotType) return data;
+  const existingTypes = new Set(slots.map(s => s.slot_type).filter(Boolean));
+  const missing = CURRENT_SLOT_TYPES.filter(t => !existingTypes.has(t));
+  if (missing.length === 0) return data;
+  return {
+    ...obj,
+    slots: [
+      ...slots,
+      ...missing.map((type) => ({
+        id: null,
+        slot_type: type,
+        item_id: null,
+        custom_item_name: null,
+        acquired: false,
+        notes: '',
+        display_order: CURRENT_SLOT_TYPES.indexOf(type),
+        requirements: [],
+      })),
+    ],
   };
 }
 
