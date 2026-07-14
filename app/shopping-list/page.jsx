@@ -269,7 +269,7 @@ function ShoppingList() {
                       {m.items.map((item) => (
                         <Link
                           key={item.id}
-                          href={`/items/${item.id}`}
+                          href={item.type === 'loadout' ? `/loadouts/${item.loadoutId}` : `/items/${item.id}`}
                           className="badge"
                           style={{
                             textDecoration: 'none',

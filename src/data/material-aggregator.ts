@@ -39,7 +39,11 @@ export async function aggregateTrackedMaterials(items, inventory, getMaterialsFo
     }
     matMap[key].quantity += 1;
     matMap[key].items.push({
+      id: `${req.loadoutId}-${req.slot}`,
       label: `${req.loadout} (${req.slot})`,
+      type: 'loadout',
+      loadoutId: req.loadoutId,
+      slot: req.slot,
     });
   }
 
