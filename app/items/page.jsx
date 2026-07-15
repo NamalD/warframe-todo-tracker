@@ -47,7 +47,9 @@ function ItemsList() {
     );
   };
 
-  let filtered = showTrackedOnly
+  const searchActive = searchText.trim().length > 0;
+
+  let filtered = showTrackedOnly && !searchActive
     ? items.filter((it) => it.is_user_tracked)
     : items;
 
@@ -108,17 +110,18 @@ function ItemsList() {
             type="checkbox"
             checked={showTrackedOnly}
             onChange={(e) => setShowTrackedOnly(e.target.checked)}
+            disabled={searchActive}
           />
           &nbsp;Show tracked items only
         </label>
       </div>
       {filtered.length === 0 && showTrackedOnly && !searchText.trim() && selectedCategories.length === 0 && (
         <p className="muted">
-          No tracked items yet — showing 0 of {items.length} items. Uncheck &quot;Show tracked items only&quot; to browse everything.
+          No tracked items yet — you have no tracked items right now. Uncheck "Show tracked items only" to browse everything, or try searching.
         </p>
       )}
       {filtered.length === 0 && (!showTrackedOnly || selectedCategories.length > 0 || searchText.trim()) && (
-        <p className="muted">No items match this filter.</p>
+        <p className="muted">No items match this filter or search.</p>
       )}
       <div className="list">
         {filtered.map((it) => (

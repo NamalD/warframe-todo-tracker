@@ -68,6 +68,26 @@ test.describe('Items list page', () => {
       await page.waitForTimeout(200);
       await expect(page.getByText(/no tracked items yet/i)).toBeVisible();
     });
+
+    test('checkbox is disabled while search text is present and re-enables when cleared', async ({ page }) => {
+      const checkbox = page.getByLabel('Show tracked items only');
+      const input = page.getByPlaceholder('Search items by name...');
+
+      await checkbox.uncheck();
+      await page.waitForTimeout(200);
+
+      await input.fill('excalibur');
+      await page.waitForTimeout(200);
+
+      await expect(checkbox).toBeDisabled();
+      await expect(page.locator('.card')).toHaveCount(1);
+      await expect(page.getByText('Excalibur')).toBeVisible();
+
+      await input.fill('');
+      await page.waitForTimeout(200);
+      await expect(checkbox).toBeEnabled();
+      await expect(checkbox).not.toBeChecked();
+    });
   });
 
   test.describe('badges', () => {
