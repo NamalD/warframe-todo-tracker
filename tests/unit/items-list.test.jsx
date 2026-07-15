@@ -98,7 +98,7 @@ describe('ItemsList', () => {
     const input = screen.getByPlaceholderText('Search items by name...');
     fireEvent.change(input, { target: { value: 'zzzznotfound' } });
 
-    expect(screen.getByText('No items match this filter.')).toBeInTheDocument();
+    expect(screen.getByText('No items match this filter or search.')).toBeInTheDocument();
   });
 
   it('renders item type badges', async () => {
