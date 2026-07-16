@@ -187,6 +187,7 @@ function ItemDetail({ params }) {
   const [item, setItem] = useState(null);
   const [materials, setMaterials] = useState([]);
   const [craftingTree, setCraftingTree] = useState(null);
+  const [relics, setRelics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [owned, setOwned] = useState({});
 
@@ -200,6 +201,12 @@ function ItemDetail({ params }) {
       setMaterials(mats);
       const treeData = await repo.getCraftingTreeForItem(id);
       setCraftingTree(treeData);
+
+      // Load relics for prime items
+      if (data && data.name.includes(' Prime ')) {
+        const relicData = await repo.getRelicsForItem(id);
+        setRelics(relicData);
+      }
 
       // Load owned quantities for all materials of this item
       const inv = repo.getMaterialInventory();
@@ -328,6 +335,47 @@ function ItemDetail({ params }) {
           <CraftingTreeNode node={craftingTree} owned={owned} depth={0} onOwnedChange={handleOwnedChange} />
         )}
       </div>
+
+      {item.name.includes(' Prime ') && (
+        <div className="card" style={{ marginTop: 14 }}>
+          <h2>Relics Needed</h2>
+          {relics.length === 0 ? (
+            <p className="muted">No relic data available for this item.</p>
+          ) : (
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Component</th>
+                    <th>Relic</th>
+                    <th>Rarity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {relics.map((group) =>
+                    group.relics.map((relic, idx) => (
+                      <tr key={group.componentName + '-' + idx}>
+                        {idx === 0 && (
+                          <td rowSpan={group.relics.length} style={{ verticalAlign: 'top', fontWeight: 500 }}>
+                            {group.componentName}
+                          </td>
+                        )}
+                        <td>
+                          {relic.relicName}
+                          {relic.vaulted && <span className="badge muted" style={{ marginLeft: 6, fontSize: 11 }}>vaulted</span>}
+                        </td>
+                        <td>
+                          <span className={`badge rarity-${relic.rarity.toLowerCase()}`}>{relic.rarity}</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -22,7 +22,7 @@ describe('prebuild cache freshness', () => {
     // which parallel test files parse at module load (#127: a mid-write
     // read there fails the whole sibling test file with a JSON error).
     const tmpDir = mkdtempSync(resolve(os.tmpdir(), 'prebuild-test-'));
-    execSync(`yarn node "${PREBUILD_SCRIPT}"`, {
+    execSync(`node "${PREBUILD_SCRIPT}"`, {
       cwd: ROOT,
       stdio: 'pipe',
       env: { ...process.env, PREBUILD_OUT_DIR: tmpDir },
