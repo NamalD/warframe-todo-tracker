@@ -144,6 +144,7 @@ export default class LoadoutRepository {
             reqs.push({
               name: req.name,
               loadout: loadout.name,
+              loadoutId: loadout.id,
               slot: slot.slot_type,
             });
           }
