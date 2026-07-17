@@ -6,6 +6,28 @@ This file provides guidance to AI coding agents (Hermes, Claude Code, etc.) work
 
 **Every change must be made in a fresh worktree created from `main`.** Do not edit files directly in the main checkout. Create the worktree at `./worktrees/<branch-name>`, make your changes there, and clean it up after the PR is merged. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the exact sequence.
 
+## Branch freshness requirement
+
+**Before opening a PR, ensure the feature branch is up to date with `main`.** If `main` has moved forward since the worktree was created, rebase or merge `main` into the feature branch before pushing and opening the PR. This avoids "out of date with base branch" CI failures and keeps the PR diff clean.
+
+Quick check:
+```bash
+git fetch origin main
+git status -sb | grep -q 'behind' && echo "REBASE NEEDED" || echo "up to date"
+```
+
+Or use the helper script:
+```bash
+bash scripts/check-branch-freshness.sh
+```
+
+If behind:
+```bash
+git rebase origin/main
+# resolve any conflicts, then:
+git push --force-with-lease
+```
+
 ## Project
 
 Warframe TODO Tracker — a Next.js 14 App Router app for tracking Warframe craftable items, materials, mods, loadouts, and crafting progress. Single developer (NamalD on GitHub), deployed via Docker on a VPS at warframe.namal.dev.
