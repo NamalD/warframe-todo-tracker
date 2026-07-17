@@ -8,7 +8,8 @@ Every repository modification ships through the same sequence:
 
 1. Ensure the main checkout is clean (`git status` shows no modifications).
 2. Create a fresh worktree from `main`: `git worktree add ./worktrees/<branch-name> -b <branch-name> main`.
-3. `cd` into the worktree and make changes there.
+3. `cd` into the worktree and run `yarn install` to restore the Yarn PnP cache (the worktree does not inherit `.yarn/cache` from the main checkout).
+4. `cd` into the worktree and make changes there.
 4. Commit with an issue reference.
 5. Push the branch.
 6. Open a PR.

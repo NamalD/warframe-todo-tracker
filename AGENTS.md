@@ -6,6 +6,8 @@ This file provides guidance to AI coding agents (Hermes, Claude Code, etc.) work
 
 **Every change must be made in a fresh worktree created from `main`.** Do not edit files directly in the main checkout. Create the worktree at `./worktrees/<branch-name>`, make your changes there, and clean it up after the PR is merged. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the exact sequence.
 
+**After `git worktree add`, run `yarn install` inside the worktree.** The worktree does not inherit `.yarn/cache` from the main checkout, so Yarn PnP resolution will fail until dependencies are installed.
+
 ## Branch freshness requirement
 
 **Before opening a PR, ensure the feature branch is up to date with `main`.** If `main` has moved forward since the worktree was created, rebase or merge `main` into the feature branch before pushing and opening the PR. This avoids "out of date with base branch" CI failures and keeps the PR diff clean.
