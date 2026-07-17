@@ -67,6 +67,8 @@ function categoryToItemType(category) {
     'Primary': 'primary',
     'Secondary': 'secondary',
     'Melee': 'melee',
+    'Arch-Gun': 'archgun',
+    'Arch-Melee': 'archmelee',
   };
   return map[category] || category.toLowerCase();
 }
@@ -624,7 +626,7 @@ async function main() {
   console.log('[prebuild] Loading @wfcd/items...');
   const { default: Items } = await import('@wfcd/items');
 
-  const categories = ['Warframes', 'Primary', 'Secondary', 'Melee', 'Sentinels'];
+  const categories = ['Warframes', 'Primary', 'Secondary', 'Melee', 'Sentinels', 'Arch-Gun', 'Arch-Melee'];
   console.log(`[prebuild] Loading categories: ${categories.join(', ')}`);
 
   const raw = new Items({ category: categories, i18n: false, i18nOnObject: false });

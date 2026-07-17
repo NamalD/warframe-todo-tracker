@@ -9,6 +9,8 @@ const CATEGORY_LABELS = {
   primary: 'Primary',
   secondary: 'Secondary',
   melee: 'Melee',
+  archgun: 'Arch-Gun',
+  archmelee: 'Arch-Melee',
   sentinels: 'Sentinels',
   tektolyst_artifact: 'Tektolyst Artifact',
   companion: 'Companion',
