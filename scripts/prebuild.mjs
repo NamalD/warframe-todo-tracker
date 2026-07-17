@@ -21,6 +21,7 @@ import { pipeline } from 'stream/promises';
 import https from 'https';
 import http from 'http';
 import { URL } from 'url';
+import { ITEM_TYPE_MAP } from '../src/data/categories.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -62,13 +63,7 @@ function resolveName(uniqueName, lookupMap) {
 
 /** Map category string from @wfcd/items to app item_type */
 function categoryToItemType(category) {
-  const map = {
-    'Warframes': 'warframe',
-    'Primary': 'primary',
-    'Secondary': 'secondary',
-    'Melee': 'melee',
-  };
-  return map[category] || category.toLowerCase();
+  return ITEM_TYPE_MAP[category] || category.toLowerCase();
 }
 
 /** Construct a wiki URL fallback */
@@ -624,7 +619,7 @@ async function main() {
   console.log('[prebuild] Loading @wfcd/items...');
   const { default: Items } = await import('@wfcd/items');
 
-  const categories = ['Warframes', 'Primary', 'Secondary', 'Melee', 'Sentinels'];
+  const categories = ['Warframes', 'Primary', 'Secondary', 'Melee', 'Sentinels', 'Arch-Gun', 'Arch-Melee'];
   console.log(`[prebuild] Loading categories: ${categories.join(', ')}`);
 
   const raw = new Items({ category: categories, i18n: false, i18nOnObject: false });

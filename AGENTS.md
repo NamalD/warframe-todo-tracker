@@ -121,10 +121,21 @@ These docs explain *why* the data layer is shaped this way, but the code is the 
 
 This project follows the compound engineering loop: **Brainstorm → Plan → Work → Review → Compound → Repeat**. All CE skills are installed as Pi skills and can be invoked directly.
 
+### CE skill invocation
+
+**`ce-lite` is a Pi skill, not a subagent.** It is a lightweight router that selects the right CE skill for the task. To use it:
+
+1. Read `~/.pi/agent/skills/ce-lite/SKILL.md` (or the project-local copy under `.pi/skills/`).
+2. Match the user's intent to the routing table inside that file.
+3. Read the matched skill's `SKILL.md` and follow its instructions.
+
+**Do not use the `subagent` tool for CE skills.** Skills are loaded into the current agent's context by reading their `SKILL.md`; subagents are separate agent runtimes. The CE plugin installs skills only — there are no CE subagents.
+
 ### Available CE skills
 
 | Skill | Purpose |
 |-------|---------|
+| `ce-lite` | Router skill — matches intent to the right CE skill without loading all 21 descriptions |
 | `ce-brainstorm` | Explore vague or ambitious ideas into a right-sized requirements-only unified plan |
 | `ce-plan` | Create structured plans for multi-step work from requirements |
 | `ce-work` | Execute a plan or concrete work prompt end-to-end |

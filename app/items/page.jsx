@@ -3,16 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import repo from '../../src/data/store.ts';
 import MultiSelectPillFilter from '../components/MultiSelectPillFilter.jsx';
-
-const CATEGORY_LABELS = {
-  warframe: 'Warframe',
-  primary: 'Primary',
-  secondary: 'Secondary',
-  melee: 'Melee',
-  sentinels: 'Sentinels',
-  tektolyst_artifact: 'Tektolyst Artifact',
-  companion: 'Companion',
-};
+import { CATEGORY_LABELS } from '../../src/data/categories.mjs';
 
 function ItemsList() {
   const [showTrackedOnly, setShowTrackedOnly] = useState(false);
