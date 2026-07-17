@@ -21,6 +21,7 @@ import { pipeline } from 'stream/promises';
 import https from 'https';
 import http from 'http';
 import { URL } from 'url';
+import { ITEM_TYPE_MAP } from '../src/data/categories.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -62,15 +63,7 @@ function resolveName(uniqueName, lookupMap) {
 
 /** Map category string from @wfcd/items to app item_type */
 function categoryToItemType(category) {
-  const map = {
-    'Warframes': 'warframe',
-    'Primary': 'primary',
-    'Secondary': 'secondary',
-    'Melee': 'melee',
-    'Arch-Gun': 'archgun',
-    'Arch-Melee': 'archmelee',
-  };
-  return map[category] || category.toLowerCase();
+  return ITEM_TYPE_MAP[category] || category.toLowerCase();
 }
 
 /** Construct a wiki URL fallback */
