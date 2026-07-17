@@ -1,9 +1,21 @@
+---
+problem_type: best_practice
+category: tooling-decisions
+tags:
+  - relics
+  - wfcd-items
+  - prebuild
+  - cache
+  - prime-relic-map
+date: 2026-07-17
+---
+
 # Void Relic Tracking — Data Model Learnings
 
-## Problem
-Adding a "Relics Needed" section to the item detail page required extracting relic data from `@wfcd/items` and mapping it to prime item components.
+## Context
+Adding a "Relics Needed" section to the item detail page required extracting relic data from `@wfcd/items` and mapping it to prime item components. The `@wfcd/items` package ships 3,096 relics with complete reward tables, vaulting status, and rarity tiers, but the app's prebuild script previously skipped the Relics category entirely.
 
-## Solution
+## Guidance
 
 ### @wfcd/items Relic Object Shape
 Relic objects expose:
@@ -17,29 +29,52 @@ Relic objects expose:
 - Warframe parts: `Helmet Component` → `Neuroptics`, `Chassis Component` → `Chassis`, `Systems Component` → `Systems`
 - Weapon parts: `Barrel`, `Handle`, `Stock`, `Receiver`, `Boot`, `Cerebrum`, etc.
 
-The prebuild script's `normalizeComponentDisplayName` must handle all three Warframe component suffixes.
+The prebuild script's `normalizeComponentDisplayName` handles all three Warframe component suffixes.
 
 ### Prime Component Matching
 Relic reward names don't always match material names exactly:
 - Warframe parts: reward has `Blueprint` suffix (e.g., "Grendel Prime Systems Blueprint" vs material "Grendel Prime Systems")
 - Weapon parts: no `Blueprint` suffix (e.g., "Akstiletto Prime Barrel")
 
-Matching logic must handle both cases.
+The matching logic handles both cases.
 
 ### Separate Cache Pattern
-When adding a new data domain (relics), use a separate cache file (`relics-cache.json`) with its own localStorage cache key. The `initRelics` method should:
-1. Fetch `/data/relics-cache.json`
-2. Check localStorage for cached version matching package version + schema version
-3. Fall back to localStorage on fetch failure (don't discard cached data)
+When adding a new data domain (relics), use a separate cache file (`relics-cache.json`) with its own localStorage cache key. The `initRelics` method:
+1. Fetches `/data/relics-cache.json`
+2. Checks localStorage for a cached version matching package version + schema version
+3. Falls back to localStorage on fetch failure (does not discard cached data)
 
-## Files
-- `scripts/prebuild.mjs` — relic extraction and `primeRelicMap` generation
-- `src/data/repository.ts` — `initRelics()` and `getRelicsForItem()`
-- `app/items/[id]/page.jsx` — "Relics Needed" section rendering
-- `public/data/relics-cache.json` — generated cache (1.3 MB, 12K+ pairs)
+## Why This Matters
+Without these patterns, relic data integration would require schema migrations to the core `wfcd-cache.json`, and missing cache fallbacks would break the item detail page for offline users. The separate cache keeps relic data isolated as it grows (drop rates, refinement tables, farming routes).
 
-## Stats
-- 3,096 relics processed
-- 130 prime items mapped
-- 12,656 relic-component pairs (after normalization fixes)
-- 18 Requiem relics (8 rewards each, all Rare)
+## When to Apply
+- Integrating a new `@wfcd/items` category into the prebuild pipeline
+- Adding a new client-side data domain with its own cache lifecycle
+- Matching game-item names across different `@wfcd/items` object shapes
+
+## Examples
+
+### Prebuild: primeRelicMap extraction
+```js
+// scripts/prebuild.mjs
+const relicsRaw = new Items({ category: ['Relics'], i18n: false, i18nOnObject: false });
+// Build primeRelicMap: itemId → componentName → [{ relicName, vaulted, rarity }]
+```
+
+### Repository: separate cache with fallback
+```ts
+// src/data/repository.ts
+async initRelics() {
+  try {
+    const res = await fetch('/data/relics-cache.json');
+    // ... version check, localStorage cache ...
+  } catch (err) {
+    // Fall back to localStorage on fetch failure
+    this.primeRelicMap = {};
+  }
+}
+```
+
+## Related
+- Issue #29 — feature request
+- PR #194 — implementation
