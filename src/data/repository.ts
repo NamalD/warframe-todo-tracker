@@ -53,6 +53,8 @@ export default class Repository {
   treeRelationships = [];
   /** @type {Record<string, { [componentName: string]: { materials: Array<{ name: string; quantity: number }>; quantity: number } }>} */
   warframeComponentSubMaterials = {};
+  /** @type {Record<string, { [componentName: string]: Array<{ relicName: string; relicUniqueName: string; vaulted: boolean; rarity: string }> }>} */
+  primeRelicMap = {};
   /** @type {Todo[]} */
   todos = [...SEED_TODOS.map(t => ({ ...t }))];
   /** @type {MaterialInventory} */
@@ -241,6 +243,60 @@ export default class Repository {
       console.error('Failed to load Warframe item data:', err);
       this.#refDataInitialized = true;
     }
+  }
+
+  // ── Relics cache ────────────────────────────────────────────────
+  async initRelics() {
+    if (typeof window === 'undefined') return;
+    const RELICS_CACHE_KEY = 'warframe-relics-cache';
+    try {
+      const res = await fetch('/data/relics-cache.json');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const fetched = await res.json();
+
+      const cachedRaw = localStorage.getItem(RELICS_CACHE_KEY);
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          if (cached.version === fetched.version && cached.schemaVersion === fetched.schemaVersion) {
+            this.primeRelicMap = cached.primeRelicMap || {};
+            return;
+          }
+        } catch (_e) { /* fall through */ }
+      }
+
+      this.primeRelicMap = fetched.primeRelicMap || {};
+      localStorage.setItem(RELICS_CACHE_KEY, JSON.stringify({
+        version: fetched.version,
+        schemaVersion: fetched.schemaVersion,
+        cachedAt: fetched.cachedAt,
+        primeRelicMap: fetched.primeRelicMap,
+      }));
+    } catch (err) {
+      console.warn('Failed to load relics cache:', err);
+      // Fallback to localStorage cache if fetch fails
+      if (typeof window !== 'undefined') {
+        const cachedRaw = localStorage.getItem(RELICS_CACHE_KEY);
+        if (cachedRaw) {
+          try {
+            const cached = JSON.parse(cachedRaw);
+            this.primeRelicMap = cached.primeRelicMap || {};
+            return;
+          } catch (_e) { /* fall through */ }
+        }
+      }
+      this.primeRelicMap = {};
+    }
+  }
+
+  async getRelicsForItem(itemId) {
+    await this.#ensureRefDataInitialized();
+    await this.initRelics();
+    const relics = this.primeRelicMap[itemId] || {};
+    return Object.entries(relics).map(([componentName, entries]) => ({
+      componentName,
+      relics: entries.map((e) => ({ ...e })),
+    }));
   }
 
   // Material Inventory

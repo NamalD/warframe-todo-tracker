@@ -548,9 +548,12 @@ const INCARNON_VARIANT_MAP = {
   'Dex Sybaris': 'Sybaris',
 };
 
-/** Convert "Ash Helmet Component" → "Ash Neuroptics" */
+/** Convert "Ash Helmet Component" → "Ash Neuroptics", etc. */
 function normalizeComponentDisplayName(materialName) {
-  return materialName.replace(/Helmet Component$/, 'Neuroptics');
+  return materialName
+    .replace(/Helmet Component$/, 'Neuroptics')
+    .replace(/Chassis Component$/, 'Chassis')
+    .replace(/Systems Component$/, 'Systems');
 }
 
 /** Helpers to look up Incarnon costs by base name or variant name */
@@ -925,6 +928,95 @@ async function main() {
 
   const sizeKB = (JSON.stringify(output).length / 1024).toFixed(1);
   console.log(`[prebuild] Written ${sizeKB} KB to ${outPath}`);
+
+  // ── Relics cache (primeRelicMap) ───────────────────────────────
+  // Build a map of prime item ID → component → relics that drop it.
+  // This powers the "Relics Needed" section on item detail pages.
+  console.log('[prebuild] Loading Relics for primeRelicMap...');
+  const relicsRaw = new Items({ category: ['Relics'], i18n: false, i18nOnObject: false });
+  console.log(`[prebuild] Loaded ${relicsRaw.length} relics`);
+
+  // Build set of prime component names from our materials for matching.
+  // Prime components look like "Grendel Prime Neuroptics", "Trinity Prime Systems", etc.
+  const primeComponentNames = new Set();
+  const primeItemIdsByName = new Map();
+  for (const mat of materials) {
+    const name = mat.material_name || '';
+    if (name.includes(' Prime ')) {
+      primeComponentNames.add(name);
+      // Extract base prime item name: "Grendel Prime Neuroptics" → "Grendel Prime"
+      const basePrimeName = name.replace(/ (Neuroptics|Chassis|Systems|Blueprint|Barrel|Handle|Stock|Head|Blade|Gauntlet|Chest|Legs|Wings|Carapace|Cranium|Muzzle|Grip|Link|Guard|Disc|Chain|Pouch|Hilt|Ornament|Skin|Helmet|Quiver|String|Polearm|Receiver|Boot|Cerebrum)$/, '');
+      if (!primeItemIdsByName.has(basePrimeName)) {
+        const item = items.find((it) => it.name === basePrimeName);
+        if (item) primeItemIdsByName.set(basePrimeName, item.id);
+      }
+    }
+  }
+  console.log(`[prebuild] Prime components: ${primeComponentNames.size}, prime items: ${primeItemIdsByName.size}`);
+
+  // Helper: check if a reward name matches a prime component name
+  function matchesPrimeComponent(rewardName, componentName) {
+    if (rewardName === componentName) return true;
+    // Warframe parts often have "Blueprint" suffix in rewards
+    if (rewardName === componentName + ' Blueprint') return true;
+    // Some weapons have "Blueprint" for the main item but not parts
+    if (componentName.endsWith(' Blueprint') && rewardName === componentName) return true;
+    return false;
+  }
+
+  const primeRelicMap = {};
+  let relicMatchCount = 0;
+
+  for (const relic of relicsRaw) {
+    if (!relic.rewards || relic.rewards.length === 0) continue;
+
+    for (const reward of relic.rewards) {
+      const rewardName = reward.item?.name || '';
+      if (!rewardName.includes(' Prime ')) continue;
+
+      // Find matching component
+      for (const componentName of primeComponentNames) {
+        if (matchesPrimeComponent(rewardName, componentName)) {
+          // Find the prime item ID for this component
+          const basePrimeName = componentName.replace(/ (Neuroptics|Chassis|Systems|Blueprint|Barrel|Handle|Stock|Head|Blade|Gauntlet|Chest|Legs|Wings|Carapace|Cranium|Muzzle|Grip|Link|Guard|Disc|Chain|Pouch|Hilt|Ornament|Skin|Helmet|Quiver|String|Polearm|Receiver|Boot|Cerebrum)$/, '');
+          const itemId = primeItemIdsByName.get(basePrimeName);
+          if (!itemId) continue;
+
+          if (!primeRelicMap[itemId]) primeRelicMap[itemId] = {};
+          if (!primeRelicMap[itemId][componentName]) primeRelicMap[itemId][componentName] = [];
+          
+          // Avoid duplicate relic entries for the same component
+          const existing = primeRelicMap[itemId][componentName];
+          const alreadyAdded = existing.some((e) => e.relicUniqueName === relic.uniqueName);
+          if (!alreadyAdded) {
+            existing.push({
+              relicName: relic.name,
+              relicUniqueName: relic.uniqueName,
+              vaulted: !!relic.vaulted,
+              rarity: reward.rarity || 'Common',
+            });
+            relicMatchCount++;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  console.log(`[prebuild] primeRelicMap: ${relicMatchCount} relic-component pairs across ${Object.keys(primeRelicMap).length} prime items`);
+
+  const relicsOutput = {
+    version,
+    schemaVersion: SCHEMA_VERSION,
+    cachedAt: new Date().toISOString(),
+    primeRelicMap,
+  };
+
+  const relicsOutPath = resolve(outDir, 'relics-cache.json');
+  writeFileSync(relicsOutPath, JSON.stringify(relicsOutput), 'utf8');
+
+  const relicsSizeKB = (JSON.stringify(relicsOutput).length / 1024).toFixed(1);
+  console.log(`[prebuild] Relics cache: ${relicsSizeKB} KB to ${relicsOutPath}`);
 
   // ── Mods cache ────────────────────────────────────────────────
   console.log('[prebuild] Loading Mods category...');
