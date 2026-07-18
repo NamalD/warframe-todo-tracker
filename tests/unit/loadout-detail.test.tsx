@@ -35,11 +35,11 @@ const { mockLoadouts, mockItems, mockLoadoutRepo } = vi.hoisted(() => {
     },
     updateSlot(loadoutId, slotId, updates) {
       const loadout = loads.find((l) => l.id === loadoutId);
-      if (!loadout) return null;
+      if (!loadout) return Promise.resolve(null);
       const slot = (loadout.slots || []).find((s) => s.id === slotId);
-      if (!slot) return null;
+      if (!slot) return Promise.resolve(null);
       Object.assign(slot, updates);
-      return { ...slot };
+      return Promise.resolve({ ...slot });
     },
     updateRequirement(slotId, reqId, updates) {
       for (const loadout of loads) {
@@ -47,17 +47,17 @@ const { mockLoadouts, mockItems, mockLoadoutRepo } = vi.hoisted(() => {
           const req = (slot.requirements || []).find((r) => r.id === reqId);
           if (req) {
             Object.assign(req, updates);
-            return { ...req };
+            return Promise.resolve({ ...req });
           }
         }
       }
-      return null;
+      return Promise.resolve(null);
     },
-    deleteLoadout: vi.fn(),
-    deleteSlot: vi.fn(),
-    deleteRequirement: vi.fn(),
-    addRequirement: vi.fn(() => ({ id: 'new-req' })),
-    addSlot: vi.fn(),
+    deleteLoadout: vi.fn(() => Promise.resolve(true)),
+    deleteSlot: vi.fn(() => Promise.resolve(true)),
+    deleteRequirement: vi.fn(() => Promise.resolve(true)),
+    addRequirement: vi.fn(() => Promise.resolve({ id: 'new-req' })),
+    addSlot: vi.fn(() => Promise.resolve({ id: 'new-slot' })),
     getLoadouts: vi.fn(() => []),
   };
   return { mockLoadouts: loads, mockItems: items, mockLoadoutRepo: repo };

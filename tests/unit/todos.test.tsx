@@ -42,33 +42,33 @@ vi.mock('../../src/data/store.ts', () => ({
         updated_at: new Date().toISOString(),
       };
       state.todos.push(entry);
-      return { ...entry };
+      return Promise.resolve({ ...entry });
     }),
     updateTodoStatus: vi.fn((id, status) => {
       const t = state.todos.find((td) => td.id === id);
       if (t) {
         t.status = status;
         t.updated_at = new Date().toISOString();
-        return { ...t };
+        return Promise.resolve({ ...t });
       }
-      return null;
+      return Promise.resolve(null);
     }),
     updateTodoNotes: vi.fn((id, notes) => {
       const t = state.todos.find((td) => td.id === id);
       if (t) {
         t.user_notes = notes;
         t.updated_at = new Date().toISOString();
-        return { ...t };
+        return Promise.resolve({ ...t });
       }
-      return null;
+      return Promise.resolve(null);
     }),
     deleteTodo: vi.fn((id) => {
       const idx = state.todos.findIndex((t) => t.id === id);
       if (idx !== -1) {
         state.todos.splice(idx, 1);
-        return true;
+        return Promise.resolve(true);
       }
-      return false;
+      return Promise.resolve(false);
     }),
   },
 }));

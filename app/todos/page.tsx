@@ -16,6 +16,7 @@ function Todos() {
   const [items, setItems] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -53,33 +54,48 @@ function Todos() {
     setStatusDraft(todo.status || 'pending');
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingId) return;
-    repo.updateTodoStatus(editingId, statusDraft);
-    repo.updateTodoNotes(editingId, notesDraft);
-    setEditingId(null);
-    load();
+    setSaving(true);
+    try {
+      await repo.updateTodoStatus(editingId, statusDraft);
+      await repo.updateTodoNotes(editingId, notesDraft);
+      setEditingId(null);
+      load();
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!confirm('Delete this todo?')) return;
-    repo.deleteTodo(id);
-    load();
+    setSaving(true);
+    try {
+      await repo.deleteTodo(id);
+      load();
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const create = (e) => {
+  const create = async (e) => {
     e.preventDefault();
     if (!newForm.notes.trim()) return;
-    repo.addTodo({
-      craftable_item_id: newForm.craftable_item_id || null,
-      linked_material_name: newForm.linked_material_name || null,
-      user_notes: newForm.notes.trim(),
-      status: newForm.status,
-      priority: 'medium',
-      due_at: null,
-    });
-    setNewForm({ notes: '', status: 'pending', craftable_item_id: '', linked_material_name: '' });
-    load();
+    setSaving(true);
+    try {
+      await repo.addTodo({
+        craftable_item_id: newForm.craftable_item_id || null,
+        linked_material_name: newForm.linked_material_name || null,
+        user_notes: newForm.notes.trim(),
+        status: newForm.status,
+        priority: 'medium',
+        due_at: null,
+      });
+      setNewForm({ notes: '', status: 'pending', craftable_item_id: '', linked_material_name: '' });
+      load();
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Resolve item names sync from already-loaded items list (no async needed)
@@ -125,7 +141,7 @@ function Todos() {
               </option>
             ))}
           </select>
-          <button className="btn primary" type="submit">Add</button>
+          <button className={`btn primary${saving ? ' loading' : ''}`} type="submit">Add</button>
         </div>
       </form>
 
@@ -162,13 +178,13 @@ function Todos() {
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
-                    <button className="btn primary" onClick={saveEdit}>Save</button>
+                    <button className={`btn primary${saving ? ' loading' : ''}`} onClick={saveEdit}>Save</button>
                     <button className="btn" onClick={() => setEditingId(null)}>Cancel</button>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button className="btn" onClick={() => startEdit(todo)}>Edit</button>
-                    <button className="btn" onClick={() => handleDelete(todo.id)}>Delete</button>
+                    <button className={`btn${saving ? ' loading' : ''}`} onClick={() => handleDelete(todo.id)}>Delete</button>
                   </div>
                 )}
               </div>
