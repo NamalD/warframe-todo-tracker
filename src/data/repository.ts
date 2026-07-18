@@ -569,28 +569,33 @@ export default class Repository {
   // Todos
   getTodos() { return this.todos.map((t) => ({ ...t })); }
 
-  addTodo(todo) {
-    const entry = { ...todo, id: todo.id || `todo-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+  async addTodo(todo) {
+    const entry = {
+      ...todo,
+      id: todo.id || `todo-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
     this.todos.push(entry);
-    this.#pushTodos().catch(() => {});
+    await this.#pushTodos().catch(() => {});
     return { ...entry };
   }
 
-  updateTodoStatus(id, status) {
+  async updateTodoStatus(id, status) {
     const target = this.todos.find((t) => t.id === id);
     if (!target) return null;
     target.status = status;
     target.updated_at = new Date().toISOString();
-    this.#patchTodo(target).catch(() => {});
+    await this.#patchTodo(target).catch(() => {});
     return { ...target };
   }
 
-  updateTodoNotes(id, notes) {
+  async updateTodoNotes(id, notes) {
     const target = this.todos.find((t) => t.id === id);
     if (!target) return null;
     target.user_notes = notes;
     target.updated_at = new Date().toISOString();
-    this.#patchTodo(target).catch(() => {});
+    await this.#patchTodo(target).catch(() => {});
     return { ...target };
   }
 
@@ -615,12 +620,12 @@ export default class Repository {
     }
   }
 
-  deleteTodo(id) {
+  async deleteTodo(id) {
     const target = this.todos.find((t) => t.id === id);
     const before = this.todos.length;
     this.todos = this.todos.filter((t) => t.id !== id);
     if (this.todos.length !== before) {
-      this.#deleteTodoOnServer(id, target?.version ?? 0).catch(() => {});
+      await this.#deleteTodoOnServer(id, target?.version ?? 0).catch(() => {});
       return true;
     }
     return false;

@@ -1,0 +1,313 @@
+// @ts-nocheck
+'use client';
+import React, { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import repo from '../src/data/store.ts';
+import modRepo from '../src/data/mod-store.ts';
+import LoadoutDashboardSection from '../src/components/loadout-dashboard-section';
+import { aggregateTrackedMaterials } from '../src/data/material-aggregator.ts';
+import loadoutRepo from '../src/data/loadout-store.ts';
+import BuildDashboardSection from '../src/components/build-dashboard-section';
+
+function Home() {
+  const [items, setItems] = useState([]);
+  const [todos, setTodos] = useState([]);
+  const [materialsList, setMaterialsList] = useState([]);
+  const [trackedMods, setTrackedMods] = useState([]);
+  const [modsLoading, setModsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      await repo.initTodos();
+      await repo.initMaterials();
+      const allItems = await repo.getAllItems();
+      setItems(allItems);
+      setTodos(repo.getTodos());
+
+      const inv = repo.getMaterialInventory();
+      await loadoutRepo.init();
+      const lrReqs = loadoutRepo.getAllRequirements();
+      setMaterialsList(await aggregateTrackedMaterials(allItems, inv, (id) => repo.getMaterialsForItem(id), lrReqs));
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  useEffect(() => {
+    modRepo.getTrackedMods()
+      .then((data) => { setTrackedMods(data); setModsLoading(false); })
+      .catch(() => setModsLoading(false));
+  }, []);
+
+  const handleOwnedChange = useCallback((materialName, value) => {
+    const newQty = repo.setOwnedQuantity(materialName, value);
+    setMaterialsList((prev) =>
+      prev.map((m) => {
+        if (m.name !== materialName) return m;
+        const deficit = Math.max(0, m.quantity - newQty);
+        return { ...m, owned: newQty, deficit, done: deficit <= 0 };
+      })
+    );
+  }, []);
+
+  // Tracked items
+  const trackedItems = items.filter((it) => it.is_user_tracked);
+
+  // Incarnon-tracked items not yet installed
+  const pendingIncarnon = items.filter((it) => it.track_incarnon_install && !it.incarnon_installed);
+  const completedIncarnon = items.filter((it) => it.track_incarnon_install && it.incarnon_installed);
+
+  // Materials still outstanding (hide fully-owned materials from the dashboard)
+  const outstandingMaterials = materialsList.filter((m) => !m.done);
+
+  // Count tracked items where ALL required materials are owned
+  const countReadyToCraft = () => {
+    let ready = 0;
+    for (const item of trackedItems) {
+      const itemMats = materialsList.filter((m) =>
+        m.items.some((i) => i.id === item.id)
+      );
+      if (itemMats.length > 0 && itemMats.every((m) => m.done)) {
+        ready++;
+      }
+    }
+    return ready;
+  };
+
+  // Todo counts
+  const pendingTodos = todos.filter((t) => t.status === 'pending');
+  const inProgressTodos = todos.filter((t) => t.status === 'in_progress');
+
+  if (loading) {
+    return (
+      <div>
+        <div className="detail-header" style={{ marginBottom: 14 }}>
+          <h1 style={{ margin: 0, fontSize: 22, color: '#ffcf6a' }}>Dashboard</h1>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 28 }}>
+          <div className="card">
+            <h2>Tracked Items</h2>
+            <div className="skeleton" style={{ height: 28, width: 40, margin: '8px 0' }} />
+            <div className="skeleton" style={{ height: 18, width: 140 }} />
+          </div>
+          <div className="card">
+            <h2>Todos</h2>
+            <div className="skeleton" style={{ height: 28, width: 160, margin: '8px 0' }} />
+          </div>
+        </div>
+        <div className="card">
+          <div className="skeleton" style={{ height: 18, width: 280, margin: '0 0 10px' }} />
+          <div className="skeleton" style={{ height: 16, width: 200 }} />
+        </div>
+        <div className="card">
+          <h2><span className="skeleton" style={{ height: 18, width: 140, display: 'inline-block' }} /></h2>
+          <div className="skeleton" style={{ height: 28, width: 40, margin: '8px 0' }} />
+          <div className="skeleton" style={{ height: 14, width: 180 }} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="detail-header" style={{ marginBottom: 14 }}>
+        <h1 style={{ margin: 0, fontSize: 22, color: '#ffcf6a' }}>Dashboard</h1>
+      </div>
+
+      <LoadoutDashboardSection />
+
+      {/* Summary cards row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 28 }}>
+        <div className="card">
+          <h2>Tracked Items</h2>
+          <div style={{ fontSize: 32, fontWeight: 700, color: '#ffcf6a', margin: '8px 0' }}>
+            {trackedItems.length}
+          </div>
+          {trackedItems.length > 0 && (
+            <p>
+              {countReadyToCraft()} ready to craft
+            </p>
+          )}
+          <p>
+            {trackedItems.length > 0 ? (
+              <Link href="/items" className="btn">View all items &rarr;</Link>
+            ) : (
+              <span>No items tracked yet.</span>
+            )}
+          </p>
+        </div>
+
+        {(pendingIncarnon.length > 0 || completedIncarnon.length > 0) && (
+          <div className="card" data-testid="incarnon-card">
+            <h2>Incarnon Installations</h2>
+            {pendingIncarnon.length > 0 && (
+              <div style={{ margin: '8px 0' }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#ff6b6b' }}>
+                  {pendingIncarnon.length}
+                </div>
+                <span className="badge" style={{ background: '#2e1a1a', color: '#ff6b6b', borderColor: '#4a2a2a' }}>
+                  pending install
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+                  {pendingIncarnon.map((it) => (
+                    <Link
+                      key={it.id}
+                      href={`/items/${it.id}`}
+                      style={{ color: '#7cc4ff', textDecoration: 'none', fontSize: 14 }}
+                    >
+                      {it.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            {completedIncarnon.length > 0 && (
+              <div style={{ margin: '8px 0' }}>
+                <div style={{ fontSize: 20, fontWeight: 600, color: '#6fcf97' }}>
+                  {completedIncarnon.length}
+                </div>
+                <span className="badge" style={{ background: '#1a2e1a', color: '#6fcf97', borderColor: '#2a4a2a' }}>
+                  installed
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {todos.length > 0 && (
+          <div className="card" data-testid="todos-card">
+            <h2>Todos</h2>
+            <div style={{ display: 'flex', gap: 20, margin: '8px 0' }}>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#f2c94c' }}>
+                  {inProgressTodos.length}
+                </div>
+                <span className="badge in_progress">in progress</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#b6bcc7' }}>
+                  {pendingTodos.length}
+                </div>
+                <span className="badge pending">pending</span>
+              </div>
+            </div>
+            <p>
+              <Link href="/todos" className="btn">View all todos &rarr;</Link>
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Mods to Acquire */}
+      {(modsLoading || trackedMods.length > 0) && (
+        <div className="card" style={{ marginBottom: 28 }} data-testid="mods-to-acquire-card">
+          <h2>Mods to Acquire</h2>
+          {modsLoading ? (
+            <div className="skeleton" style={{ height: 18, width: 120, margin: '8px 0' }} />
+          ) : (
+            <>
+              <div style={{ fontSize: 32, fontWeight: 700, color: '#ffcf6a', margin: '8px 0' }}>
+                {trackedMods.length}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                {trackedMods.map((mod) => (
+                  <div key={mod.id}>
+                    <Link href={`/mods/${mod.id}`} style={{ color: '#7cc4ff', textDecoration: 'none', fontSize: 14 }}>
+                      {mod.name}
+                    </Link>
+                    <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                      {mod.rarity} &middot; {mod.mod_type}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ marginTop: 12 }}>
+                <Link href="/mods" className="btn">View all mods &rarr;</Link>
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Materials needed summary */}
+      {materialsList.length > 0 && (
+        <div>
+          <h2 style={{ fontSize: 18, color: '#ffcf6a', marginBottom: 14 }}>
+            Materials Needed (Tracked Items)
+          </h2>
+          {outstandingMaterials.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+              {outstandingMaterials.map((mat) => (
+                <div className="card" key={mat.name} data-testid={`material-card-${mat.name.toLowerCase().replace(/\s+/g, '-')}`}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <div>
+                      <strong style={{ fontSize: 15, color: '#e7e9ee' }}>{mat.name}</strong>
+                      <div className="muted">
+                        <span>needs {mat.deficit.toLocaleString()} (owned {mat.owned.toLocaleString()} / {mat.quantity.toLocaleString()})</span>
+                      </div>
+                    </div>
+                    <span className="badge">{mat.items.length} item{mat.items.length > 1 ? 's' : ''}</span>
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    {mat.items.map((it) => (
+                      <div
+                        key={it.type === 'loadout' ? `${it.loadoutId}-${it.slot}` : `${it.id}::${it.label}`}
+                        style={{ fontSize: 13 }}
+                      >
+                        <Link href={it.type === 'loadout' ? `/loadouts/${it.loadoutId}` : `/items/${it.id}`}>
+                          {it.label}
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <label className="muted" htmlFor={`owned-${mat.name}`} style={{ fontSize: 13 }}>
+                      Owned
+                    </label>
+                    {mat.quantity === 1 ? (
+                      <input
+                        id={`owned-${mat.name}`}
+                        type="checkbox"
+                        checked={mat.owned >= 1}
+                        onChange={(e) => handleOwnedChange(mat.name, e.target.checked ? 1 : 0)}
+                        aria-label={`Owned quantity for ${mat.name}`}
+                      />
+                    ) : (
+                      <input
+                        id={`owned-${mat.name}`}
+                        className="owned-input"
+                        type="number"
+                        min="0"
+                        value={mat.owned}
+                        onChange={(e) => handleOwnedChange(mat.name, e.target.value)}
+                        aria-label={`Owned quantity for ${mat.name}`}
+                      />
+                    )}
+                  </div>
+                  <p style={{ marginTop: 10 }}>
+                    <Link href={`/sources?material=${encodeURIComponent(mat.name)}`}>
+                      View sources &rarr;
+                    </Link>
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card">
+              <p>All materials for your tracked items are already owned. ✓</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {materialsList.length === 0 && trackedItems.length === 0 && (
+        <div className="card">
+          <p>Start by tracking items and creating todos to see your dashboard.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Home;

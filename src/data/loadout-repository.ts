@@ -176,7 +176,7 @@ export default class LoadoutRepository {
     };
     this.#data.loadouts.push(loadout);
     // Fire-and-forget server create
-    this.#serverCreate(loadout).catch(() => {});
+    await this.#serverCreate(loadout).catch(() => {});
     return this.getLoadoutById(id);
   }
 
@@ -210,7 +210,7 @@ export default class LoadoutRepository {
     const loadout = this.#data.loadouts.find((l) => l.id === id);
     if (!loadout) return null;
     Object.assign(loadout, updates, { updated_at: this.#now() });
-    this.#patch(loadout).catch(() => {});
+    await this.#patch(loadout).catch(() => {});
     return this.getLoadoutById(id);
   }
 
@@ -220,7 +220,7 @@ export default class LoadoutRepository {
     this.#data.loadouts = this.#data.loadouts.filter((l) => l.id !== id);
     if (this.#data.loadouts.length !== before) {
       const version = target?.version ?? 0;
-      this.#serverDelete(id, version).catch(() => {});
+      await this.#serverDelete(id, version).catch(() => {});
       return true;
     }
     return false;
@@ -261,18 +261,18 @@ export default class LoadoutRepository {
     return { ...entry, requirements: [] };
   }
 
-  updateSlot(loadoutId, slotId, updates) {
+  async updateSlot(loadoutId, slotId, updates) {
     const loadout = this.#data.loadouts.find((l) => l.id === loadoutId);
     if (!loadout) return null;
     const slot = (loadout.slots || []).find((s) => s.id === slotId);
     if (!slot) return null;
     Object.assign(slot, updates);
     loadout.updated_at = this.#now();
-    this.#patch(loadout).catch(() => {});
+    await this.#patch(loadout).catch(() => {});
     return { ...slot, requirements: (slot.requirements || []).map((r) => ({ ...r })) };
   }
 
-  deleteSlot(loadoutId, slotId) {
+  async deleteSlot(loadoutId, slotId) {
     const loadout = this.#data.loadouts.find((l) => l.id === loadoutId);
     if (!loadout) return false;
     const slot = (loadout.slots || []).find((s) => s.id === slotId);
@@ -280,11 +280,11 @@ export default class LoadoutRepository {
     slot.item_id = null; slot.custom_item_name = null;
     slot.acquired = false; slot.notes = ''; slot.requirements = [];
     loadout.updated_at = this.#now();
-    this.#patch(loadout).catch(() => {});
+    await this.#patch(loadout).catch(() => {});
     return true;
   }
 
-  addRequirement(slotId, requirement) {
+  async addRequirement(slotId, requirement) {
     for (const loadout of this.#data.loadouts) {
       const slot = (loadout.slots || []).find((s) => s.id === slotId);
       if (slot) {
@@ -297,14 +297,14 @@ export default class LoadoutRepository {
         if (!slot.requirements) slot.requirements = [];
         slot.requirements.push(entry);
         loadout.updated_at = this.#now();
-        this.#patch(loadout).catch(() => {});
+        await this.#patch(loadout).catch(() => {});
         return { ...entry };
       }
     }
     return null;
   }
 
-  updateRequirement(slotId, requirementId, updates) {
+  async updateRequirement(slotId, requirementId, updates) {
     for (const loadout of this.#data.loadouts) {
       const slot = (loadout.slots || []).find((s) => s.id === slotId);
       if (slot) {
@@ -312,7 +312,7 @@ export default class LoadoutRepository {
         if (req) {
           Object.assign(req, updates);
           loadout.updated_at = this.#now();
-          this.#patch(loadout).catch(() => {});
+          await this.#patch(loadout).catch(() => {});
           return { ...req };
         }
       }
@@ -320,7 +320,7 @@ export default class LoadoutRepository {
     return null;
   }
 
-  deleteRequirement(slotId, requirementId) {
+  async deleteRequirement(slotId, requirementId) {
     for (const loadout of this.#data.loadouts) {
       const slot = (loadout.slots || []).find((s) => s.id === slotId);
       if (slot) {
@@ -328,7 +328,7 @@ export default class LoadoutRepository {
         slot.requirements = (slot.requirements || []).filter((r) => r.id !== requirementId);
         if (slot.requirements.length !== before) {
           loadout.updated_at = this.#now();
-          this.#patch(loadout).catch(() => {});
+          await this.#patch(loadout).catch(() => {});
           return true;
         }
         return false;
