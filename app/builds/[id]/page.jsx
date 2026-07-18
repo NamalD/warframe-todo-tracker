@@ -15,6 +15,7 @@ function BuildDetailInner() {
   const [build, setBuild] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Edition state
   const [editing, setEditing] = useState(false);
@@ -47,10 +48,15 @@ function BuildDetailInner() {
     setBuild(b);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!confirm('Delete this build? All requirements will be lost.')) return;
-    buildRepo.deleteBuild(id);
-    router.push('/builds');
+    setSaving(true);
+    try {
+      await buildRepo.deleteBuild(id);
+      router.push('/builds');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Edit ──
@@ -62,11 +68,16 @@ function BuildDetailInner() {
     setEditing(true);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!buildRepo || !build) return;
-    buildRepo.updateBuild(build.id, { acquired: editAcquired, notes: editNotes });
-    setEditing(false);
-    refresh();
+    setSaving(true);
+    try {
+      await buildRepo.updateBuild(build.id, { acquired: editAcquired, notes: editNotes });
+      setEditing(false);
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const cancelEdit = () => {
@@ -75,52 +86,72 @@ function BuildDetailInner() {
 
   // ── Link to item ──
 
-  const handleLinkItem = () => {
+  const handleLinkItem = async () => {
     if (!selectedItemId || !buildRepo || !build) return;
     const item = items.find((it) => it.id === selectedItemId);
     if (!item) return;
-    buildRepo.updateBuild(build.id, {
-      item_id: item.id,
-      custom_item_name: null,
-      wiki_url: item.wiki_url || null
-    });
-    setLinkingItem(false);
-    setSelectedItemId('');
-    refresh();
+    setSaving(true);
+    try {
+      await buildRepo.updateBuild(build.id, {
+        item_id: item.id,
+        custom_item_name: null,
+        wiki_url: item.wiki_url || null
+      });
+      setLinkingItem(false);
+      setSelectedItemId('');
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleUnlinkItem = () => {
+  const handleUnlinkItem = async () => {
     if (!confirm('Remove the link to this item?')) return;
-    buildRepo.updateBuild(build.id, { item_id: null, wiki_url: null });
-    refresh();
+    setSaving(true);
+    try {
+      await buildRepo.updateBuild(build.id, { item_id: null, wiki_url: null });
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Requirement CRUD ──
 
-  const handleAddRequirement = (e) => {
+  const handleAddRequirement = async (e) => {
     e.preventDefault();
     if (!reqForm.name.trim() || !buildRepo || !build) return;
 
-    buildRepo.addRequirement(build.id, {
-      name: reqForm.name.trim(),
-      wiki_url: reqForm.wiki_url.trim() || null,
-      user_notes: reqForm.user_notes.trim() || ''
-    });
+    setSaving(true);
+    try {
+      buildRepo.addRequirement(build.id, {
+        name: reqForm.name.trim(),
+        wiki_url: reqForm.wiki_url.trim() || null,
+        user_notes: reqForm.user_notes.trim() || ''
+      });
+      setReqForm({ name: '', wiki_url: '', user_notes: '' });
+      setReqFormVisible(false);
+      refresh();
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    setReqForm({ name: '', wiki_url: '', user_notes: '' });
-    setReqFormVisible(false);
+  const handleReqAcquired = async (reqId, acquired) => {
+    if (!buildRepo || !build) return;
+    await buildRepo.updateRequirement(build.id, reqId, { acquired });
     refresh();
   };
 
-  const handleReqAcquired = (reqId, acquired) => {
-    buildRepo.updateRequirement(build.id, reqId, { acquired });
-    refresh();
-  };
-
-  const handleDeleteRequirement = (reqId) => {
+  const handleDeleteRequirement = async (reqId) => {
     if (!confirm('Delete this requirement?')) return;
-    buildRepo.deleteRequirement(build.id, reqId);
-    refresh();
+    setSaving(true);
+    try {
+      await buildRepo.deleteRequirement(build.id, reqId);
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Helper ──
@@ -170,13 +201,13 @@ function BuildDetailInner() {
         <div style={{ display: 'flex', gap: 8 }}>
           {!editing && (
             <>
-              <button className="btn" onClick={startEdit} data-testid="edit-build-btn">Edit</button>
-              <button className="btn" onClick={handleDelete} data-testid="delete-build-btn">Delete Build</button>
+              <button className={`btn${saving ? ' loading' : ''}`} onClick={startEdit} data-testid="edit-build-btn">Edit</button>
+              <button className={`btn${saving ? ' loading' : ''}`} onClick={handleDelete} data-testid="delete-build-btn">Delete Build</button>
             </>
           )}
           {editing && (
             <>
-              <button className="btn primary" onClick={saveEdit} data-testid="save-build-btn">Save</button>
+              <button className={`btn primary${saving ? ' loading' : ''}`} onClick={saveEdit} data-testid="save-build-btn">Save</button>
               <button className="btn" onClick={cancelEdit}>Cancel</button>
             </>
           )}
@@ -218,7 +249,7 @@ function BuildDetailInner() {
         {item ? (
           <div style={{ marginBottom: 8 }}>
             <Link href={`/items/${item.id}`} style={{ fontSize: 13 }}>View item details &rarr;</Link>
-            <button className="btn" style={{ fontSize: 11, padding: '2px 8px', marginLeft: 8 }} onClick={handleUnlinkItem}>Unlink</button>
+            <button className={`btn${saving ? ' loading' : ''}`} style={{ fontSize: 11, padding: '2px 8px', marginLeft: 8 }} onClick={handleUnlinkItem}>Unlink</button>
           </div>
         ) : linkingItem ? (
           <div className="filters" style={{ marginBottom: 8 }}>
@@ -230,7 +261,7 @@ function BuildDetailInner() {
               style={{ minWidth: 180 }}
               data-testid="link-item-select"
             />
-            <button className="btn primary" onClick={handleLinkItem} disabled={!selectedItemId}>Link</button>
+            <button className={`btn primary${saving ? ' loading' : ''}`} onClick={handleLinkItem} disabled={!selectedItemId}>Link</button>
             <button className="btn" onClick={() => setLinkingItem(false)}>Cancel</button>
           </div>
         ) : (
@@ -300,7 +331,7 @@ function BuildDetailInner() {
               />
             </div>
             <div className="filters">
-              <button className="btn primary" type="submit" data-testid="save-req-btn">Add</button>
+              <button className={`btn primary${saving ? ' loading' : ''}`} type="submit" data-testid="save-req-btn">Add</button>
               <button className="btn" type="button" onClick={() => { setReqFormVisible(false); setReqForm({ name: '', wiki_url: '', user_notes: '' }); }}>Cancel</button>
             </div>
           </form>

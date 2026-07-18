@@ -107,9 +107,9 @@ describe('LoadoutRepository', () => {
       expect(second).toBeNull();
     });
 
-    it('updateSlot updates slot properties', () => {
+    it('updateSlot updates slot properties', async () => {
       const slot = loadout.slots[0];
-      const updated = repo.updateSlot(loadout.id, slot.id, {
+      const updated = await repo.updateSlot(loadout.id, slot.id, {
         notes: 'Need to farm',
         acquired: true,
       });
@@ -117,18 +117,18 @@ describe('LoadoutRepository', () => {
       expect(updated.acquired).toBe(true);
     });
 
-    it('updateSlot returns null for unknown loadout', () => {
-      expect(repo.updateSlot('nonexistent', 'slot-1', { notes: 'X' })).toBeNull();
+    it('updateSlot returns null for unknown loadout', async () => {
+      expect(await repo.updateSlot('nonexistent', 'slot-1', { notes: 'X' })).toBeNull();
     });
 
-    it('updateSlot returns null for unknown slot', () => {
-      expect(repo.updateSlot(loadout.id, 'nonexistent', { notes: 'X' })).toBeNull();
+    it('updateSlot returns null for unknown slot', async () => {
+      expect(await repo.updateSlot(loadout.id, 'nonexistent', { notes: 'X' })).toBeNull();
     });
 
-    it('deleteSlot resets slot to empty', () => {
+    it('deleteSlot resets slot to empty', async () => {
       const slot = loadout.slots[0];
-      repo.updateSlot(loadout.id, slot.id, { item_id: 'item-1' });
-      expect(repo.deleteSlot(loadout.id, slot.id)).toBe(true);
+      await await repo.updateSlot(loadout.id, slot.id, { item_id: 'item-1' });
+      expect(await repo.deleteSlot(loadout.id, slot.id)).toBe(true);
       const updated = repo.getLoadoutById(loadout.id);
       const updatedSlot = updated.slots.find((s) => s.id === slot.id);
       expect(updatedSlot.item_id).toBeNull();
@@ -136,12 +136,12 @@ describe('LoadoutRepository', () => {
       expect(updatedSlot.notes).toBe('');
     });
 
-    it('deleteSlot returns null for unknown loadout', () => {
-      expect(repo.deleteSlot('nonexistent', 'slot-1')).toBe(false);
+    it('deleteSlot returns null for unknown loadout', async () => {
+      expect(await repo.deleteSlot('nonexistent', 'slot-1')).toBe(false);
     });
 
-    it('deleteSlot returns null for unknown slot', () => {
-      expect(repo.deleteSlot(loadout.id, 'nonexistent')).toBe(false);
+    it('deleteSlot returns null for unknown slot', async () => {
+      expect(await repo.deleteSlot(loadout.id, 'nonexistent')).toBe(false);
     });
   });
 
@@ -154,8 +154,8 @@ describe('LoadoutRepository', () => {
       slot = repo.addSlot(loadout.id, { slot_type: 'other', item_id: 'item-1' });
     });
 
-    it('addRequirement adds a requirement to a slot', () => {
-      const req = repo.addRequirement(slot.id, { name: 'Forma' });
+    it('addRequirement adds a requirement to a slot', async () => {
+      const req = await repo.addRequirement(slot.id, { name: 'Forma' });
       expect(req).toHaveProperty('id');
       expect(req.name).toBe('Forma');
 
@@ -165,36 +165,36 @@ describe('LoadoutRepository', () => {
       expect(updatedSlot.requirements[0].name).toBe('Forma');
     });
 
-    it('addRequirement trims whitespace from name', () => {
-      const req = repo.addRequirement(slot.id, { name: '  Trimmed  ' });
+    it('addRequirement trims whitespace from name', async () => {
+      const req = await repo.addRequirement(slot.id, { name: '  Trimmed  ' });
       expect(req.name).toBe('Trimmed');
     });
 
-    it('addRequirement returns null for unknown slot', () => {
-      expect(repo.addRequirement('nonexistent', { name: 'Forma' })).toBeNull();
+    it('addRequirement returns null for unknown slot', async () => {
+      expect(await repo.addRequirement('nonexistent', { name: 'Forma' })).toBeNull();
     });
 
-    it('updateRequirement updates requirement properties', () => {
-      const req = repo.addRequirement(slot.id, { name: 'Forma' });
-      const updated = repo.updateRequirement(slot.id, req.id, { name: 'Forma Prime', acquired: true });
+    it('updateRequirement updates requirement properties', async () => {
+      const req = await repo.addRequirement(slot.id, { name: 'Forma' });
+      const updated = await repo.updateRequirement(slot.id, req.id, { name: 'Forma Prime', acquired: true });
       expect(updated.name).toBe('Forma Prime');
       expect(updated.acquired).toBe(true);
     });
 
-    it('updateRequirement returns null for unknown requirement', () => {
-      expect(repo.updateRequirement(slot.id, 'nonexistent', { name: 'X' })).toBeNull();
+    it('updateRequirement returns null for unknown requirement', async () => {
+      expect(await repo.updateRequirement(slot.id, 'nonexistent', { name: 'X' })).toBeNull();
     });
 
-    it('deleteRequirement removes a requirement', () => {
-      const req = repo.addRequirement(slot.id, { name: 'Forma' });
-      expect(repo.deleteRequirement(slot.id, req.id)).toBe(true);
+    it('deleteRequirement removes a requirement', async () => {
+      const req = await repo.addRequirement(slot.id, { name: 'Forma' });
+      expect(await repo.deleteRequirement(slot.id, req.id)).toBe(true);
       const updated = repo.getLoadoutById(loadout.id);
       const updatedSlot = updated.slots.find((s) => s.id === slot.id);
       expect(updatedSlot.requirements.length).toBe(0);
     });
 
-    it('deleteRequirement returns false for unknown requirement', () => {
-      expect(repo.deleteRequirement(slot.id, 'nonexistent')).toBe(false);
+    it('deleteRequirement returns false for unknown requirement', async () => {
+      expect(await repo.deleteRequirement(slot.id, 'nonexistent')).toBe(false);
     });
   });
 
@@ -206,7 +206,7 @@ describe('LoadoutRepository', () => {
     it('getDashboardSummary includes loadout with unacquired items', async () => {
       const loadout = await repo.createLoadout({ name: 'Test' });
       const slot = loadout.slots[0];
-      repo.updateSlot(loadout.id, slot.id, { item_id: 'item-1', acquired: false });
+      await await repo.updateSlot(loadout.id, slot.id, { item_id: 'item-1', acquired: false });
 
       const summary = repo.getDashboardSummary();
       expect(summary.length).toBe(1);
@@ -217,7 +217,7 @@ describe('LoadoutRepository', () => {
     it('getDashboardSummary includes unacquired requirements', async () => {
       const loadout = await repo.createLoadout({ name: 'Test' });
       const slot = repo.addSlot(loadout.id, { slot_type: 'other', item_id: 'item-1' });
-      repo.addRequirement(slot.id, { name: 'Forma', acquired: false });
+      await await repo.addRequirement(slot.id, { name: 'Forma', acquired: false });
 
       const summary = repo.getDashboardSummary();
       expect(summary[0].unacquired_requirements.length).toBe(1);
@@ -233,7 +233,7 @@ describe('LoadoutRepository', () => {
 
     it('getDashboardSummary does not include acquired items', async () => {
       const loadout = await repo.createLoadout({ name: 'Test' });
-      repo.updateSlot(loadout.id, loadout.slots[0].id, { item_id: 'item-1', acquired: true });
+      await await repo.updateSlot(loadout.id, loadout.slots[0].id, { item_id: 'item-1', acquired: true });
 
       const summary = repo.getDashboardSummary();
       expect(summary[0].unacquired_slots.length).toBe(0);

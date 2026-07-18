@@ -66,6 +66,8 @@ function LoadoutDetailInner() {
   // Duplicate requirement warning per slot
   const [reqWarning, setReqWarning] = useState({});
 
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     const lr = loadoutStore;
     lr.init().then(async () => {
@@ -93,10 +95,15 @@ function LoadoutDetailInner() {
     await loadoutRepo.updateLoadoutData(id, currentData);
   };
 
-  const handleDeleteLoadout = () => {
+  const handleDeleteLoadout = async () => {
     if (!confirm('Delete this entire loadout? All slots and requirements will be lost.')) return;
-    loadoutRepo.deleteLoadout(id);
-    router.push('/loadouts');
+    setSaving(true);
+    try {
+      await loadoutRepo.deleteLoadout(id);
+      router.push('/loadouts');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Populate empty slot ──
@@ -114,13 +121,10 @@ function LoadoutDetailInner() {
     setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
   };
 
-  const handlePopulateSlot = (e, slotId) => {
+  const handlePopulateSlot = async (e, slotId) => {
     e.preventDefault();
     const slot = slots.find((s) => s.id === slotId);
     const isCurated = CURATED_NAME_SLOT_TYPES.has(slot?.slot_type);
-    // Curated slots (necramech/archgun/necramech_melee) pick a plain name
-    // rather than a real catalog item — route the picker's selection into
-    // custom_item_name instead of item_id.
     const finalItemId = isCurated ? null : (populateForm.item_id || null);
     const finalCustomName = isCurated
       ? (populateForm.item_id || populateForm.custom_item_name.trim() || null)
@@ -128,7 +132,6 @@ function LoadoutDetailInner() {
     const hasItem = finalItemId || finalCustomName;
     if (!hasItem) return;
 
-    // Check for duplicate items in this loadout (exclude the slot being populated)
     const existing = slots.filter((s) => {
       if (s.id === slotId) return false;
       if (finalItemId && s.item_id === finalItemId) return true;
@@ -140,14 +143,19 @@ function LoadoutDetailInner() {
       return;
     }
 
-    loadoutRepo.updateSlot(id, slotId, {
-      item_id: finalItemId,
-      custom_item_name: finalCustomName,
-      notes: populateForm.notes
-    });
-    setPopulatingSlotId(null);
-    setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
-    refresh();
+    setSaving(true);
+    try {
+      await loadoutRepo.updateSlot(id, slotId, {
+        item_id: finalItemId,
+        custom_item_name: finalCustomName,
+        notes: populateForm.notes
+      });
+      setPopulatingSlotId(null);
+      setPopulateForm({ item_id: '', custom_item_name: '', notes: '' });
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Slot CRUD ──
@@ -157,10 +165,15 @@ function LoadoutDetailInner() {
     refresh();
   };
 
-  const handleDeleteSlot = (slotId) => {
+  const handleDeleteSlot = async (slotId) => {
     if (!confirm('Reset this slot? All data and requirements will be cleared.')) return;
-    loadoutRepo.deleteSlot(id, slotId);
-    refresh();
+    setSaving(true);
+    try {
+      await loadoutRepo.deleteSlot(id, slotId);
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const startEditSlot = (slot) => {
@@ -168,11 +181,16 @@ function LoadoutDetailInner() {
     setEditNotes(slot.notes || '');
   };
 
-  const saveEditSlot = () => {
+  const saveEditSlot = async () => {
     if (!editingSlotId) return;
-    loadoutRepo.updateSlot(id, editingSlotId, { notes: editNotes });
-    setEditingSlotId(null);
-    refresh();
+    setSaving(true);
+    try {
+      await loadoutRepo.updateSlot(id, editingSlotId, { notes: editNotes });
+      setEditingSlotId(null);
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Requirement CRUD ──
@@ -187,27 +205,30 @@ function LoadoutDetailInner() {
     setReqForm((prev) => ({ ...prev, [slotId]: { name: '', wiki_url: '', user_notes: '' } }));
   };
 
-  const handleAddRequirement = (e, slotId) => {
+  const handleAddRequirement = async (e, slotId) => {
     e.preventDefault();
     const form = reqForm[slotId];
     if (!form || !form.name.trim()) return;
 
-    // Clear any previous warning for this slot
     setReqWarning((prev) => ({ ...prev, [slotId]: null }));
+    setSaving(true);
+    try {
+      const result = await loadoutRepo.addRequirement(slotId, {
+        name: form.name.trim(),
+        wiki_url: form.wiki_url.trim() || null,
+        user_notes: form.user_notes.trim() || ''
+      });
 
-    const result = loadoutRepo.addRequirement(slotId, {
-      name: form.name.trim(),
-      wiki_url: form.wiki_url.trim() || null,
-      user_notes: form.user_notes.trim() || ''
-    });
+      if (result.error) {
+        setReqWarning((prev) => ({ ...prev, [slotId]: result.error }));
+        return;
+      }
 
-    if (result.error) {
-      setReqWarning((prev) => ({ ...prev, [slotId]: result.error }));
-      return;
+      setReqForm((prev) => ({ ...prev, [slotId]: { name: '', wiki_url: '', user_notes: '' } }));
+      refresh();
+    } finally {
+      setSaving(false);
     }
-
-    setReqForm((prev) => ({ ...prev, [slotId]: { name: '', wiki_url: '', user_notes: '' } }));
-    refresh();
   };
 
   const handleReqAcquired = (slotId, reqId, acquired) => {
@@ -215,10 +236,15 @@ function LoadoutDetailInner() {
     refresh();
   };
 
-  const handleDeleteRequirement = (slotId, reqId) => {
+  const handleDeleteRequirement = async (slotId, reqId) => {
     if (!confirm('Delete this requirement?')) return;
-    loadoutRepo.deleteRequirement(slotId, reqId);
-    refresh();
+    setSaving(true);
+    try {
+      await loadoutRepo.deleteRequirement(slotId, reqId);
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleExpanded = (slotId) => {
@@ -294,7 +320,7 @@ function LoadoutDetailInner() {
           />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn" onClick={handleDeleteLoadout}>Delete Loadout</button>
+          <button className={`btn${saving ? ' loading' : ''}`} onClick={handleDeleteLoadout}>Delete Loadout</button>
         </div>
       </div>
 
@@ -397,7 +423,7 @@ function LoadoutDetailInner() {
                         placeholder="Notes"
                         style={{ minHeight: 40, flex: 1 }}
                       />
-                      <button className="btn primary" onClick={saveEditSlot}>Save</button>
+                      <button className={`btn primary${saving ? ' loading' : ''}`} onClick={saveEditSlot}>Save</button>
                       <button className="btn" onClick={() => setEditingSlotId(null)}>Cancel</button>
                     </div>
                   ) : isPopulating ? (
@@ -420,7 +446,7 @@ function LoadoutDetailInner() {
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 {isPopulating ? (
                   <>
-                    <button className="btn primary" onClick={(e) => handlePopulateSlot(e, slot.id)}>Save</button>
+                    <button className={`btn primary${saving ? ' loading' : ''}`} onClick={(e) => handlePopulateSlot(e, slot.id)}>Save</button>
                     <button className="btn" onClick={cancelPopulate}>Cancel</button>
                   </>
                 ) : (
@@ -428,7 +454,7 @@ function LoadoutDetailInner() {
                     {!isEditing && (
                       <button className="btn" onClick={() => startEditSlot(slot)}>Edit</button>
                     )}
-                    <button className="btn" onClick={() => handleDeleteSlot(slot.id)}>
+                    <button className={`btn${saving ? ' loading' : ''}`} onClick={() => handleDeleteSlot(slot.id)}>
                       {isEmpty ? '—' : 'Delete Slot'}
                     </button>
                   </>
@@ -516,7 +542,7 @@ function LoadoutDetailInner() {
                         onChange={(e) => setReqForm((prev) => ({ ...prev, [slot.id]: { ...prev[slot.id], user_notes: e.target.value } }))}
                         style={{ minWidth: 160 }}
                       />
-                      <button className="btn primary" type="submit">Add</button>
+                      <button className={`btn primary${saving ? ' loading' : ''}`} type="submit">Add</button>
                       <button className="btn" type="button" onClick={() => toggleReqForm(slot.id)}>Cancel</button>
                     </form>
                   ) : (

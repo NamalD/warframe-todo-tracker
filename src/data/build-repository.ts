@@ -99,7 +99,7 @@ export default class BuildRepository {
 
   /** @param {Object} params @returns {Build} */
   // @ts-ignore - implicit any in destructuring
-  createBuild({ name, item_id, custom_item_name, wiki_url, notes, acquired }) {
+  async createBuild({ name, item_id, custom_item_name, wiki_url, notes, acquired }) {
     const id = this.#nextId('build');
     const now = this.#now();
     const build = {
@@ -116,29 +116,29 @@ export default class BuildRepository {
     };
     // @ts-ignore - JSDoc type on private field
     this.#data.builds.push(build);
-    this.#persistToServer().then((ok) => { if (ok) toast.success('Build created'); }).catch(() => {});
+    await this.#persistToServer().catch(() => {});
     return this.getBuildById(id);
   }
 
   /** @param {string} id @param {Object} updates @returns {Build | null} */
   // @ts-ignore - inline JSDoc param type not recognized
-  updateBuild(id, updates) {
+  async updateBuild(id, updates) {
     // @ts-ignore - JSDoc type on private field
     const build = this.#data.builds.find((b) => b.id === id);
     if (!build) return null;
     Object.assign(build, updates, { updated_at: this.#now() });
-    this.#persistToServer().catch(() => {});
+    await this.#persistToServer().catch(() => {});
     return this.getBuildById(id);
   }
 
   /** @param {string} id @returns {boolean} */
   // @ts-ignore - inline JSDoc param type not recognized
-  deleteBuild(id) {
+  async deleteBuild(id) {
     const before = this.#data.builds.length;
     // @ts-ignore - JSDoc type on private field
     this.#data.builds = this.#data.builds.filter((b) => b.id !== id);
     if (this.#data.builds.length !== before) {
-      this.#persistToServer().then((ok) => { if (ok) toast.success('Build deleted'); }).catch(() => {});
+      await this.#persistToServer().catch(() => {});
       return true;
     }
     return false;
@@ -146,7 +146,7 @@ export default class BuildRepository {
 
   /** @param {string} buildId @param {Object} requirement @returns {Object | null} */
   // @ts-ignore - inline JSDoc param type not recognized
-  addRequirement(buildId, requirement) {
+  async addRequirement(buildId, requirement) {
     // @ts-ignore - JSDoc type on private field
     const build = /** @type {Build} */ (this.#data.builds.find((b) => b.id === buildId));
     if (!build) return null;
@@ -167,46 +167,45 @@ export default class BuildRepository {
     build.requirements.push(entry);
     // @ts-ignore - JSDoc type on private field
     build.updated_at = this.#now();
-    this.#persistToServer().catch(() => {});
+    await this.#persistToServer().catch(() => {});
     return { ...entry };
   }
 
   /** @param {string} buildId @param {string} requirementId @param {Object} updates @returns {Object | null} */
-    // @ts-ignore - inline JSDoc param type not recognized
-    updateRequirement(buildId, requirementId, updates) {
-      // @ts-ignore - JSDoc type on private field
-      const build = /** @type {Build} */ (this.#data.builds.find((b) => b.id === buildId));
-      if (!build) return null;
-      // @ts-ignore - JSDoc type on private field
-      const req = (build.requirements || []).find((r) => r.id === requirementId);
-      if (!req) return null;
-      // @ts-ignore - JSDoc type on private field
-      Object.assign(req, updates);
+  // @ts-ignore - inline JSDoc param type not recognized
+  async updateRequirement(buildId, requirementId, updates) {
+    // @ts-ignore - JSDoc type on private field
+    const build = /** @type {Build} */ (this.#data.builds.find((b) => b.id === buildId));
+    if (!build) return null;
+    // @ts-ignore - JSDoc type on private field
+    const req = (build.requirements || []).find((r) => r.id === requirementId);
+    if (!req) return null;
+    // @ts-ignore - JSDoc type on private field
+    Object.assign(req, updates);
+    // @ts-ignore - JSDoc type on private field
+    build.updated_at = this.#now();
+    await this.#persistToServer().catch(() => {});
+    return { ...req };
+  }
+
+  /** @param {string} buildId @param {string} requirementId @returns {boolean} */
+  // @ts-ignore - inline JSDoc param type not recognized
+  async deleteRequirement(buildId, requirementId) {
+    // @ts-ignore - JSDoc type on private field
+    const build = /** @type {Build} */ (this.#data.builds.find((b) => b.id === buildId));
+    if (!build) return false;
+    // @ts-ignore - JSDoc type on private field
+    const before = (build.requirements || []).length;
+    // @ts-ignore - JSDoc type on private field
+    build.requirements = (build.requirements || []).filter((r) => r.id !== requirementId);
+    if (build.requirements.length !== before) {
       // @ts-ignore - JSDoc type on private field
       build.updated_at = this.#now();
-      this.#persistToServer().catch(() => {});
-      return { ...req };
+      await this.#persistToServer().catch(() => {});
+      return true;
     }
-
-    /** @param {string} buildId @param {string} requirementId @returns {boolean} */
-    // @ts-ignore - inline JSDoc param type not recognized
-    deleteRequirement(buildId, requirementId) {
-      // @ts-ignore - JSDoc type on private field
-      const build = /** @type {Build} */ (this.#data.builds.find((b) => b.id === buildId));
-      if (!build) return false;
-      // @ts-ignore - JSDoc type on private field
-      const before = (build.requirements || []).length;
-      // @ts-ignore - JSDoc type on private field
-      build.requirements = (build.requirements || []).filter((r) => r.id !== requirementId);
-      // @ts-ignore - JSDoc type on private field
-      if (build.requirements.length !== before) {
-        // @ts-ignore - JSDoc type on private field
-        build.updated_at = this.#now();
-        this.#persistToServer().catch(() => {});
-        return true;
-      }
-      return false;
-    }
+    return false;
+  }
 
   /** @returns {Object[]} */
   getDashboardSummary() {

@@ -43,7 +43,7 @@ describe('LoadoutRepository', () => {
     it('getDashboardSummary includes legacy requirements', async () => {
       const l = await repo.createLoadout({ name: 'Test' });
       const s = repo.addSlot(l.id, { slot_type: 'other', item_id: 'item-1' });
-      repo.addRequirement(s.id, { name: 'Forma', acquired: false });
+      await repo.addRequirement(s.id, { name: 'Forma', acquired: false });
       const summary = repo.getDashboardSummary();
       expect(summary[0].unacquired_requirements.length).toBe(1);
       expect(summary[0].unacquired_requirements[0].name).toBe('Forma');

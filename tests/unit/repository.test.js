@@ -237,7 +237,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       const fetchMock = mockFetchOk(FIXTURE_CACHE);
       const repo = await newRepo(fetchMock);
 
-      const todo = repo.addTodo({
+      const todo = await repo.addTodo({
         craftable_item_id: 'item-1',
         user_notes: 'Test todo',
         status: 'pending',
@@ -255,7 +255,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       const fetchMock = mockFetchOk(FIXTURE_CACHE);
       const repo = await newRepo(fetchMock);
 
-      const todo = repo.addTodo({ user_notes: 'Auto id', status: 'pending' });
+      const todo = await repo.addTodo({ user_notes: 'Auto id', status: 'pending' });
       expect(todo.id).toBeDefined();
       expect(todo.id).toMatch(/^todo-/);
     });
@@ -264,7 +264,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       const fetchMock = mockFetchOk(FIXTURE_CACHE);
       const repo = await newRepo(fetchMock);
 
-      const todo = repo.addTodo({ id: 'custom-id', user_notes: 'Custom id', status: 'pending' });
+      const todo = await repo.addTodo({ id: 'custom-id', user_notes: 'Custom id', status: 'pending' });
       expect(todo.id).toBe('custom-id');
     });
 
@@ -274,7 +274,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
 
       const todos = repo.getTodos();
       const firstTodo = todos[0];
-      const updated = repo.updateTodoStatus(firstTodo.id, 'completed');
+      const updated = await repo.updateTodoStatus(firstTodo.id, 'completed');
       expect(updated.status).toBe('completed');
     });
 
@@ -282,7 +282,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       const fetchMock = mockFetchOk(FIXTURE_CACHE);
       const repo = await newRepo(fetchMock);
 
-      expect(repo.updateTodoStatus('nonexistent', 'completed')).toBeNull();
+      expect(await repo.updateTodoStatus('nonexistent', 'completed')).toBeNull();
     });
 
     it('updateTodoNotes changes notes', async () => {
@@ -291,7 +291,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
 
       const todos = repo.getTodos();
       const firstTodo = todos[0];
-      const updated = repo.updateTodoNotes(firstTodo.id, 'New notes');
+      const updated = await repo.updateTodoNotes(firstTodo.id, 'New notes');
       expect(updated.user_notes).toBe('New notes');
     });
 
@@ -299,7 +299,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       const fetchMock = mockFetchOk(FIXTURE_CACHE);
       const repo = await newRepo(fetchMock);
 
-      expect(repo.updateTodoNotes('nonexistent', 'notes')).toBeNull();
+      expect(await repo.updateTodoNotes('nonexistent', 'notes')).toBeNull();
     });
 
     it('deleteTodo removes a todo', async () => {
@@ -308,7 +308,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
 
       const todos = repo.getTodos();
       const countBefore = todos.length;
-      const result = repo.deleteTodo(todos[0].id);
+      const result = await repo.deleteTodo(todos[0].id);
       expect(result).toBe(true);
       expect(repo.getTodos().length).toBe(countBefore - 1);
     });
@@ -317,7 +317,7 @@ describe('Repository (wfcd-cache lazy loading)', () => {
       const fetchMock = mockFetchOk(FIXTURE_CACHE);
       const repo = await newRepo(fetchMock);
 
-      expect(repo.deleteTodo('nonexistent')).toBe(false);
+      expect(await repo.deleteTodo('nonexistent')).toBe(false);
     });
   });
 

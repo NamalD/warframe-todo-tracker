@@ -23,6 +23,7 @@ function BuildsPageInner() {
   const [newItemId, setNewItemId] = useState('');
   const [newCustomName, setNewCustomName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const statusFilter = searchParams.get('status') || 'all';
 
@@ -55,11 +56,10 @@ function BuildsPageInner() {
     router.replace(qs ? `?${qs}` : window.location.pathname, { scroll: false });
   };
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
 
-    // If an item is selected, use its name and wiki_url automatically
     let name = newName.trim();
     let itemId = newItemId || null;
     let customItemName = newCustomName.trim() || null;
@@ -74,24 +74,34 @@ function BuildsPageInner() {
       }
     }
 
-    buildRepo.createBuild({
-      name,
-      item_id: itemId,
-      custom_item_name: customItemName,
-      wiki_url: wikiUrl,
-      notes: ''
-    });
-    setNewName('');
-    setNewItemId('');
-    setNewCustomName('');
-    setCreating(false);
-    refresh();
+    setSaving(true);
+    try {
+      await buildRepo.createBuild({
+        name,
+        item_id: itemId,
+        custom_item_name: customItemName,
+        wiki_url: wikiUrl,
+        notes: ''
+      });
+      setNewName('');
+      setNewItemId('');
+      setNewCustomName('');
+      setCreating(false);
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!confirm('Delete this build? All requirements will be lost.')) return;
-    buildRepo.deleteBuild(id);
-    refresh();
+    setSaving(true);
+    try {
+      await buildRepo.deleteBuild(id);
+      refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return (
@@ -185,7 +195,7 @@ function BuildsPageInner() {
                 style={{ minWidth: 200 }}
                 data-testid="build-name-input"
               />
-              <button className="btn primary" type="submit" data-testid="create-build-btn">Create</button>
+              <button className={`btn primary${saving ? ' loading' : ''}`} type="submit" data-testid="create-build-btn">Create</button>
             </div>
           </div>
         </form>
@@ -235,7 +245,7 @@ function BuildsPageInner() {
               </div>
               <div style={{ display: 'flex', gap: 8, marginLeft: 12 }}>
                 <Link href={`/builds/${build.id}`} className="btn" data-testid={`open-build-${build.id}`}>Open</Link>
-                <button className="btn" onClick={() => handleDelete(build.id)} data-testid={`delete-build-${build.id}`}>Delete</button>
+                <button className={`btn${saving ? ' loading' : ''}`} onClick={() => handleDelete(build.id)} data-testid={`delete-build-${build.id}`}>Delete</button>
               </div>
             </div>
           </div>
